@@ -7,6 +7,8 @@ use std::sync::Arc;
 
 use synapse_server::catalog::application::CatalogService;
 use synapse_server::catalog::infrastructure::FileSystemContentRepository;
+use synapse_server::execution::application::RunCodeService;
+use synapse_server::execution::infrastructure::GoJudgeRunner;
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -25,6 +27,7 @@ async fn main() -> anyhow::Result<()> {
     // The wiring graph, in one place: config → adapters → services → the router.
     let repo = FileSystemContentRepository::new(&cfg.content_root, cfg.auto_reload);
     let catalog = Arc::new(CatalogService::new(repo));
+    let run = Arc::new(RunCodeService::new(GoJudgeRunner::new(&cfg.executor_url)));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], cfg.port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
@@ -32,9 +35,10 @@ async fn main() -> anyhow::Result<()> {
         port = cfg.port,
         content_root = cfg.content_root,
         auto_reload = cfg.auto_reload,
+        executor_url = cfg.executor_url,
         "synapse-rs server started"
     );
 
-    axum::serve(listener, synapse_server::app(catalog)).await?;
+    axum::serve(listener, synapse_server::app(catalog, run)).await?;
     Ok(())
 }

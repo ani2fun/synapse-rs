@@ -19,6 +19,9 @@ pub struct AppConfig {
     /// ADR-S010: dev re-checks the content watermark so live edits show; prod builds the index
     /// once per git SHA. Env: `SYNAPSE_AUTO_RELOAD`.
     pub auto_reload: bool,
+    /// The go-judge sandbox `POST /run` base URL (step 10). Env: `EXECUTOR_URL` (the oracle's
+    /// deploy-manifest name, mapped in `load`) or `SYNAPSE_EXECUTOR_URL`.
+    pub executor_url: String,
 }
 
 impl Default for AppConfig {
@@ -27,6 +30,7 @@ impl Default for AppConfig {
             port: 8180,
             content_root: "../synapse-content".to_owned(),
             auto_reload: true,
+            executor_url: "http://localhost:5150".to_owned(),
         }
     }
 }
@@ -44,8 +48,11 @@ impl AppConfig {
                 key.as_str().to_owned().into()
             }
         });
+        // `EXECUTOR_URL` is the oracle's deploy-manifest name (no prefix) — honored verbatim.
+        let executor = Env::raw().only(&["EXECUTOR_URL"]).map(|_| "executor_url".into());
         Figment::from(Serialized::defaults(Self::default()))
             .merge(env)
+            .merge(executor)
             .extract()
             .map_err(Box::new)
     }

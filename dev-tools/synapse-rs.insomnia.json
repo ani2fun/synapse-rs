@@ -60,6 +60,26 @@
       "url": "{{ _.base_url }}/api/synapse/learn/dsa/lists/singly"
     },
     {
+      "_id": "fld_execution",
+      "_type": "request_group",
+      "parentId": "wrk_synapse_rs",
+      "name": "execution"
+    },
+    {
+      "_id": "req_run",
+      "_type": "request",
+      "parentId": "fld_execution",
+      "name": "POST /api/run",
+      "description": "Run one snippet in the go-judge sandbox. A badly-running program is a 200 with a non-Accepted status; 422 unknown language, 413 over the byte caps, 503/502 backend. (step 10)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/run",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"language\": \"py\",\n  \"source\": \"print(21 * 2)\"\n}"
+      },
+      "headers": [{ "name": "Content-Type", "value": "application/json" }]
+    },
+    {
       "_id": "req_catalog_c4doc",
       "_type": "request",
       "parentId": "fld_catalog",

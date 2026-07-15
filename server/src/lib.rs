@@ -12,17 +12,20 @@ use std::sync::Arc;
 
 use axum::Router;
 use catalog::http::LiveCatalogService;
+use execution::http::LiveRunService;
 use synapse_shared::api::{ApiError, HealthStatus};
 use synapse_shared::catalog::{ComponentDocDto, LessonPayloadDto, SynapseIndexDto};
+use synapse_shared::execution::{RunRequest, RunResult};
 use utoipa::OpenApi;
 
 /// The assembled HTTP surface. Contexts contribute their routers here as they land; integration
 /// tests drive this exact router, so what the suite exercises is what the binary serves.
 /// `ContentCacheControl` wraps the whole surface — it stamps only public content GETs on 200.
-pub fn app(catalog: Arc<LiveCatalogService>) -> Router {
+pub fn app(catalog: Arc<LiveCatalogService>, run: Arc<LiveRunService>) -> Router {
     Router::new()
         .merge(platform::http::routes())
         .merge(catalog::http::routes(catalog))
+        .merge(execution::http::routes(run))
         .layer(axum::middleware::from_fn(platform::content_cache_control::stamp))
 }
 
@@ -37,8 +40,17 @@ pub fn app(catalog: Arc<LiveCatalogService>) -> Router {
         platform::http::get_health,
         catalog::http::routes::get_synapse_index,
         catalog::http::routes::get_component_doc,
-        catalog::http::routes::get_synapse_lesson
+        catalog::http::routes::get_synapse_lesson,
+        execution::http::run_code
     ),
-    components(schemas(HealthStatus, ApiError, SynapseIndexDto, LessonPayloadDto, ComponentDocDto))
+    components(schemas(
+        HealthStatus,
+        ApiError,
+        SynapseIndexDto,
+        LessonPayloadDto,
+        ComponentDocDto,
+        RunRequest,
+        RunResult
+    ))
 )]
 pub struct ApiDoc;

@@ -4,4 +4,5 @@
 //! `application/` declares the `ContentRepository` port; `infrastructure/` walks the filesystem;
 //! `http/` maps wire DTOs.
 
+pub mod application;
 pub mod domain;

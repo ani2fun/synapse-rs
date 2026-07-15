@@ -31,3 +31,4 @@ introduced the feature, never as later afterthoughts.
 | 01 | `step-01` | [Hello, synapse-rs](01-hello-synapse-rs.md) | 2026-07-15 |
 | 02 | `step-02` | [Leptos and the island bridge](02-leptos-and-the-island-bridge.md) | 2026-07-15 |
 | 03 | `step-03` | [The catalog domain](03-the-catalog-domain.md) | 2026-07-15 |
+| 04 | `step-04` | [The catalog application](04-the-catalog-application.md) | 2026-07-15 |

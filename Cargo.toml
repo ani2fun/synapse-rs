@@ -35,6 +35,7 @@ console_error_panic_hook = "0.1"
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"
 serde_yaml = "0.9"
+tempfile = "3"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # LINTS — the anti-pattern gate (RS001)

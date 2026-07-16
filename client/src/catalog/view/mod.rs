@@ -5,6 +5,7 @@ mod diagrams;
 mod library;
 mod prefs;
 mod reader;
+mod tour;
 
 pub use library::LibraryPage;
 pub use prefs::ReaderPrefsFab;

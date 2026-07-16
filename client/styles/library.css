@@ -1,0 +1,67 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   THE LIBRARY LANDING (step 32; oracle: library.css, live classes only) —
+   hero pill + CTAs, the section title, the book grid, category bands, cards.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.library { max-width: 1120px; margin: 0 auto; padding: 8px 0 80px; }
+.library__body { display: flex; flex-direction: column; gap: 56px; }
+
+.lib-hero { display: flex; flex-direction: column; align-items: flex-start;
+            margin-bottom: 56px; }
+.lib-hero__pill { display: inline-flex; align-items: center; gap: 8px;
+                  border: 1px solid hsl(var(--border)); border-radius: 999px;
+                  padding: 6px 14px; margin-bottom: 18px;
+                  font-family: var(--font-mono); font-size: 12px;
+                  color: hsl(var(--muted-foreground)); }
+.lib-hero__dot { width: 7px; height: 7px; border-radius: 50%;
+                 background: hsl(var(--primary));
+                 box-shadow: 0 0 0 4px hsl(var(--primary) / 0.16); }
+.lib-hero__ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+.lib-hero__cta { display: inline-flex; align-items: center; gap: 8px; height: 46px;
+                 padding: 0 20px; border-radius: 12px; font-size: 14.5px;
+                 font-weight: 600; cursor: pointer; text-decoration: none;
+                 border: 1px solid transparent; }
+.lib-hero__cta--primary { background: hsl(var(--primary));
+                          color: hsl(var(--primary-foreground)); }
+.lib-hero__cta--primary:hover { filter: brightness(1.06); }
+.lib-hero__cta--ghost { border-color: hsl(var(--border)); color: hsl(var(--foreground)); }
+.lib-hero__cta--ghost:hover { border-color: hsl(var(--primary)); color: hsl(var(--primary)); }
+.lib-hero__cta svg { width: 18px; height: 18px; }
+
+.lib-section__title { font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+                      text-transform: uppercase; letter-spacing: 0.16em;
+                      color: hsl(var(--muted-foreground)); margin: 0 0 16px; }
+
+.lib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px; }
+.lib-group { grid-column: 1 / -1; border-top: 1px solid hsl(var(--border));
+             padding-top: 18px; display: flex; flex-direction: column; gap: 14px; }
+.lib-group__title { font-family: var(--font-mono); font-size: 11px;
+                    text-transform: uppercase; letter-spacing: 0.14em;
+                    color: hsl(var(--muted-foreground)); }
+
+.lib-card { display: flex; flex-direction: column; gap: 10px; padding: 20px;
+            border: 1px solid hsl(var(--border)); border-radius: 14px;
+            background: hsl(var(--card)); color: inherit; text-decoration: none;
+            transition: border-color 140ms, transform 140ms, box-shadow 140ms; }
+a.lib-card:hover { border-color: hsl(var(--primary)); transform: translateY(-2px);
+                   box-shadow: 0 10px 30px -18px hsl(var(--foreground) / 0.45); }
+a.lib-card:hover .lib-card__title { color: hsl(var(--primary)); }
+a.lib-card:hover .lib-card__cta-ic { transform: translateX(3px); }
+.lib-card--empty { opacity: 0.65; }
+.lib-card__meta { display: flex; align-items: center; gap: 6px;
+                  font-family: var(--font-mono); font-size: 10.5px;
+                  text-transform: uppercase; letter-spacing: 0.08em;
+                  color: hsl(var(--muted-foreground)); }
+.lib-card__meta-ic { width: 14px; height: 14px; flex: none; }
+.lib-card__title { font-size: 18px; font-weight: 700; color: hsl(var(--foreground));
+                   transition: color 140ms; }
+.lib-card__desc { flex: 1 1 auto; margin: 0; font-size: 14px;
+                  color: hsl(var(--muted-foreground)); }
+.lib-card__footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.lib-card__tag { font-family: var(--font-mono); font-size: 10px;
+                 border: 1px solid hsl(var(--border)); border-radius: 999px;
+                 padding: 2px 8px; color: hsl(var(--muted-foreground)); }
+.lib-card__cta { margin-left: auto; display: inline-flex; align-items: center; gap: 4px;
+                 font-size: 13px; font-weight: 600; color: hsl(var(--primary)); }
+.lib-card__cta-ic { transition: transform 140ms; }

@@ -54,6 +54,31 @@ pub fn book_of<'a>(index: &'a SynapseIndexDto, lesson_path: &[String]) -> Option
     find(&index.entries, lesson_path)
 }
 
+/// The book with a globally-unique slug, DFS through categories (oracle: `CatalogNav.findBook`).
+pub fn find_book<'a>(index: &'a SynapseIndexDto, slug: &str) -> Option<&'a BookDto> {
+    fn dfs<'a>(entries: &'a [CatalogEntryDto], slug: &str) -> Option<&'a BookDto> {
+        entries.iter().find_map(|entry| match entry {
+            CatalogEntryDto::Book(book) if book.slug == slug => Some(book),
+            CatalogEntryDto::Book(_) => None,
+            CatalogEntryDto::Category(category) => dfs(&category.entries, slug),
+        })
+    }
+    dfs(&index.entries, slug)
+}
+
+/// Recursive lesson-leaf count — the card's "N lessons" line.
+pub fn lesson_count(book: &BookDto) -> usize {
+    reading_order(book).len()
+}
+
+/// DIRECT chapter children only (the oracle counts top-level chapters on the card).
+pub fn chapter_count(book: &BookDto) -> usize {
+    book.entries
+        .iter()
+        .filter(|entry| matches!(entry, BookEntryDto::Chapter(_)))
+        .count()
+}
+
 #[cfg(test)]
 #[path = "logic_tests.rs"]
 mod tests;

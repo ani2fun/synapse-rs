@@ -1,0 +1,140 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   THE GUIDED TOUR (step 32; oracle: tour.css) — the carousel stage, footer
+   chrome, and the four slide mockups (library cards · code · reader · viz).
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.syn-tour { width: 100%; }
+.syn-tour__stage { display: flex; min-height: 470px; padding: 36px 40px 26px;
+                   border: 1px solid hsl(var(--border)); border-radius: 22px;
+                   background: hsl(var(--card) / 0.5); overflow: hidden; }
+.syn-tour__slide { display: grid; grid-template-columns: 1fr 1fr; align-items: center;
+                   gap: 52px; width: 100%; }
+.syn-tour__eyebrow { font-family: var(--font-mono); font-size: 12px;
+                     text-transform: uppercase; letter-spacing: 0.18em;
+                     color: hsl(var(--primary)); margin-bottom: 14px; }
+.syn-tour__title { font-family: var(--font-serif, Georgia, serif); font-style: italic;
+                   font-size: clamp(34px, 4.4vw, 52px); line-height: 1.02;
+                   margin: 0 0 16px; color: hsl(var(--foreground)); }
+.syn-tour__desc { max-width: 46ch; font-size: clamp(14.5px, 1.2vw, 16.5px);
+                  color: hsl(var(--muted-foreground)); margin: 0 0 22px; }
+.syn-tour__bullets { display: flex; flex-direction: column; gap: 14px; margin: 0;
+                     padding: 0; list-style: none; }
+.syn-tour__bullet { display: flex; align-items: center; gap: 12px; font-size: 15px;
+                    color: hsl(var(--foreground)); }
+.syn-tour__tick { width: 9px; height: 9px; border-radius: 3px;
+                  background: hsl(var(--primary)); flex: none; }
+.syn-tour__right { display: flex; justify-content: center; min-width: 0; }
+
+.syn-tour__foot { display: flex; align-items: center; gap: 16px; margin-top: 14px;
+                  padding-top: 12px; border-top: 1px solid hsl(var(--border)); }
+.syn-tour__label { font-family: var(--font-mono); font-size: 12px;
+                   color: hsl(var(--muted-foreground)); }
+.syn-tour__dots { display: flex; gap: 8px; margin: 0 auto; }
+.syn-tour__dot { width: 8px; height: 8px; border-radius: 999px; border: 0;
+                 background: hsl(var(--muted-foreground) / 0.4); cursor: pointer;
+                 transition: width 160ms, background 160ms; padding: 0; }
+.syn-tour__dot:hover { background: hsl(var(--muted-foreground) / 0.7); }
+.syn-tour__dot--active { width: 26px; background: hsl(var(--primary)); }
+.syn-tour__nav { display: flex; gap: 8px; }
+.syn-tour__arrow { width: 40px; height: 34px; display: inline-flex; align-items: center;
+                   justify-content: center; border: 1px solid hsl(var(--border));
+                   border-radius: 10px; background: transparent;
+                   color: hsl(var(--foreground)); cursor: pointer; }
+.syn-tour__arrow:hover { border-color: hsl(var(--primary)); color: hsl(var(--primary)); }
+.syn-tour__arrow--primary { background: hsl(var(--primary));
+                            color: hsl(var(--primary-foreground)); border-color: transparent; }
+.syn-tour__arrow-ic { display: inline-flex; }
+.syn-tour__arrow-ic--flip { transform: rotate(180deg); }
+
+/* ── slide 1: the library cards ── */
+.tour-lib { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;
+            max-width: 460px; width: 100%; }
+.tour-lib__card { display: flex; flex-direction: column; gap: 6px; padding: 14px;
+                  border: 1px solid hsl(var(--border)); border-radius: 14px;
+                  background: hsl(var(--card)); text-decoration: none; color: inherit;
+                  transition: border-color 140ms, transform 140ms; }
+.tour-lib__card:hover { border-color: hsl(var(--primary)); transform: translateY(-2px); }
+.tour-lib__card:hover .tour-lib__name { color: hsl(var(--primary)); }
+.tour-lib__thumb { height: 78px; display: flex; align-items: center; justify-content: center;
+                   border-radius: 10px; color: #fff; }
+.tour-lib__thumb--a { background: linear-gradient(135deg, #1f6f64, #2f9c8b); }
+.tour-lib__thumb--b { background: linear-gradient(135deg, #14532d, #2f855a); }
+.tour-lib__thumb--c { background: linear-gradient(135deg, #92610f, #c78f2d); }
+.tour-lib__thumb--d { background: linear-gradient(135deg, #1e3a8a, #3b82c4); }
+.tour-lib__mark { width: 40px; height: 40px; }
+.tour-lib__name { font-style: italic; font-weight: 600; font-size: 15px;
+                  color: hsl(var(--foreground)); transition: color 140ms; }
+.tour-lib__sub { font-family: var(--font-mono); font-size: 10px;
+                 color: hsl(var(--muted-foreground)); }
+
+/* ── slide 2: the runnable-block mockup (fixed-dark body, like the shiki slab) ── */
+.tour-code { max-width: 460px; width: 100%; border: 1px solid hsl(var(--border));
+             border-radius: 14px; background: hsl(var(--card)); overflow: hidden; }
+.tour-code__bar { display: flex; align-items: center; padding: 10px 12px;
+                  border-bottom: 1px solid hsl(var(--border)); }
+.tour-code__langs { display: flex; gap: 6px; }
+.tour-code__lang { font-size: 12px; padding: 3px 10px; border-radius: 999px;
+                   color: hsl(var(--muted-foreground)); }
+.tour-code__lang--active { background: hsl(var(--primary));
+                           color: hsl(var(--primary-foreground)); }
+.tour-code__run { margin-left: auto; font-size: 12px; font-weight: 600;
+                  color: hsl(var(--primary)); }
+.tour-code__body { background: #0e1116; padding: 14px 12px;
+                   font-family: var(--font-mono); font-size: 13px; color: #d7dce2; }
+.tour-code__line { display: flex; gap: 12px; line-height: 1.7; }
+.tour-code__ln { width: 14px; text-align: right; color: #4b5563; flex: none; }
+.tour-code__src { white-space: pre; }
+.tk-kw { color: #5ad3b8; }
+.tk-fn { color: #6bb8f0; }
+.tk-num { color: #d99a5c; }
+.tk-op { color: #9aa4b2; }
+.tour-code__out { display: flex; align-items: baseline; gap: 10px; padding: 10px 12px;
+                  border-top: 1px solid hsl(var(--border)); }
+.tour-code__out-label { font-family: var(--font-mono); font-size: 10px;
+                        text-transform: uppercase; letter-spacing: 0.12em;
+                        color: hsl(var(--muted-foreground)); }
+.tour-code__out-val { font-family: var(--font-mono); font-size: 13px;
+                      color: hsl(var(--primary)); }
+
+/* ── slide 3: the reader mockup ── */
+.tour-reader { display: grid; grid-template-columns: 1.05fr 1.35fr auto; gap: 12px;
+               max-width: 470px; width: 100%; border: 1px solid hsl(var(--border));
+               border-radius: 14px; background: hsl(var(--card)); padding: 14px; }
+.tour-reader__nav { display: flex; flex-direction: column; gap: 6px; }
+.tour-reader__eyebrow { font-family: var(--font-mono); font-size: 9px;
+                        text-transform: uppercase; letter-spacing: 0.14em;
+                        color: hsl(var(--muted-foreground)); margin-bottom: 2px; }
+.tour-reader__chapter { font-size: 11.5px; color: hsl(var(--muted-foreground));
+                        padding: 3px 8px; border-left: 2px solid transparent; }
+.tour-reader__chapter--active { color: hsl(var(--primary));
+                                border-left-color: hsl(var(--primary));
+                                background: hsl(var(--primary) / 0.08); }
+.tour-reader__page { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.tour-reader__crumb { font-family: var(--font-mono); font-size: 9px;
+                      color: hsl(var(--muted-foreground)); }
+.tour-reader__title { font-style: italic; font-weight: 600; font-size: 21px;
+                      color: hsl(var(--foreground)); }
+.tour-reader__text { margin: 0; font-size: 11px; line-height: 1.55;
+                     color: hsl(var(--muted-foreground)); }
+.tour-reader__bar { height: 7px; border-radius: 999px; background: hsl(var(--muted) / 0.7); }
+.tour-reader__pager { display: flex; justify-content: space-between; margin-top: 4px;
+                      font-size: 10.5px; color: hsl(var(--primary)); }
+.tour-reader__mini { display: flex; flex-direction: column; gap: 5px; justify-content: center; }
+.tour-reader__mini-bar { width: 5px; height: 26px; border-radius: 999px;
+                         background: hsl(var(--muted) / 0.7); }
+.tour-reader__mini-bar--on { background: hsl(var(--primary)); }
+
+/* ── slide 4: the REAL widget ── */
+.tour-viz { width: 100%; max-width: 460px; }
+.tour-viz .viz-widget-host { margin: 0; }
+
+/* ── responsive ── */
+@media (max-width: 900px) {
+    .syn-tour__slide { grid-template-columns: 1fr; gap: 28px; }
+    .syn-tour__stage { min-height: 0; padding: 24px 20px 18px; }
+    .syn-tour__right { justify-content: flex-start; }
+    .tour-lib, .tour-code, .tour-reader, .tour-viz { max-width: none; }
+}
+@media (max-width: 520px) {
+    .syn-tour__label { display: none; }
+}

@@ -70,3 +70,17 @@ fn book_of_descends_categories_to_the_owning_book() {
     let missing: Vec<String> = ["learn", "nope", "x"].iter().map(|s| (*s).to_owned()).collect();
     assert!(book_of(&idx, &missing).is_none());
 }
+
+#[test]
+fn find_book_descends_categories_by_globally_unique_slug() {
+    let idx = index();
+    assert_eq!(find_book(&idx, "dsa").unwrap().title, "DSA");
+    assert!(find_book(&idx, "nope").is_none());
+}
+
+#[test]
+fn card_counts_lessons_recursively_and_chapters_directly() {
+    let b = book();
+    assert_eq!(lesson_count(&b), 2);
+    assert_eq!(chapter_count(&b), 1);
+}

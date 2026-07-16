@@ -1,0 +1,76 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   READER CHROME (step 12) — reading preferences (data-reader-* on <html>, the
+   FAB + popover), collapsible sidebar chapters, full-width problem pages.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* ── reading preferences: the stylesheet half ──
+   The store reflects choices onto <html>; these selectors do the rest. */
+html[data-reader-size="sm"] .synapse-prose { font-size: 0.925rem; }
+html[data-reader-size="md"] .synapse-prose { font-size: 1rem; }
+html[data-reader-size="lg"] .synapse-prose { font-size: 1.125rem; }
+
+html[data-reader-leading="tight"] .synapse-prose { line-height: 1.5; }
+html[data-reader-leading="normal"] .synapse-prose { line-height: 1.7; }
+html[data-reader-leading="loose"] .synapse-prose { line-height: 1.95; }
+
+html[data-reader-family="serif"] .synapse-prose { font-family: Georgia, "Times New Roman", serif; }
+html[data-reader-family="sans"] .synapse-prose { font-family: system-ui, -apple-system, sans-serif; }
+html[data-reader-family="mono"] .synapse-prose { font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+html[data-reader-width="narrow"] .lesson { max-width: 38rem; }
+html[data-reader-width="standard"] .lesson { max-width: 46rem; }
+html[data-reader-width="wide"] .lesson { max-width: 60rem; }
+
+/* Problem pages take the whole column — the workbench needs it (post-33). The width-pref
+   selector above carries html[attr] specificity, so this override must outrank it. */
+html[data-reader-width] .lesson.lesson--problem,
+.lesson.lesson--problem { max-width: none; }
+
+/* ── the FAB + popover ── */
+.reader-prefs-fab {
+  position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 40;
+  width: 2.75rem; height: 2.75rem; border-radius: 9999px;
+  border: 1px solid #cbd5e1; background: #fff; color: #0f172a;
+  font-weight: 700; font-size: 0.95rem; cursor: pointer;
+  box-shadow: 0 4px 12px rgb(15 23 42 / 0.12);
+}
+.reader-prefs-fab:hover { border-color: #0d9488; color: #0d9488; }
+.reader-prefs-scrim { position: fixed; inset: 0; z-index: 41; }
+.reader-prefs-pop {
+  position: fixed; right: 1.25rem; bottom: 4.5rem; z-index: 42;
+  width: 17rem; padding: 0.9rem 1rem; border-radius: 0.75rem;
+  border: 1px solid #e2e8f0; background: #fff;
+  box-shadow: 0 12px 32px rgb(15 23 42 / 0.16);
+  display: flex; flex-direction: column; gap: 0.7rem;
+}
+.reader-prefs-pop__eyebrow {
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: #64748b;
+}
+.reader-prefs__label { font-size: 0.75rem; color: #475569; margin-bottom: 0.25rem; }
+.reader-prefs__seg { display: flex; border: 1px solid #e2e8f0; border-radius: 0.5rem; overflow: hidden; }
+.reader-prefs__opt {
+  flex: 1; padding: 0.35rem 0; font-size: 0.8rem; background: #fff;
+  border: none; border-right: 1px solid #e2e8f0; cursor: pointer; color: #334155;
+}
+.reader-prefs__opt:last-child { border-right: none; }
+.reader-prefs__opt--active { background: #ccfbf1; color: #0f766e; font-weight: 600; }
+.reader-prefs__opt--serif { font-family: Georgia, serif; }
+.reader-prefs__opt--sans { font-family: system-ui, sans-serif; }
+.reader-prefs__opt--mono { font-family: ui-monospace, monospace; }
+.reader-prefs__reset {
+  margin-top: 0.15rem; padding: 0.4rem 0; font-size: 0.8rem;
+  border: 1px solid #e2e8f0; border-radius: 0.5rem; background: #f8fafc;
+  color: #475569; cursor: pointer;
+}
+.reader-prefs__reset:hover { border-color: #0d9488; color: #0d9488; }
+
+/* ── collapsible sidebar chapters ── */
+.sidebar-chapter { list-style: none; margin: 0.35rem 0; }
+.sidebar-chapter__title {
+  cursor: pointer; font-size: 0.8rem; font-weight: 600; color: #475569;
+  padding: 0.2rem 0; user-select: none;
+}
+.sidebar-chapter__title:hover { color: #0d9488; }
+.sidebar-chapter details > .sidebar-lessons,
+.sidebar-chapter .sidebar-lessons { margin-left: 0.75rem; }

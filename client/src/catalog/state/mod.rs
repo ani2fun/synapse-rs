@@ -62,3 +62,68 @@ pub fn load_lesson(path: Vec<String>) -> RwSignal<AsyncResult<LessonPayloadDto>>
     });
     state
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// READING PREFERENCES (oracle: `ReadingPrefs` — the persisted half)
+// ─────────────────────────────────────────────────────────────────────────────
+// Loaded from localStorage and reflected onto `<html>` as `data-reader-*`
+// attributes the stylesheet reads — set once BEFORE first paint (provide() runs
+// in App's body), surviving navigation with no flash and no per-page rewiring.
+
+use crate::catalog::logic::prefs::{self, Prefs};
+
+const PREFS_KEY: &str = "reader-prefs";
+
+#[derive(Clone, Copy)]
+pub struct PrefsStore {
+    pub prefs: RwSignal<Prefs>,
+}
+
+impl PrefsStore {
+    /// Created ONCE in `App`: load → reflect onto `<html>` → provide as context.
+    pub fn provide() {
+        let loaded = prefs::parse(storage_get(PREFS_KEY).as_deref());
+        apply_to_html(&loaded);
+        provide_context(Self {
+            prefs: RwSignal::new(loaded),
+        });
+    }
+
+    pub fn from_context() -> Self {
+        expect_context::<Self>()
+    }
+
+    /// Commit one change: signal + localStorage + the `<html>` attributes, in one breath.
+    pub fn commit(self, next: Prefs) {
+        apply_to_html(&next);
+        storage_set(PREFS_KEY, &prefs::serialize(&next));
+        self.prefs.set(next);
+    }
+
+    pub fn reset(self) {
+        self.commit(prefs::DEFAULT_PREFS);
+    }
+}
+
+fn apply_to_html(p: &Prefs) {
+    let Some(root) = web_sys::window()
+        .and_then(|w| w.document())
+        .and_then(|d| d.document_element())
+    else {
+        return;
+    };
+    let _ = root.set_attribute("data-reader-size", p.size);
+    let _ = root.set_attribute("data-reader-leading", p.leading);
+    let _ = root.set_attribute("data-reader-family", p.family);
+    let _ = root.set_attribute("data-reader-width", p.width);
+}
+
+fn storage_get(key: &str) -> Option<String> {
+    web_sys::window()?.local_storage().ok()??.get_item(key).ok()?
+}
+
+fn storage_set(key: &str, value: &str) {
+    if let Some(Ok(Some(storage))) = web_sys::window().map(|w| w.local_storage()) {
+        let _ = storage.set_item(key, value);
+    }
+}

@@ -12,7 +12,9 @@ use crate::catalog::view::{LessonPage, LibraryPage};
 #[component]
 pub fn App() -> impl IntoView {
     // App-level stores live under the root owner — they outlive every page (state layer rule).
+    // PrefsStore also reflects the stored reading prefs onto <html> BEFORE the first paint.
     crate::catalog::state::CatalogStore::provide();
+    crate::catalog::state::PrefsStore::provide();
     view! {
         <Router>
             <header class="shell-header">

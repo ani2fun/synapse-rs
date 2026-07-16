@@ -46,19 +46,8 @@ fn Sidebar(path: Memo<Vec<String>>) -> impl IntoView {
         {move || {
             book.get()
                 .map(|book| {
-                    let items: Vec<_> = logic::reading_order(&book)
-                        .into_iter()
-                        .map(|(full, lesson)| {
-                            let href = format!("/synapse/{full}");
-                            // Fine-grained: each item tracks the path itself.
-                            let is_current = Memo::new(move |_| path.get().join("/") == full);
-                            view! {
-                                <li class:current=move || is_current.get()>
-                                    <a href=href>{lesson.title}</a>
-                                </li>
-                            }
-                        })
-                        .collect();
+                    let prefix = logic::book_prefix(&book);
+                    let items = sidebar_entries(&book.entries, &prefix, path);
                     view! {
                         <nav>
                             <h2 class="sidebar-book">{book.title.clone()}</h2>
@@ -68,6 +57,50 @@ fn Sidebar(path: Memo<Vec<String>>) -> impl IntoView {
                 })
         }}
     }
+}
+
+/// One book-interior level: lessons link; chapters are COLLAPSIBLE groups (post-33 `a95e3fb`),
+/// open when they contain the current lesson so navigation always lands unfolded.
+fn sidebar_entries(
+    entries: &[synapse_shared::catalog::BookEntryDto],
+    prefix: &[String],
+    path: Memo<Vec<String>>,
+) -> Vec<AnyView> {
+    use synapse_shared::catalog::BookEntryDto;
+    entries
+        .iter()
+        .map(|entry| match entry {
+            BookEntryDto::Lesson(lesson) => {
+                let mut segments = prefix.to_vec();
+                segments.push(lesson.slug.clone());
+                let full = segments.join("/");
+                let href = format!("/synapse/{full}");
+                // Fine-grained: each item tracks the path itself.
+                let is_current = Memo::new(move |_| path.get().join("/") == full);
+                view! {
+                    <li class:current=move || is_current.get()>
+                        <a href=href>{lesson.title.clone()}</a>
+                    </li>
+                }
+                .into_any()
+            }
+            BookEntryDto::Chapter(chapter) => {
+                let mut segments = prefix.to_vec();
+                segments.push(chapter.slug.clone());
+                let contains_current = path.get_untracked().join("/").starts_with(&segments.join("/"));
+                let children = sidebar_entries(&chapter.entries, &segments, path);
+                view! {
+                    <li class="sidebar-chapter">
+                        <details open=contains_current>
+                            <summary class="sidebar-chapter__title">{chapter.title.clone()}</summary>
+                            <ul class="sidebar-lessons">{children}</ul>
+                        </details>
+                    </li>
+                }
+                .into_any()
+            }
+        })
+        .collect()
 }
 
 #[component]
@@ -114,16 +147,21 @@ fn loaded_lesson(payload: &LessonPayloadDto) -> impl IntoView + use<> {
             view! { <a class=class href=format!("/synapse/{path}")>{label}</a> }
         })
     };
+    // Problem pages go full width (post-33 `a95e3fb`) — the workbench needs the column.
+    let is_problem = payload.frontmatter.kind.as_deref() == Some("problem");
     view! {
-        <header class="lesson-header">
-            <p class="lesson-book muted">{payload.book.title.clone()}</p>
-            <h1>{payload.frontmatter.title.clone()}</h1>
-            {payload.frontmatter.summary.clone().map(|s| view! { <p class="lesson-summary">{s}</p> })}
-        </header>
-        <div class="lesson-body synapse-prose" node_ref=body_ref inner_html=move || html.get()></div>
-        <nav class="lesson-nav">
-            {nav_link(&payload.prev, "← Previous", "nav-prev")}
-            {nav_link(&payload.next, "Next →", "nav-next")}
-        </nav>
+        <div class="lesson" class:lesson--problem=is_problem>
+            <header class="lesson-header">
+                <p class="lesson-book muted">{payload.book.title.clone()}</p>
+                <h1>{payload.frontmatter.title.clone()}</h1>
+                {payload.frontmatter.summary.clone().map(|s| view! { <p class="lesson-summary">{s}</p> })}
+            </header>
+            <div class="lesson-body synapse-prose" node_ref=body_ref inner_html=move || html.get()></div>
+            <nav class="lesson-nav">
+                {nav_link(&payload.prev, "← Previous", "nav-prev")}
+                {nav_link(&payload.next, "Next →", "nav-next")}
+            </nav>
+            <super::ReaderPrefsFab />
+        </div>
     }
 }

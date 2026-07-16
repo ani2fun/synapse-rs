@@ -2,7 +2,9 @@
 //! Markdown crosses the island bridge; everything else is signals → DOM.
 
 mod library;
+mod prefs;
 mod reader;
 
 pub use library::LibraryPage;
+pub use prefs::ReaderPrefsFab;
 pub use reader::LessonPage;

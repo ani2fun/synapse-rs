@@ -1,6 +1,8 @@
 //! Pure catalog navigation over the WIRE DTOs (the logic layer: no leptos, no web-sys — the
 //! purity gate greps it; plain `cargo test` covers it natively).
 
+pub mod prefs;
+
 use synapse_shared::catalog::{BookDto, BookEntryDto, CatalogEntryDto, LessonDto, SynapseIndexDto};
 
 /// A book's URL prefix segments: `categoryPath + slug`.

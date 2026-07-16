@@ -47,3 +47,4 @@ introduced the feature, never as later afterthoughts.
 | 17 | `step-17` | [Identity, client side](17-identity-client-side.md) | 2026-07-16 |
 | 18 | `step-18` | [Platform breadth](18-platform-breadth.md) | 2026-07-16 |
 | 19 | `step-19` | [Security hardening](19-security-hardening.md) | 2026-07-16 |
+| 20 | `step-20` | [Least-privilege account admin](20-least-privilege-account-admin.md) | 2026-07-16 |

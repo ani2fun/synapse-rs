@@ -11,9 +11,10 @@ use uuid::Uuid;
 use crate::execution::application::{CodeRunner, ExecutionError, RunCodeService};
 use crate::submission::domain::{FailedCase, Submission, SubmissionId, SubmissionState, SuiteOutcome};
 
-/// The context's error. HTTP mapping (next step): `NotAProblem`/`UnknownSubmission`→404,
-/// `InvalidSuite`/`StoreFailed`→500. A program failing its cases is NOT an error — it is a
-/// completed submission with a `Rejected` outcome.
+/// The context's error. HTTP mapping (at `http/`): `NotAProblem`/`UnknownSubmission`→404,
+/// `InvalidSuite`/`StoreFailed`→500, `SubmitRequiresSignIn`→401, `NotAllowlisted`→403.
+/// A program failing its cases is NOT an error — it is a completed submission with a
+/// `Rejected` outcome.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum SubmissionError {
     #[error("'{0}' has no hidden suite — not a problem")]
@@ -26,6 +27,16 @@ pub enum SubmissionError {
     StoreFailed(String),
     #[error("submission '{0}' belongs to someone else")]
     NotYours(String),
+    #[error("submitting requires signing in")]
+    SubmitRequiresSignIn,
+    #[error("'{0}' is not on the submit allowlist")]
+    NotAllowlisted(String),
+}
+
+/// Who may SAVE attempts (oracle: `SubmissionAllowlist`, step 21): keyed by the lowercase IdP
+/// username. Management verbs (list/grant/revoke) join with the admin-panel step.
+pub trait SubmissionAllowlist: Send + Sync {
+    fn is_allowed(&self, username: &str) -> impl Future<Output = Result<bool, SubmissionError>> + Send;
 }
 
 /// The verified caller, projected for submissions: `user_id` = the stored `sub`,
@@ -66,30 +77,65 @@ pub trait ProblemTests: Send + Sync {
 
 /// Submit → 202 → background judge → poll. Cloning shares the same adapters (`Arc`s), which is
 /// what lets the judge run as a DETACHED task outliving the request.
-pub struct SubmitSolution<Repo, Tests, R: CodeRunner> {
+pub struct SubmitSolution<Repo, Tests, R: CodeRunner, List> {
     repo: Arc<Repo>,
     tests: Arc<Tests>,
     runner: Arc<RunCodeService<R>>,
+    allowlist: Arc<List>,
+    /// Dev/personal instances stay open (default false); prod flips it on
+    /// (`SUBMISSION_ALLOWLIST_ENFORCED`) — saving uses shared compute + storage.
+    allowlist_enforced: bool,
 }
 
-impl<Repo, Tests, R: CodeRunner> Clone for SubmitSolution<Repo, Tests, R> {
+impl<Repo, Tests, R: CodeRunner, List> Clone for SubmitSolution<Repo, Tests, R, List> {
     fn clone(&self) -> Self {
         Self {
             repo: Arc::clone(&self.repo),
             tests: Arc::clone(&self.tests),
             runner: Arc::clone(&self.runner),
+            allowlist: Arc::clone(&self.allowlist),
+            allowlist_enforced: self.allowlist_enforced,
         }
     }
 }
 
-impl<Repo, Tests, R> SubmitSolution<Repo, Tests, R>
+impl<Repo, Tests, R, List> SubmitSolution<Repo, Tests, R, List>
 where
     Repo: SubmissionRepository + Send + Sync + 'static,
     Tests: ProblemTests + Send + Sync + 'static,
     R: CodeRunner + Send + Sync + 'static,
+    List: SubmissionAllowlist + Send + Sync + 'static,
 {
-    pub fn new(repo: Arc<Repo>, tests: Arc<Tests>, runner: Arc<RunCodeService<R>>) -> Self {
-        Self { repo, tests, runner }
+    pub fn new(
+        repo: Arc<Repo>,
+        tests: Arc<Tests>,
+        runner: Arc<RunCodeService<R>>,
+        allowlist: Arc<List>,
+        allowlist_enforced: bool,
+    ) -> Self {
+        Self {
+            repo,
+            tests,
+            runner,
+            allowlist,
+            allowlist_enforced,
+        }
+    }
+
+    /// The gate runs FIRST (oracle: `authorize`): enforced → anonymous cannot save (401) and
+    /// only allow-listed usernames may (403) — rejects never touch the suite or the store.
+    async fn authorize(&self, submitter: Option<&Submitter>) -> Result<(), SubmissionError> {
+        if !self.allowlist_enforced {
+            return Ok(());
+        }
+        let Some(submitter) = submitter else {
+            return Err(SubmissionError::SubmitRequiresSignIn);
+        };
+        if self.allowlist.is_allowed(&submitter.username).await? {
+            Ok(())
+        } else {
+            Err(SubmissionError::NotAllowlisted(submitter.username.clone()))
+        }
     }
 
     /// Store `Pending`, fire the judge as a detached task, answer immediately (the 202).
@@ -100,6 +146,7 @@ where
         source: String,
         submitter: Option<Submitter>,
     ) -> Result<SubmissionId, SubmissionError> {
+        self.authorize(submitter.as_ref()).await?;
         let joined = lesson_path.join("/");
         let spec = self
             .tests

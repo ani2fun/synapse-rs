@@ -24,17 +24,50 @@ const N_B64: &str = "zhViOX4PnOD51OW9MWknnaOwPKP1lodDI-BX4tk4Ulq6yj816CV89b9F-TX
 
 /// A realm lookalike serving the JWKS at the OIDC certs path. Returns the issuer URL.
 async fn stub_realm() -> String {
+    stub_realm_with_admin(false).await
+}
+
+/// With `admin`, the stub also plays the ADMIN side: the `client_credentials` token endpoint
+/// and `DELETE /admin/realms/synapse/users/{sub}` (204) — what the scoped `synapse-admin`
+/// client talks to. Without it, admin calls 404 → the adapter degrades to 503.
+async fn stub_realm_with_admin(admin: bool) -> String {
     let jwks = json!({
         "keys": [{ "kty": "RSA", "alg": "RS256", "use": "sig", "kid": KID, "n": N_B64, "e": "AQAB" }]
     })
     .to_string();
-    let app = Router::new().route(
+    let mut app = Router::new().route(
         "/realms/synapse/protocol/openid-connect/certs",
         get(move || {
             let jwks = jwks.clone();
             async move { ([(header::CONTENT_TYPE, "application/json")], jwks) }
         }),
     );
+    if admin {
+        app = app
+            .route(
+                "/realms/synapse/protocol/openid-connect/token",
+                axum::routing::post(|body: String| async move {
+                    // The scoped client's grant, verbatim.
+                    assert!(body.contains("grant_type=client_credentials"), "{body}");
+                    assert!(body.contains("client_id=synapse-admin"), "{body}");
+                    (
+                        [(header::CONTENT_TYPE, "application/json")],
+                        json!({ "access_token": "stub-admin-token" }).to_string(),
+                    )
+                }),
+            )
+            .route(
+                "/admin/realms/synapse/users/{sub}",
+                axum::routing::delete(|headers: axum::http::HeaderMap| async move {
+                    let bearer = headers
+                        .get(header::AUTHORIZATION)
+                        .and_then(|v| v.to_str().ok())
+                        .unwrap_or_default();
+                    assert_eq!(bearer, "Bearer stub-admin-token");
+                    StatusCode::NO_CONTENT
+                }),
+            );
+    }
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let issuer = format!("http://{}/realms/synapse", listener.local_addr().unwrap());
     tokio::spawn(async move {
@@ -152,6 +185,47 @@ async fn an_unreachable_realm_is_503_never_401() {
     // Port 9 refuses — IdP-down is OUR problem, not the caller's.
     let issuer = "http://127.0.0.1:9/realms/synapse";
     let (status, body) = me(issuer, Some(&mint(issuer, json!({})))).await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{body}");
+    assert_eq!(body["error"], "Token verifier unavailable");
+}
+
+// ── account deletion (step 20) ───────────────────────────────────────────────
+
+async fn delete_me(issuer: &str, bearer: Option<&str>) -> (StatusCode, Value) {
+    let tmp = tempfile::tempdir().unwrap();
+    let app = common::app_with_issuer(tmp.path(), "http://127.0.0.1:9", None, issuer);
+    let mut builder = Request::builder().method("DELETE").uri("/api/me");
+    if let Some(token) = bearer {
+        builder = builder.header(header::AUTHORIZATION, format!("Bearer {token}"));
+    }
+    let res = app.oneshot(builder.body(Body::empty()).unwrap()).await.unwrap();
+    let status = res.status();
+    let bytes = axum::body::to_bytes(res.into_body(), 64 * 1024).await.unwrap();
+    (status, serde_json::from_slice(&bytes).unwrap_or(Value::Null))
+}
+
+#[tokio::test]
+async fn delete_me_requires_a_bearer() {
+    let issuer = stub_realm_with_admin(true).await;
+    let (status, body) = delete_me(&issuer, None).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert_eq!(body["error"], "Missing bearer token");
+}
+
+#[tokio::test]
+async fn delete_me_deletes_via_the_scoped_admin_client() {
+    // The stub asserts the client_credentials grant + client id + bearer inside.
+    let issuer = stub_realm_with_admin(true).await;
+    let (status, body) = delete_me(&issuer, Some(&mint(&issuer, json!({})))).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["deleted"], true);
+}
+
+#[tokio::test]
+async fn a_down_admin_api_is_503_never_a_swallowed_success() {
+    // JWKS answers (the bearer verifies) but the admin endpoints don't exist.
+    let issuer = stub_realm_with_admin(false).await;
+    let (status, body) = delete_me(&issuer, Some(&mint(&issuer, json!({})))).await;
     assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{body}");
     assert_eq!(body["error"], "Token verifier unavailable");
 }

@@ -13,10 +13,12 @@ use synapse_server::execution::application::RunCodeService;
 use synapse_server::execution::infrastructure::GoJudgeRunner;
 use synapse_server::identity::application::IdentityService;
 use synapse_server::identity::http::IdentityRoutesState;
-use synapse_server::identity::infrastructure::JwksTokenVerifier;
+use synapse_server::identity::infrastructure::{JwksTokenVerifier, KeycloakAdminClient};
 use synapse_server::platform::rate_limiter::{RateLimitBucket, RateLimiter};
 use synapse_server::submission::application::SubmitSolution;
-use synapse_server::submission::infrastructure::{FsProblemTests, PostgresSubmissionRepository};
+use synapse_server::submission::infrastructure::{
+    FsProblemTests, PostgresSubmissionAllowlist, PostgresSubmissionRepository,
+};
 
 /// A budget big enough that only the dedicated rate-limit ITs ever hit it.
 const TEST_BUCKET: RateLimitBucket = RateLimitBucket {
@@ -52,19 +54,22 @@ pub fn deps_with(
     });
     let repo = FileSystemContentRepository::new(content_root, true);
     let runner = Arc::new(RunCodeService::new(GoJudgeRunner::new(executor_url)));
+    // Gate OFF (the dev default) — the gate tests exercise it over in-memory fakes.
     let submit = Arc::new(SubmitSolution::new(
-        Arc::new(PostgresSubmissionRepository::new(pool)),
+        Arc::new(PostgresSubmissionRepository::new(pool.clone())),
         Arc::new(FsProblemTests::new(FileSystemContentRepository::new(
             content_root,
             true,
         ))),
         Arc::clone(&runner),
+        Arc::new(PostgresSubmissionAllowlist::new(pool)),
+        false,
     ));
     let ident = IdentityRoutesState {
-        identity: Arc::new(IdentityService::new(JwksTokenVerifier::new(
-            issuer,
-            "synapse-web",
-        ))),
+        identity: Arc::new(IdentityService::new(
+            JwksTokenVerifier::new(issuer, "synapse-web"),
+            KeycloakAdminClient::new(issuer, "synapse-admin", "dev-admin-secret"),
+        )),
         issuer: issuer.to_owned(),
         audience: "synapse-web".to_owned(),
     };

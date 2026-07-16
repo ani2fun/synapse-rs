@@ -8,6 +8,7 @@ pub enum Page {
     Lesson(Vec<String>),
     Blog,
     BlogPost(String),
+    Account,
     NotFound(String),
 }
 
@@ -22,6 +23,7 @@ impl Page {
             }
             Some((&"blog", [])) => Self::Blog,
             Some((&"blog", [slug])) => Self::BlogPost((*slug).to_owned()),
+            Some((&"account", [])) => Self::Account,
             _ => Self::NotFound(segments.join("/")),
         }
     }
@@ -33,6 +35,7 @@ impl Page {
             Self::Lesson(path) => format!("/synapse/{}", path.join("/")),
             Self::Blog => "/blog".to_owned(),
             Self::BlogPost(slug) => format!("/blog/{slug}"),
+            Self::Account => "/account".to_owned(),
             Self::NotFound(raw) => format!("/{raw}"),
         }
     }
@@ -65,6 +68,7 @@ mod tests {
             Page::NotFound("synapse".into())
         );
         assert_eq!(Page::from_segments(&["blog"]), Page::Blog);
+        assert_eq!(Page::from_segments(&["account"]), Page::Account);
         assert_eq!(
             Page::from_segments(&["blog", "hello"]),
             Page::BlogPost("hello".into())

@@ -13,10 +13,12 @@ use synapse_server::execution::application::RunCodeService;
 use synapse_server::execution::infrastructure::GoJudgeRunner;
 use synapse_server::identity::application::IdentityService;
 use synapse_server::identity::http::IdentityRoutesState;
-use synapse_server::identity::infrastructure::JwksTokenVerifier;
+use synapse_server::identity::infrastructure::{JwksTokenVerifier, KeycloakAdminClient};
 use synapse_server::platform::rate_limiter::{RateLimitBucket, RateLimiter};
 use synapse_server::submission::application::SubmitSolution;
-use synapse_server::submission::infrastructure::{FsProblemTests, PostgresSubmissionRepository};
+use synapse_server::submission::infrastructure::{
+    FsProblemTests, PostgresSubmissionAllowlist, PostgresSubmissionRepository,
+};
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -46,19 +48,25 @@ async fn main() -> anyhow::Result<()> {
     let catalog = Arc::new(CatalogService::new(repo));
     let runner = Arc::new(RunCodeService::new(GoJudgeRunner::new(&cfg.executor_url)));
     let submit = Arc::new(SubmitSolution::new(
-        Arc::new(PostgresSubmissionRepository::new(pool)),
+        Arc::new(PostgresSubmissionRepository::new(pool.clone())),
         Arc::new(FsProblemTests::new(FileSystemContentRepository::new(
             &cfg.content_root,
             cfg.auto_reload,
         ))),
         Arc::clone(&runner),
+        Arc::new(PostgresSubmissionAllowlist::new(pool)),
+        cfg.submission_allowlist_enforced,
     ));
 
     let identity = IdentityRoutesState {
-        identity: Arc::new(IdentityService::new(JwksTokenVerifier::new(
-            &cfg.identity_issuer,
-            &cfg.identity_audience,
-        ))),
+        identity: Arc::new(IdentityService::new(
+            JwksTokenVerifier::new(&cfg.identity_issuer, &cfg.identity_audience),
+            KeycloakAdminClient::new(
+                &cfg.identity_issuer,
+                &cfg.keycloak_admin_client_id,
+                &cfg.keycloak_admin_client_secret,
+            ),
+        )),
         issuer: cfg.identity_issuer.clone(),
         audience: cfg.identity_audience.clone(),
     };

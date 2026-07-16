@@ -47,6 +47,14 @@ pub struct AppConfig {
     /// `RATE_LIMIT_AUTH_WINDOW_SECONDS` / `RATE_LIMIT_AUTH_LIMIT`.
     pub rate_limit_auth_window_seconds: u64,
     pub rate_limit_auth_limit: u32,
+    /// The submit gate (step 20): dev/personal instances stay open; prod flips it on. Env:
+    /// `SUBMISSION_ALLOWLIST_ENFORCED`.
+    pub submission_allowlist_enforced: bool,
+    /// The SCOPED Keycloak service-account client for account deletion (step 20 — the audit
+    /// HIGH: never the master-realm admin). Envs: `KEYCLOAK_ADMIN_CLIENT_ID` /
+    /// `KEYCLOAK_ADMIN_CLIENT_SECRET` (dev realm file seeds `synapse-admin`/`dev-admin-secret`).
+    pub keycloak_admin_client_id: String,
+    pub keycloak_admin_client_secret: String,
 }
 
 impl Default for AppConfig {
@@ -65,6 +73,9 @@ impl Default for AppConfig {
             rate_limit_anon_limit: 10,
             rate_limit_auth_window_seconds: 3600,
             rate_limit_auth_limit: 100,
+            submission_allowlist_enforced: false,
+            keycloak_admin_client_id: "synapse-admin".to_owned(),
+            keycloak_admin_client_secret: "dev-admin-secret".to_owned(),
         }
     }
 }
@@ -104,6 +115,13 @@ impl AppConfig {
                 "RATE_LIMIT_AUTH_LIMIT",
             ])
             .map(|key| key.as_str().to_lowercase().into());
+        let account = Env::raw()
+            .only(&[
+                "SUBMISSION_ALLOWLIST_ENFORCED",
+                "KEYCLOAK_ADMIN_CLIENT_ID",
+                "KEYCLOAK_ADMIN_CLIENT_SECRET",
+            ])
+            .map(|key| key.as_str().to_lowercase().into());
         Figment::from(Serialized::defaults(Self::default()))
             .merge(env)
             .merge(executor)
@@ -111,6 +129,7 @@ impl AppConfig {
             .merge(oidc)
             .merge(platform)
             .merge(rate)
+            .merge(account)
             .extract()
             .map_err(Box::new)
     }
@@ -151,6 +170,21 @@ mod tests {
             assert_eq!(cfg.likec4_url, "http://synapse-likec4/c4");
             assert_eq!(cfg.rate_limit_anon_limit, 3);
             assert_eq!(cfg.rate_limit_anon_window_seconds, 60, "default stays");
+            Ok(())
+        });
+    }
+
+    #[test]
+    fn account_admin_defaults_pin_the_scoped_client() {
+        // The dev realm file seeds exactly these; prod overrides via the sealed secret.
+        let cfg = AppConfig::default();
+        assert!(!cfg.submission_allowlist_enforced, "dev stays open");
+        assert_eq!(cfg.keycloak_admin_client_id, "synapse-admin");
+        assert_eq!(cfg.keycloak_admin_client_secret, "dev-admin-secret");
+        figment::Jail::expect_with(|jail| {
+            jail.set_env("SUBMISSION_ALLOWLIST_ENFORCED", "true");
+            let cfg = AppConfig::load().map_err(|e| *e)?;
+            assert!(cfg.submission_allowlist_enforced);
             Ok(())
         });
     }

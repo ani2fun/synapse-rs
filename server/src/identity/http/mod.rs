@@ -1,5 +1,6 @@
-//! The identity HTTP surface (oracle: `IdentityRoutes`, step-17 scope): the SPA's Keycloak
-//! coordinates and the who-am-I echo. `DELETE /api/me` joins with the account step.
+//! The identity HTTP surface (oracle: `IdentityRoutes`): the SPA's Keycloak coordinates, the
+//! who-am-I echo, and `DELETE /api/me` (step 20 — the account step). Deleting the account
+//! removes ONLY the sign-in; app data has its own verb, orchestrated by the client.
 
 use std::sync::Arc;
 
@@ -11,9 +12,9 @@ use synapse_shared::api::ApiError;
 use synapse_shared::identity::{AuthConfigDto, MeDto};
 
 use crate::identity::application::{AuthError, IdentityService};
-use crate::identity::infrastructure::JwksTokenVerifier;
+use crate::identity::infrastructure::{JwksTokenVerifier, KeycloakAdminClient};
 
-pub type LiveIdentityService = IdentityService<JwksTokenVerifier>;
+pub type LiveIdentityService = IdentityService<JwksTokenVerifier, KeycloakAdminClient>;
 
 #[derive(Clone)]
 pub struct IdentityRoutesState {
@@ -26,7 +27,7 @@ type ApiResult<T> = Result<Json<T>, (StatusCode, Json<ApiError>)>;
 
 pub fn routes(state: IdentityRoutesState) -> Router {
     Router::new()
-        .route("/api/me", get(get_me))
+        .route("/api/me", get(get_me).delete(delete_me))
         .route("/api/auth/config", get(get_auth_config))
         .with_state(state)
 }
@@ -89,6 +90,36 @@ pub(crate) async fn get_me(State(state): State<IdentityRoutesState>, headers: He
             email: user.email,
             admin: false, // UX flag — joins with the admin step; the server re-checks anyway
         })),
+        Err(error) => Err(to_auth_error(&error)),
+    }
+}
+
+/// Delete the caller's sign-in (oracle steps 21/37): verified bearer required; the Keycloak
+/// call rides the SCOPED service-account client. Failures are loud — never a swallowed
+/// success.
+#[utoipa::path(
+    delete,
+    path = "/api/me",
+    operation_id = "deleteMe",
+    responses(
+        (status = 200, description = "The Keycloak account is gone"),
+        (status = 401, description = "Missing or invalid bearer", body = ApiError),
+        (status = 503, description = "Keycloak admin API unavailable", body = ApiError)
+    )
+)]
+pub(crate) async fn delete_me(
+    State(state): State<IdentityRoutesState>,
+    headers: HeaderMap,
+) -> ApiResult<serde_json::Value> {
+    let Some(token) = bearer(&headers) else {
+        return Err(missing_token());
+    };
+    let user = match state.identity.authenticate(&token).await {
+        Ok(user) => user,
+        Err(error) => return Err(to_auth_error(&error)),
+    };
+    match state.identity.delete_account(&user.id.0).await {
+        Ok(()) => Ok(Json(serde_json::json!({ "deleted": true }))),
         Err(error) => Err(to_auth_error(&error)),
     }
 }

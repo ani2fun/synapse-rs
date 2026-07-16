@@ -45,6 +45,10 @@ pub fn RunnableBlock(
     let run = move || store.launch(run_lang.clone(), stdin());
     let submit_lang = language.clone();
     let do_submit = move || {
+        // The auth gate covers the ⇧⌘⏎ keymap path too — the button is merely disabled.
+        if !auth.authed() {
+            return;
+        }
         submit.submit(
             lesson_path.read_value().clone(),
             submit_lang.clone(),
@@ -128,14 +132,28 @@ pub fn RunnableBlock(
                     </button>
                 </span>
                 {spec.is_some().then(|| view! {
-                    <button
-                        class="wb__submit"
-                        title="Submit against the hidden suite (⇧⌘⏎)"
-                        prop:disabled=move || judging.get()
-                        on:click=move |_| submit_click()
+                    // Anonymous readers see WHY it's off (the step-20 allowlist hint); the
+                    // server re-enforces regardless — this is UX, not the gate.
+                    <span
+                        class="wb__tip"
+                        data-tip=move || {
+                            if auth.authed() {
+                                "Submit against the hidden suite (⇧⌘⏎)"
+                            } else {
+                                "Sign in to submit. Submit runs your code against every hidden \
+                                 test and saves your attempt. Saving needs an approved account \
+                                 — ask the operator for access."
+                            }
+                        }
                     >
-                        {move || if judging.get() { "Judging…" } else { "Submit" }}
-                    </button>
+                        <button
+                            class="wb__submit"
+                            prop:disabled=move || !auth.authed() || judging.get()
+                            on:click=move |_| submit_click()
+                        >
+                            {move || if judging.get() { "Judging…" } else { "Submit" }}
+                        </button>
+                    </span>
                 })}
                 <button
                     class="runnable__run"

@@ -78,8 +78,34 @@ pub fn to_dto(submission: &Submission) -> SubmissionDto {
     }
 }
 
-/// `NotAProblem`/`UnknownSubmission`→404 · `NotYours`→403 · `InvalidSuite`/`StoreFailed`→500.
+/// `NotAProblem`/`UnknownSubmission`→404 · `NotYours`→403 · `SubmitRequiresSignIn`→401 ·
+/// `NotAllowlisted`→403 · `InvalidSuite`/`StoreFailed`→500. The allowlist copy is the
+/// oracle's exact wording — the workbench renders `error — detail` verbatim.
 pub fn to_error(error: &SubmissionError) -> (StatusCode, Json<ApiError>) {
+    if let SubmissionError::SubmitRequiresSignIn = error {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(ApiError {
+                error: "Sign in to submit".to_owned(),
+                detail: Some(
+                    "Submitting runs your code against every hidden case and saves the attempt".to_owned(),
+                ),
+                hint: None,
+            }),
+        );
+    }
+    if let SubmissionError::NotAllowlisted(username) = error {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(ApiError {
+                error: "Submitting is allow-listed on this deployment".to_owned(),
+                detail: Some(format!(
+                    "'{username}' isn't on the allowlist yet — saving uses shared compute + storage"
+                )),
+                hint: Some("Request access from the operator, or self-host your own instance".to_owned()),
+            }),
+        );
+    }
     let (status, message) = match error {
         SubmissionError::NotAProblem(_) => (StatusCode::NOT_FOUND, "Not a problem"),
         SubmissionError::UnknownSubmission(_) => (StatusCode::NOT_FOUND, "Unknown submission"),
@@ -87,7 +113,11 @@ pub fn to_error(error: &SubmissionError) -> (StatusCode, Json<ApiError>) {
         SubmissionError::InvalidSuite { .. } => {
             (StatusCode::INTERNAL_SERVER_ERROR, "The authored suite is invalid")
         }
-        SubmissionError::StoreFailed(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Submission store failed"),
+        SubmissionError::StoreFailed(_)
+        | SubmissionError::SubmitRequiresSignIn
+        | SubmissionError::NotAllowlisted(_) => {
+            (StatusCode::INTERNAL_SERVER_ERROR, "Submission store failed")
+        }
     };
     (
         status,

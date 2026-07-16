@@ -106,7 +106,7 @@
       "_type": "request",
       "parentId": "fld_submissions",
       "name": "POST /api/submissions",
-      "description": "Submit a solution \u2014 202 + id; the suite judges in the background (step 14). 404 not-a-problem, 500 invalid suite.",
+      "description": "Submit a solution \u2014 202 + id; the suite judges in the background (step 14). 404 not-a-problem, 500 invalid suite.\n\nAllowlist (step 20): with SUBMISSION_ALLOWLIST_ENFORCED=true (prod), anonymous \u2192 401 'Sign in to submit', unlisted username \u2192 403 'Submitting is allow-listed on this deployment'. Dev default = open.",
       "method": "POST",
       "url": "{{ _.base_url }}/api/submissions",
       "body": {
@@ -237,6 +237,18 @@
       "method": "GET",
       "url": "{{ _.base_url }}/api/blog/no-such-post",
       "description": "An unknown slug is a 404 + ApiError.",
+      "headers": [],
+      "body": {},
+      "parameters": []
+    },
+    {
+      "_id": "req_me_delete",
+      "_type": "request",
+      "parentId": "fld_identity",
+      "name": "DELETE /api/me",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/api/me",
+      "description": "Delete the caller's sign-in via the SCOPED synapse-admin service-account client (client_credentials, realm-management:manage-users only \u2014 never the master admin). Bearer required. App data is the separate DELETE /api/submissions verb; the account page orchestrates erase \u2192 delete \u2192 sign-out. Keycloak-admin-down \u2192 503, never a swallowed success.",
       "headers": [],
       "body": {},
       "parameters": []

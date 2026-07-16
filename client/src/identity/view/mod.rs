@@ -1,7 +1,11 @@
-//! The header account chip (oracle: `AccountChip`, step-17 scope): `Loading` renders a QUIET
-//! placeholder (no "Sign in" flash before check-sso answers); `Anonymous` offers sign-in;
-//! `Authed` shows @username with manage-account + sign-out. The admin entry joins with the
-//! admin step.
+//! The header account chip + the account page (oracle: `AccountChip` + `AccountPage`, the
+//! step-20 account scope): `Loading` renders a QUIET placeholder (no "Sign in" flash before
+//! check-sso answers); `Anonymous` offers sign-in; `Authed` shows @username with
+//! manage-account + sign-out. The admin entry joins with the admin step.
+
+mod account_page;
+
+pub use account_page::AccountPage;
 
 use leptos::prelude::*;
 
@@ -34,14 +38,15 @@ pub fn AccountChip() -> impl IntoView {
                             {move || {
                                 open.get()
                                     .then(|| {
-                                        let account = store.account_url();
                                         view! {
                                             <span class="account-chip__menu">
-                                                {account.map(|url| view! {
-                                                    <a class="account-chip__item" href=url target="_blank">
-                                                        "Manage account"
-                                                    </a>
-                                                })}
+                                                <a
+                                                    class="account-chip__item"
+                                                    href="/account"
+                                                    on:click=move |_| open.set(false)
+                                                >
+                                                    "Manage account & data"
+                                                </a>
                                                 <button
                                                     class="account-chip__item"
                                                     on:click=move |_| store.sign_out()

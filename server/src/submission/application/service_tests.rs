@@ -78,6 +78,15 @@ impl ProblemTests for FakeTests {
     }
 }
 
+/// The in-memory allowlist: a fixed set of lowercase usernames.
+struct FakeAllowlist(Vec<&'static str>);
+
+impl SubmissionAllowlist for FakeAllowlist {
+    async fn is_allowed(&self, username: &str) -> Result<bool, SubmissionError> {
+        Ok(self.0.contains(&username))
+    }
+}
+
 /// Scripted runner: pops one canned reply per call, recording every stdin it saw. The `Arc`d
 /// interior lets the test keep a probe handle after the runner moves into the service.
 #[derive(Default, Clone)]
@@ -139,13 +148,14 @@ fn spec(expected: &[Option<&str>]) -> TestSpec {
     }
 }
 
-fn service(
+type TestService = SubmitSolution<FakeRepo, FakeTests, ScriptedRunner, FakeAllowlist>;
+
+fn service_gated(
     suite: Option<TestSpec>,
     replies: Vec<Result<RunResult, ExecutionError>>,
-) -> (
-    SubmitSolution<FakeRepo, FakeTests, ScriptedRunner>,
-    ScriptedRunner,
-) {
+    allowlist: FakeAllowlist,
+    enforced: bool,
+) -> (TestService, ScriptedRunner) {
     let runner = ScriptedRunner {
         replies: Arc::new(Mutex::new(replies)),
         ..ScriptedRunner::default()
@@ -155,8 +165,17 @@ fn service(
         Arc::new(FakeRepo::default()),
         Arc::new(FakeTests(suite)),
         Arc::new(RunCodeService::new(runner)),
+        Arc::new(allowlist),
+        enforced,
     );
     (svc, probe)
+}
+
+fn service(
+    suite: Option<TestSpec>,
+    replies: Vec<Result<RunResult, ExecutionError>>,
+) -> (TestService, ScriptedRunner) {
+    service_gated(suite, replies, FakeAllowlist(vec![]), false)
 }
 
 fn path() -> Vec<String> {
@@ -285,6 +304,71 @@ async fn judge_and_complete_walks_judging_then_completed_and_never_sticks() {
     assert_eq!(log, vec!["save:pending", "update:judging", "update:completed"]);
     let stored = svc.repo.get(submission.id).await.unwrap().unwrap();
     assert!(stored.state.is_completed());
+}
+
+#[tokio::test]
+async fn gating_off_lets_anyone_submit() {
+    // The dev default (oracle qna Q31): open instance — anonymous and unlisted both save.
+    let (svc, _) = service_gated(
+        Some(spec(&[Some("0")])),
+        vec![ok_run("0"), ok_run("0")],
+        FakeAllowlist(vec![]),
+        false,
+    );
+    assert!(
+        svc.submit(path(), "python".into(), "x".into(), None)
+            .await
+            .is_ok()
+    );
+    let stranger = Submitter {
+        user_id: "sub-1".into(),
+        username: "stranger".into(),
+    };
+    assert!(
+        svc.submit(path(), "python".into(), "x".into(), Some(stranger))
+            .await
+            .is_ok()
+    );
+}
+
+#[tokio::test]
+async fn gating_on_requires_sign_in_and_the_allowlist() {
+    let (svc, _) = service_gated(
+        Some(spec(&[Some("0")])),
+        vec![ok_run("0")],
+        FakeAllowlist(vec!["ada"]),
+        true,
+    );
+    let err = svc
+        .submit(path(), "python".into(), "x".into(), None)
+        .await
+        .unwrap_err();
+    assert_eq!(err, SubmissionError::SubmitRequiresSignIn);
+
+    let stranger = Submitter {
+        user_id: "sub-1".into(),
+        username: "stranger".into(),
+    };
+    let err = svc
+        .submit(path(), "python".into(), "x".into(), Some(stranger))
+        .await
+        .unwrap_err();
+    assert_eq!(err, SubmissionError::NotAllowlisted("stranger".into()));
+    assert!(
+        svc.repo.rows.lock().unwrap().is_empty(),
+        "rejects never touch the store"
+    );
+
+    let ada = Submitter {
+        user_id: "sub-2".into(),
+        username: "ada".into(),
+    };
+    assert!(
+        svc.submit(path(), "python".into(), "x".into(), Some(ada))
+            .await
+            .is_ok()
+    );
+    assert_eq!(svc.repo.rows.lock().unwrap().len(), 1);
 }
 
 #[tokio::test]

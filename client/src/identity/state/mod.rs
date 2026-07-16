@@ -119,3 +119,76 @@ async fn refresh_loop(store: AuthStore, handle: Rc<AuthHandle>) {
         }
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ACCOUNT ACTIONS (oracle: `AccountStore` + `ActionStatus`, step 21)
+// The destructive verbs, each driving one inline status banner. Deleting the
+// account orchestrates erase → delete → sign-out ON THE CLIENT, so the server's
+// identity context never depends on submissions (qna Q32).
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ActionStatus {
+    Idle,
+    Busy(String),
+    Ok(String),
+    Error(String),
+}
+
+/// The browser-side state the account owns (reading preferences; theme is a preference of the
+/// DEVICE, not "my data" — the oracle excluded it too).
+const LOCAL_KEYS: [&str; 1] = ["reader-prefs"];
+
+fn clear_local() {
+    if let Some(Ok(Some(storage))) = web_sys::window().map(|w| w.local_storage()) {
+        for key in LOCAL_KEYS {
+            let _ = storage.remove_item(key);
+        }
+    }
+}
+
+pub fn erase_submissions(status: RwSignal<ActionStatus>) {
+    status.set(ActionStatus::Busy("Erasing your submissions…".into()));
+    spawn_local(async move {
+        match api::erase_submissions().await {
+            Ok(result) => status.set(ActionStatus::Ok(format!(
+                "Deleted {} submission(s).",
+                result.deleted
+            ))),
+            Err(message) => status.set(ActionStatus::Error(message)),
+        }
+    });
+}
+
+/// Erase server data AND this browser's reading state, then reload.
+pub fn erase_all_data(status: RwSignal<ActionStatus>) {
+    status.set(ActionStatus::Busy("Erasing your data…".into()));
+    spawn_local(async move {
+        match api::erase_submissions().await {
+            Ok(_) => {
+                clear_local();
+                if let Some(window) = web_sys::window() {
+                    let _ = window.location().reload();
+                }
+            }
+            Err(message) => status.set(ActionStatus::Error(message)),
+        }
+    });
+}
+
+/// Erase → delete → sign out; any failed leg stops the chain with its message.
+pub fn delete_account(auth: AuthStore, status: RwSignal<ActionStatus>) {
+    status.set(ActionStatus::Busy("Deleting your account…".into()));
+    spawn_local(async move {
+        if let Err(message) = api::erase_submissions().await {
+            return status.set(ActionStatus::Error(message));
+        }
+        match api::delete_account().await {
+            Ok(_) => {
+                clear_local();
+                auth.sign_out();
+            }
+            Err(message) => status.set(ActionStatus::Error(message)),
+        }
+    });
+}

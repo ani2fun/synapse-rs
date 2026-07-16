@@ -78,6 +78,26 @@ pub async fn me() -> Result<MeDto, String> {
     fetch_json("/api/me").await
 }
 
+/// Erase every submission of the caller ("reset my data").
+pub async fn erase_submissions() -> Result<synapse_shared::submission::DeleteResultDto, String> {
+    delete_json("/api/submissions").await
+}
+
+/// Remove the caller's sign-in (the Keycloak account). App data is the separate verb above —
+/// the account page orchestrates erase → delete.
+pub async fn delete_account() -> Result<serde_json::Value, String> {
+    delete_json("/api/me").await
+}
+
+async fn delete_json<T: DeserializeOwned>(url: &str) -> Result<T, String> {
+    let mut request = gloo_net::http::Request::delete(url);
+    if let Some(token) = bearer() {
+        request = request.header("Authorization", &format!("Bearer {token}"));
+    }
+    let response = request.send().await.map_err(|error| error.to_string())?;
+    decode(response).await
+}
+
 async fn post_json<B: Serialize, T: DeserializeOwned>(url: &str, body: &B) -> Result<T, String> {
     let mut request = gloo_net::http::Request::post(url);
     if let Some(token) = bearer() {

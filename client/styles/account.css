@@ -1,0 +1,61 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   ACCOUNT PAGE (step 20) — the identity card, the danger zone, the status
+   banner, and the confirm modal (oracle: account-page.css classes verbatim).
+   The same grammar the admin panel reuses.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.account-page__inner { max-width: 38rem; margin: 0 auto; }
+.account-page__title { font-size: 1.5rem; color: #0f172a; margin: 0.5rem 0 1.25rem; }
+.account-page__loading { color: #64748b; }
+
+.account-page__identity { display: flex; gap: 0.9rem; align-items: center;
+                          border: 1px solid #e2e8f0; border-radius: 0.75rem;
+                          padding: 1rem 1.2rem; background: #fff; }
+.account-page__identity--anon { flex-direction: column; align-items: flex-start; gap: 0.4rem; }
+.account-page__avatar { width: 2.6rem; height: 2.6rem; border-radius: 9999px;
+                        display: inline-flex; align-items: center; justify-content: center;
+                        background: #ccfbf1; color: #0f766e; font-weight: 700; font-size: 1.1rem; }
+.account-page__id-text { display: flex; flex-direction: column; gap: 0.1rem; }
+.account-page__handle { font-weight: 700; color: #0f172a; }
+.account-page__field { font-size: 0.85rem; color: #475569; }
+.account-page__meta { font-size: 0.75rem; color: #94a3b8; }
+.account-page__signin { padding: 0.4rem 1rem; border-radius: 0.5rem; border: none;
+                        background: #0d9488; color: #f0fdfa; font-weight: 600; cursor: pointer; }
+.account-page__back { margin-left: auto; font-size: 0.8rem; color: #0d9488; text-decoration: none; }
+.account-page__back:hover { text-decoration: underline; }
+
+.account-page__danger { margin-top: 1.75rem; border: 1px solid #fecaca; border-radius: 0.75rem;
+                        padding: 1rem 1.2rem; background: #fff; display: flex;
+                        flex-direction: column; gap: 0.75rem; }
+.account-page__danger-head { font-weight: 700; color: #b91c1c; }
+.account-page__danger-icon { margin-right: 0.25rem; }
+.account-page__danger-note { font-size: 0.8rem; color: #64748b; margin-top: -0.5rem; }
+.account-page__card { display: flex; gap: 1rem; align-items: center; justify-content: space-between;
+                      border: 1px solid #f1f5f9; border-radius: 0.6rem; padding: 0.75rem 0.9rem; }
+.account-page__card-text { display: flex; flex-direction: column; gap: 0.15rem; }
+.account-page__card-title { font-weight: 600; color: #0f172a; font-size: 0.95rem; }
+.account-page__card-desc { font-size: 0.8rem; color: #64748b; }
+.account-page__btn--danger { flex: none; display: inline-flex; gap: 0.35rem; align-items: center;
+                             padding: 0.4rem 0.85rem; border-radius: 0.5rem;
+                             border: 1px solid #fecaca; background: #fef2f2; color: #b91c1c;
+                             font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+.account-page__btn--danger:hover { background: #fee2e2; }
+
+.account-page__status { display: flex; gap: 0.4rem; align-items: baseline; font-size: 0.85rem;
+                        padding: 0.5rem 0.75rem; border-radius: 0.5rem; }
+.account-page__status--busy { background: #f8fafc; color: #475569; }
+.account-page__status--ok { background: #f0fdf4; color: #15803d; }
+.account-page__status--error { background: #fef2f2; color: #b91c1c; }
+
+.confirm-scrim { position: fixed; inset: 0; z-index: 70; background: rgb(15 23 42 / 0.4);
+                 display: flex; align-items: center; justify-content: center; }
+.confirm { width: min(24rem, 92vw); background: #fff; border-radius: 0.75rem;
+           padding: 1.1rem 1.25rem; box-shadow: 0 20px 50px rgb(15 23 42 / 0.3); }
+.confirm__title { font-weight: 700; color: #0f172a; }
+.confirm__body { font-size: 0.85rem; color: #475569; margin: 0.4rem 0 1rem; }
+.confirm__actions { display: flex; gap: 0.6rem; justify-content: flex-end; }
+.confirm__cancel { padding: 0.4rem 0.9rem; border-radius: 0.5rem; border: 1px solid #e2e8f0;
+                   background: #fff; color: #334155; cursor: pointer; }
+.confirm__danger { padding: 0.4rem 0.9rem; border-radius: 0.5rem; border: none;
+                   background: #dc2626; color: #fff; font-weight: 600; cursor: pointer; }
+.confirm__danger:hover { background: #b91c1c; }

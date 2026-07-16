@@ -211,3 +211,14 @@ async fn the_full_submit_judge_poll_flow() {
     assert_eq!(last["passed"], 2);
     assert_eq!(last["total"], 2);
 }
+
+#[tokio::test]
+async fn the_allowlist_migration_seeds_the_dev_users() {
+    use synapse_server::submission::application::SubmissionAllowlist;
+    use synapse_server::submission::infrastructure::PostgresSubmissionAllowlist;
+    let Some(pool) = gated_pool().await else { return };
+    let allowlist = PostgresSubmissionAllowlist::new(pool);
+    assert!(allowlist.is_allowed("tester").await.unwrap(), "seeded");
+    assert!(allowlist.is_allowed("test1").await.unwrap(), "seeded");
+    assert!(!allowlist.is_allowed("stranger").await.unwrap());
+}

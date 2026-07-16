@@ -100,6 +100,8 @@ export interface EditorHandle {
    * Visualise modal's SourcePane (step 30), Python-Tutor style. `current`/`next` are 1-indexed source lines.
    */
   setLineHighlights: (current: number, next: number | null) => void;
+  /** Re-tokenize the buffer as another fence language — the workbench language tabs (step 30). */
+  setLanguage: (fenceLang: string) => void;
 }
 
 export interface EditorOptions {
@@ -219,6 +221,10 @@ export function createEditor(container: HTMLElement, opts: EditorOptions): Edito
     },
     setValue: (value: string) => editor.setValue(value),
     getValue: () => editor.getValue(),
+    setLanguage: (fenceLang: string) => {
+      const model = editor.getModel();
+      if (model) monaco.editor.setModelLanguage(model, monacoLanguage(fenceLang));
+    },
     setLineHighlights: (current: number, next: number | null) => {
       const decos: monaco.editor.IModelDeltaDecoration[] = [
         {

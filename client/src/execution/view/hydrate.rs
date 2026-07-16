@@ -38,10 +38,9 @@ pub fn hydrate_workbenches(
         let Some(variants) = logic::parse_variants(&String::from(decoded)) else {
             continue;
         };
-        // First variant for now (the language switch joins with the multi-variant step).
-        let Some(variant) = variants.into_iter().next() else {
+        if variants.is_empty() {
             continue;
-        };
+        }
         // The authored suite rides in data-spec (absent on plain lesson blocks).
         let spec = element
             .get_attribute("data-spec")
@@ -49,7 +48,7 @@ pub fn hydrate_workbenches(
             .and_then(|decoded| serde_json::from_str(&String::from(decoded)).ok());
         let path = lesson_path.to_vec();
         let handle = leptos::mount::mount_to(element, move || {
-            view! { <RunnableBlock variant=variant spec=spec lesson_path=path auth=auth code_sink=code_sink theme=theme viz_modal=viz_modal /> }
+            view! { <RunnableBlock variants=variants spec=spec lesson_path=path auth=auth code_sink=code_sink theme=theme viz_modal=viz_modal /> }
         });
         handles.push(Box::new(handle));
     }

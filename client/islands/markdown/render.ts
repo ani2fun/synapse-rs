@@ -362,7 +362,7 @@ export async function renderLesson(raw: string): Promise<string> {
             const at = kids.indexOf(node);
             const pVariants: FenceVariant[] = [];
             let pSpec: TestSpecJson | undefined;
-            let editorial: string | undefined;
+            const editorials: { tag: string; md: string }[] = [];
             const pExtras: ElementContent[] = [];
             if (at >= 0) {
               let i = at + 1;
@@ -382,9 +382,14 @@ export async function renderLesson(raw: string): Promise<string> {
                 }
                 i += 1;
               }
-              if (kids[i]?.type === "code" && (kids[i] as Code).lang === "editorial") {
-                editorial = (kids[i] as Code).value;
-                (kids[i] as unknown as Record<string, boolean>)[CONSUMED] = true;
+              // One or more ```editorial fences. A fence may carry an approach tag —
+              // ```editorial approach-brute-force-1 / approach-optimal-1 — which becomes a
+              // tab inside the Editorial pane; a bare ```editorial is the single default.
+              while (i < kids.length && kids[i]?.type === "code" && (kids[i] as Code).lang === "editorial") {
+                const fence = kids[i] as Code;
+                const tag = /(?:^|\s)(approach-[a-z0-9-]+)(?:$|\s)/.exec(fence.meta ?? "")?.[1] ?? "";
+                editorials.push({ tag, md: fence.value });
+                (fence as unknown as Record<string, boolean>)[CONSUMED] = true;
                 i += 1;
               }
             }
@@ -394,7 +399,7 @@ export async function renderLesson(raw: string): Promise<string> {
               "data-variants": encodeURIComponent(JSON.stringify(pVariants)),
             };
             if (pSpec) pProps["data-spec"] = encodeURIComponent(JSON.stringify(pSpec));
-            if (editorial) pProps["data-editorial"] = encodeURIComponent(editorial);
+            if (editorials.length > 0) pProps["data-editorials"] = encodeURIComponent(JSON.stringify(editorials));
             const pDiv: Element = { type: "element", tagName: "div", properties: pProps, children: [] };
             return pExtras.length > 0 ? [pDiv, ...pExtras] : pDiv;
           }

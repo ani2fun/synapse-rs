@@ -153,6 +153,14 @@ fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> impl IntoVi
                     theme,
                     viz_modal,
                 );
+                handles.extend(crate::execution::view::hydrate_practices(
+                    &body,
+                    &owned_segments,
+                    auth,
+                    code_ctx,
+                    theme,
+                    viz_modal,
+                ));
                 // The viz widgets (step 27): every planted `div.viz-widget` mounts a host.
                 for (element, spec) in crate::viz::blocks::discover(&body) {
                     let handle = leptos::mount::mount_to(element, move || {

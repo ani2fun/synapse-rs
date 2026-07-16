@@ -31,6 +31,8 @@ extern "C" {
     fn set_theme_js(this: &EditorHandle, dark: bool);
     #[wasm_bindgen(method, js_name = setLineHighlights)]
     fn set_line_highlights_js(this: &EditorHandle, current: u32, next: Option<u32>);
+    #[wasm_bindgen(method, js_name = setLanguage)]
+    fn set_language_js(this: &EditorHandle, fence_lang: &str);
     #[wasm_bindgen(method, js_name = dispose)]
     fn dispose_js(this: &EditorHandle);
 }
@@ -64,6 +66,11 @@ impl MountedEditor {
     /// The Visualise modal's source pane: highlight the current (+ next) 1-indexed lines.
     pub fn set_line_highlights(&self, current: u32, next: Option<u32>) {
         self.handle.set_line_highlights_js(current, next);
+    }
+
+    /// Re-tokenize the buffer as another fence language (the workbench language tabs).
+    pub fn set_language(&self, fence_lang: &str) {
+        self.handle.set_language_js(fence_lang);
     }
 }
 

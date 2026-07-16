@@ -244,6 +244,68 @@ describe("solution fences → spoiler-safe placeholder (step 16)", () => {
   });
 });
 
+describe("practice-problem fences → one grouped placeholder (step 30)", () => {
+  const SPEC = JSON.stringify({
+    args: [{ id: "n", label: "n", type: "int" }],
+    cases: [{ args: { n: "3" } }],
+  });
+  const page = [
+    "````problem",
+    "Reverse the array **in place**.",
+    "````",
+    "```python run",
+    "def reverse(a): ...",
+    "```",
+    "```java run",
+    "class Main {}",
+    "```",
+    "```testcases",
+    SPEC,
+    "```",
+  ].join("\n");
+
+  it("groups problem + run variants + testcases into one .practice-problem placeholder", async () => {
+    const html = await renderLesson(page);
+    expect(html).toContain('class="practice-problem"');
+    expect(decodeAttr(html, "data-problem")).toContain("Reverse the array");
+    const variants = JSON.parse(decodeAttr(html, "data-variants")!) as { lang: string }[];
+    expect(variants.map((v) => v.lang)).toEqual(["python", "java"]);
+    expect(JSON.parse(decodeAttr(html, "data-spec")!)).toEqual(JSON.parse(SPEC));
+    // the consumed fences do not ALSO render as workbench/highlighted blocks
+    expect(html).not.toContain('class="workbench"');
+  });
+
+  it("a bare ```editorial fence lands as one untagged entry in data-editorials", async () => {
+    const html = await renderLesson([page, "```editorial", "Use two pointers.", "```"].join("\n"));
+    const editorials = JSON.parse(decodeAttr(html, "data-editorials")!) as { tag: string; md: string }[];
+    expect(editorials).toEqual([{ tag: "", md: "Use two pointers." }]);
+  });
+
+  it("adjacent approach-tagged editorial fences become tagged entries, in order (step 30)", async () => {
+    const tagged = [
+      page,
+      "```editorial approach-brute-force-1",
+      "Try every rotation.",
+      "```",
+      "```editorial approach-optimal-1",
+      "Two pointers, O(n).",
+      "```",
+    ].join("\n");
+    const html = await renderLesson(tagged);
+    const editorials = JSON.parse(decodeAttr(html, "data-editorials")!) as { tag: string; md: string }[];
+    expect(editorials).toEqual([
+      { tag: "approach-brute-force-1", md: "Try every rotation." },
+      { tag: "approach-optimal-1", md: "Two pointers, O(n)." },
+    ]);
+  });
+
+  it("without a ```problem fence the same group stays a plain workbench (backward compatible)", async () => {
+    const html = await renderLesson(["```python run", "print(1)", "```"].join("\n"));
+    expect(html).toContain('class="workbench"');
+    expect(html).not.toContain("practice-problem");
+  });
+});
+
 describe("other reserved fences stay plain code (hooks reserved, not built)", () => {
   it("an ORPHAN ```testcases fence (no run group before it) stays a plain code block", async () => {
     const html = await renderLesson("```testcases\n" + SPEC_JSON + "\n```");

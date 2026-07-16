@@ -9,4 +9,5 @@ pub mod health;
 pub mod http;
 pub mod likec4_proxy;
 pub mod rate_limiter;
+pub mod security_headers;
 pub mod static_routes;

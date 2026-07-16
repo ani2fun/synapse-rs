@@ -61,6 +61,7 @@ pub fn app(deps: AppDeps) -> Router {
         limiter: deps.limiter,
     };
     let statics = StaticRoutes::new(&deps.static_root);
+    let security = platform::security_headers::SecurityHeaders::new(&deps.ident.issuer);
     let mut router = Router::new()
         .merge(platform::http::routes())
         .merge(catalog::http::routes(deps.catalog))
@@ -78,7 +79,12 @@ pub fn app(deps: AppDeps) -> Router {
             get(|| async { "synapse-rs server — see /api/health or /api/synapse/index" }),
         );
     }
-    router
+    // OUTERMOST (step 19): the security stamp covers every sub-tree — API, proxy, static,
+    // and error responses alike.
+    router.layer(axum::middleware::from_fn_with_state(
+        security,
+        platform::security_headers::stamp,
+    ))
 }
 
 /// The code-first OpenAPI document (utoipa). The contract-lock test diffs this rendered

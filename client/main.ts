@@ -15,6 +15,7 @@ import "./styles/account.css";
 import "./styles/coach.css";
 import "./styles/viz.css";
 import "./styles/practice.css";
+import "./styles/diagrams.css";
 import init from "./pkg/synapse_client.js";
 
 await init({

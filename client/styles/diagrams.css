@@ -1,0 +1,95 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   AUTHORED DIAGRAMS (step 31; oracle: diagrams.css) — mermaid + d2 cards and the
+   shared zoom overlay. Authored diagrams always render LIGHT (d2 themeID 0 ·
+   mermaid "default"): dark label text on fixed light pastel fills — so a FIXED
+   light card frames them on both themes. House rule: the diagram chrome —
+   Enlarge on the card AND Close in the overlay — sits top-LEFT.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.diagram { position: relative; margin: 1.5rem 0; display: flex; flex-direction: column;
+           align-items: center; }
+.diagram.hidden { display: none; }
+.diagram__figure { width: 100%; display: flex; justify-content: center; overflow: hidden;
+                   padding: 0.75rem; background: #ffffff; border: 1px solid #e2e8f0;
+                   border-radius: 12px; }
+/* One box for every inline diagram: mermaid ships an inline max-width (compact); d2 ships
+   width/height attrs (tall). A shared max-height keeps both glanceable — detail lives
+   behind the zoom. */
+.diagram__figure svg { max-width: 100%; max-height: min(70vh, 32rem); height: auto; }
+
+/* The Enlarge pill — top-LEFT, revealed on hover once the figure has rendered. */
+.diagram__zoom { position: absolute; top: 6px; left: 6px; z-index: 1; opacity: 0;
+                 transition: opacity 140ms ease;
+                 border: 1px solid hsl(var(--border)); border-radius: 999px;
+                 background: hsl(var(--background) / 0.9);
+                 color: hsl(var(--muted-foreground)); font-size: 12px; padding: 3px 10px;
+                 cursor: pointer; backdrop-filter: blur(4px); }
+.diagram:hover .diagram__zoom, .diagram__zoom:focus-visible { opacity: 1; }
+.diagram__zoom:hover { border-color: hsl(var(--primary)); color: hsl(var(--primary)); }
+
+/* Loud failure (ADR-S026): a visible card with the raw source — never a blank figure. */
+.diagram-error { width: 100%; margin: 1rem 0; padding: 0.75rem 1rem;
+                 border: 1px solid hsl(var(--status-err) / 0.4); border-radius: 12px;
+                 background: hsl(var(--status-err) / 0.08); color: hsl(var(--status-err));
+                 font-size: 0.875rem; }
+.diagram-error details { margin-top: 0.5rem; }
+.diagram-error summary { cursor: pointer; color: hsl(var(--muted-foreground)); }
+.diagram-error pre { margin-top: 0.5rem; padding: 0.5rem 0.75rem; border-radius: 8px;
+                     background: hsl(var(--muted) / 0.5); color: hsl(var(--foreground));
+                     font-family: var(--font-mono); font-size: 0.8rem; overflow-x: auto;
+                     white-space: pre; }
+
+/* ── the zoom overlay: near-fullscreen light card over a blurred scrim ── */
+.diagram-zoom-scrim { position: fixed; inset: 0; z-index: 70; display: flex;
+                      align-items: center; justify-content: center; padding: 2.5vh 2.5vw;
+                      background: hsl(var(--foreground) / 0.45); backdrop-filter: blur(3px); }
+.diagram-zoom { position: relative; width: 100%; height: 100%;
+                border: 1px solid hsl(var(--border)); border-radius: 16px;
+                background: hsl(var(--card)); overflow: hidden;
+                box-shadow: 0 24px 60px -18px hsl(var(--foreground) / 0.5); }
+/* The SVG zoom is always light paper — mermaid's transparent SVG needs the light backdrop. */
+.diagram-zoom--paper { background: #ffffff; }
+.diagram-zoom__zoomable { width: 100%; height: 100%; display: flex; flex-direction: column; }
+.diagram-zoom__viewport { position: relative; flex: 1; min-height: 0; overflow: hidden;
+                          cursor: grab; touch-action: none; }
+.diagram-zoom__viewport:active { cursor: grabbing; }
+.diagram-zoom__figure { width: 100%; height: 100%; display: flex; align-items: center;
+                        justify-content: center; transform-origin: center center;
+                        will-change: transform; }
+/* Fit at rest; !important neutralizes mermaid's inline max-width so it fills the modal. */
+.diagram-zoom__figure svg { display: block; width: auto; height: auto;
+                            max-width: 100% !important; max-height: 100% !important; }
+
+.diagram-zoom__controls { position: absolute; bottom: 16px; left: 50%;
+                          transform: translateX(-50%); z-index: 2; display: inline-flex;
+                          align-items: center; gap: 6px; padding: 6px 8px;
+                          border: 1px solid hsl(var(--border)); border-radius: 999px;
+                          background: hsl(var(--card) / 0.92);
+                          box-shadow: 0 8px 24px -12px hsl(var(--foreground) / 0.5);
+                          backdrop-filter: blur(4px); }
+.diagram-zoom__ctl { width: 32px; height: 32px; display: inline-flex; align-items: center;
+                     justify-content: center; font-size: 16px; line-height: 1;
+                     border: 1px solid hsl(var(--border)); border-radius: 8px;
+                     background: hsl(var(--card)); color: hsl(var(--foreground));
+                     cursor: pointer; }
+.diagram-zoom__ctl:hover { border-color: hsl(var(--primary) / 0.5); color: hsl(var(--primary)); }
+.diagram-zoom__level { min-width: 3.2rem; text-align: center; font-family: var(--font-mono);
+                       font-size: 0.8rem; color: hsl(var(--muted-foreground));
+                       user-select: none; }
+
+/* Top-LEFT, deliberately: LikeC4's own chrome lives top-right, so ours never collides. */
+.diagram-zoom__close { position: absolute; top: 12px; left: 14px; z-index: 3;
+                       border: 1px solid hsl(var(--border)); border-radius: 999px;
+                       background: hsl(var(--background) / 0.9);
+                       color: hsl(var(--muted-foreground)); font-size: 12px;
+                       padding: 3px 10px; cursor: pointer; backdrop-filter: blur(4px); }
+.diagram-zoom__close:hover { border-color: hsl(var(--primary)); color: hsl(var(--primary)); }
+
+/* ── the d2 slideshow: the authored legacy wrapper passes through; the transport rides
+      under the figure (classes shared with the viz transport bar in viz.css) ── */
+.d2-slides { display: contents; }
+.diagram .transport { margin-top: 10px; }
+
+/* ── the LikeC4 lesson embed: the authored <iframe> on a rounded dark frame ── */
+.reader-prose iframe[src^="/c4/"] { width: 100%; border: 1px solid hsl(var(--border));
+                                    border-radius: 12px; background: #101014; }

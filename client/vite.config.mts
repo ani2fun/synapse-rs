@@ -16,12 +16,15 @@ export default defineConfig({
       "@editor": fileURLToPath(new URL("./islands/editor", import.meta.url)),
       "@auth": fileURLToPath(new URL("./islands/auth", import.meta.url)),
       "@tracer": fileURLToPath(new URL("./islands/tracer", import.meta.url)),
+      "@diagram": fileURLToPath(new URL("./islands/diagram", import.meta.url)),
     },
   },
   server: {
     port: 5273,
     proxy: {
       "/api": "http://localhost:8180",
+      // LikeC4 lesson embeds (<iframe src="/c4/view/…">) ride the server's proxy.
+      "/c4": "http://localhost:8180",
     },
   },
   build: {

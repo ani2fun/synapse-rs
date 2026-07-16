@@ -153,6 +153,7 @@ fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> impl IntoVi
                     theme,
                     viz_modal,
                 );
+                handles.extend(crate::catalog::view::diagrams::hydrate_diagrams(&body));
                 handles.extend(crate::execution::view::hydrate_practices(
                     &body,
                     &owned_segments,

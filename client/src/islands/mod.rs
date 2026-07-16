@@ -3,6 +3,7 @@
 //! externs to this module tree). One sub-module per island alias.
 
 pub mod auth;
+pub mod diagram;
 pub mod editor;
 pub mod markdown;
 pub mod tracer;

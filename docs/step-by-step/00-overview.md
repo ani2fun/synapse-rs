@@ -58,3 +58,4 @@ introduced the feature, never as later afterthoughts.
 | 28 | `step-28` | [Tracers + the Visualise modal](28-tracers-and-the-visualise-modal.md) | 2026-07-16 |
 | 29 | `step-29` | [The bespoke widget gallery](29-the-bespoke-widget-gallery.md) | 2026-07-16 |
 | 30 | `step-30` | [The practice widget](30-the-practice-widget.md) | 2026-07-16 |
+| 31 | `step-31` | [The diagram slice](31-the-diagram-slice.md) | 2026-07-17 |

@@ -2,6 +2,7 @@
 //! Markdown crosses the island bridge; everything else is signals → DOM.
 
 mod c4;
+mod c4_docs;
 mod diagrams;
 mod library;
 mod prefs;

@@ -42,6 +42,18 @@ pub async fn lesson(path: &[String]) -> Result<LessonPayloadDto, String> {
     fetch_json(&format!("/api/synapse/{}", path.join("/"))).await
 }
 
+/// A LikeC4 component's tutorial doc, co-located next to the lesson (`_c4-docs/`).
+pub async fn c4_doc(
+    element_id: &str,
+    lesson: &[String],
+) -> Result<synapse_shared::catalog::ComponentDocDto, String> {
+    fetch_json(&format!(
+        "/api/synapse/c4-doc/{element_id}?lesson={}",
+        lesson.join("/")
+    ))
+    .await
+}
+
 /// Run one snippet in the sandbox — a badly-running program is an `Ok(RunResult)`, exactly as
 /// the server promises.
 pub async fn run(request: &RunRequest) -> Result<RunResult, String> {

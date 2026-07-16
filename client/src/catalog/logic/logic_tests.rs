@@ -84,3 +84,40 @@ fn card_counts_lessons_recursively_and_chapters_directly() {
     assert_eq!(lesson_count(&b), 2);
     assert_eq!(chapter_count(&b), 1);
 }
+
+fn hop(tag: &str, classes: &str, id: Option<&str>) -> C4PathHop {
+    (tag.to_owned(), classes.to_owned(), id.map(str::to_owned))
+}
+
+#[test]
+fn a_node_body_click_resolves_to_its_dotted_fqn() {
+    let path = vec![
+        hop("DIV", "likec4-element", None),
+        hop(
+            "DIV",
+            "react-flow__node react-flow__node-element",
+            Some("btPersonal.btSmallWeb"),
+        ),
+        hop("DIV", "react-flow__pane", None),
+    ];
+    assert_eq!(resolve_c4_node(&path).as_deref(), Some("btPersonal.btSmallWeb"));
+}
+
+#[test]
+fn a_button_before_the_node_is_likec4s_own_control() {
+    let path = vec![
+        hop("BUTTON", "mantine-ActionIcon-root", None),
+        hop("DIV", "react-flow__node", Some("sfClient")),
+    ];
+    assert_eq!(resolve_c4_node(&path), None);
+}
+
+#[test]
+fn edges_and_token_substrings_never_resolve() {
+    let edge = vec![hop("G", "react-flow__edge", Some("hash-1a2b"))];
+    assert_eq!(resolve_c4_node(&edge), None);
+    let substring = vec![hop("DIV", "react-flow__node-toolbar", Some("x"))];
+    assert_eq!(resolve_c4_node(&substring), None);
+    let empty_id = vec![hop("DIV", "react-flow__node", Some(""))];
+    assert_eq!(resolve_c4_node(&empty_id), None);
+}

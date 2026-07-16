@@ -189,6 +189,8 @@ fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> impl IntoVi
     let auth = crate::identity::state::AuthStore::from_context();
     let theme = crate::shell::theme::ThemeStore::from_context();
     let viz_modal = crate::viz::modal::VizModalStore::from_context();
+    // The C4 click-to-guide seam: bridges in the embeds set it; the docs panel reads it.
+    let c4_selected: RwSignal<Option<String>> = RwSignal::new(None);
     // The Coach's editor snapshot — filled by the hydrated workbench on mount + every edit.
     let code_ctx = RwSignal::new((String::new(), String::new()));
     // The body crosses the island bridge asynchronously; once the HTML lands, the interactive
@@ -200,6 +202,7 @@ fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> impl IntoVi
     let mounts: StoredValue<Vec<Box<dyn std::any::Any>>, LocalStorage> = StoredValue::new_local(Vec::new());
     let raw = payload.raw.clone();
     let owned_segments = segments.to_vec();
+    let panel_segments = segments.to_vec();
     let problem_path_source = segments.join("/");
     spawn_local(async move {
         match islands::markdown::render(&raw).await {
@@ -220,7 +223,7 @@ fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> impl IntoVi
                     viz_modal,
                 );
                 handles.extend(crate::catalog::view::diagrams::hydrate_diagrams(&body));
-                handles.extend(crate::catalog::view::c4::hydrate_c4_embeds(&body));
+                handles.extend(crate::catalog::view::c4::hydrate_c4_embeds(&body, c4_selected));
                 handles.extend(crate::execution::view::hydrate_practices(
                     &body,
                     &owned_segments,
@@ -272,6 +275,7 @@ fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> impl IntoVi
                 {nav_link(&payload.prev, "← Previous", "nav-prev")}
                 {nav_link(&payload.next, "Next →", "nav-next")}
             </nav>
+            <super::c4_docs::C4DocsPanel selected=c4_selected lesson=panel_segments />
             <super::ReaderPrefsFab />
         </div>
     }

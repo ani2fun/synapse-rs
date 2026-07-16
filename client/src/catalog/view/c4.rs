@@ -22,7 +22,10 @@ const SCOPE_CSS: &str = r#"[class~="layerStyle_likec4.panel"] { display: none !i
 // DISCOVERY
 // ─────────────────────────────────────────────────────────────────────────────
 
-pub fn hydrate_c4_embeds(root: &web_sys::HtmlElement) -> Vec<Box<dyn Any>> {
+pub fn hydrate_c4_embeds(
+    root: &web_sys::HtmlElement,
+    selected: RwSignal<Option<String>>,
+) -> Vec<Box<dyn Any>> {
     let mut handles: Vec<Box<dyn Any>> = Vec::new();
     let Ok(nodes) = root.query_selector_all("iframe[src^='/c4/']") else {
         return handles;
@@ -60,7 +63,7 @@ pub fn hydrate_c4_embeds(root: &web_sys::HtmlElement) -> Vec<Box<dyn Any>> {
             continue;
         };
         let handle = leptos::mount::mount_to(host, move || {
-            view! { <C4Embed frame=frame wrap=wrap src=src /> }
+            view! { <C4Embed frame=frame wrap=wrap src=src selected=selected /> }
         });
         handles.push(Box::new(handle));
     }
@@ -73,7 +76,12 @@ pub fn hydrate_c4_embeds(root: &web_sys::HtmlElement) -> Vec<Box<dyn Any>> {
 
 #[allow(clippy::needless_pass_by_value)]
 #[component]
-fn C4Embed(frame: web_sys::HtmlIFrameElement, wrap: web_sys::HtmlElement, src: String) -> impl IntoView {
+fn C4Embed(
+    frame: web_sys::HtmlIFrameElement,
+    wrap: web_sys::HtmlElement,
+    src: String,
+    selected: RwSignal<Option<String>>,
+) -> impl IntoView {
     let open = RwSignal::new(false);
 
     // The overlay guard: watch `.likec4-overlay[open]` inside the SAME-ORIGIN iframe with a
@@ -116,6 +124,7 @@ fn C4Embed(frame: web_sys::HtmlIFrameElement, wrap: web_sys::HtmlElement, src: S
             }
             sync.forget(); // owned by the iframe document's lifetime
             inject_scope_style(&doc);
+            attach_node_bridge(&doc, selected);
         };
         let onload = Closure::<dyn FnMut()>::new({
             let wire = wire.clone();
@@ -135,8 +144,50 @@ fn C4Embed(frame: web_sys::HtmlIFrameElement, wrap: web_sys::HtmlElement, src: S
         >
             "⤢ Enlarge"
         </button>
-        {move || open.get().then(|| view! { <C4Zoom src=overlay_src.clone() open=open /> })}
+        {move || open.get().then(|| view! { <C4Zoom src=overlay_src.clone() open=open selected=selected /> })}
     }
+}
+
+/// The click-to-docs bridge (oracle: `attachNodeBridge`): a CAPTURE-phase click listener on
+/// the same-origin iframe document. The composed path (target-first) feeds the pure
+/// `resolve_c4_node`; on a hit the click is swallowed and the docs panel opens. Elements in
+/// the path are from the IFRAME's realm — only realm-safe method calls, no checked casts.
+fn attach_node_bridge(doc: &web_sys::Document, selected: RwSignal<Option<String>>) {
+    use wasm_bindgen::JsCast;
+    // Cross-realm rule: nothing in the composed path passes a parent-realm instanceof, so
+    // every read goes through Reflect (window/document hops have no tagName and drop out).
+    fn attr(target: &wasm_bindgen::JsValue, name: &str) -> Option<String> {
+        let get = js_sys::Reflect::get(target, &"getAttribute".into()).ok()?;
+        let get: js_sys::Function = get.unchecked_into();
+        get.call1(target, &name.into()).ok()?.as_string()
+    }
+    let handler = Closure::<dyn FnMut(web_sys::Event)>::new(move |event: web_sys::Event| {
+        let hops: Vec<crate::catalog::logic::C4PathHop> = event
+            .composed_path()
+            .iter()
+            .filter_map(|target| {
+                let tag = js_sys::Reflect::get(&target, &"tagName".into())
+                    .ok()
+                    .and_then(|v| v.as_string())?;
+                let classes = attr(&target, "class").unwrap_or_default();
+                let data_id = attr(&target, "data-id");
+                Some((tag, classes, data_id))
+            })
+            .collect();
+        if let Some(id) = crate::catalog::logic::resolve_c4_node(&hops) {
+            event.stop_propagation();
+            event.prevent_default();
+            selected.set(Some(id));
+        }
+    });
+    let options = web_sys::AddEventListenerOptions::new();
+    options.set_capture(true);
+    let _ = doc.add_event_listener_with_callback_and_add_event_listener_options(
+        "click",
+        handler.as_ref().unchecked_ref(),
+        &options,
+    );
+    handler.forget(); // owned by the iframe document's lifetime
 }
 
 fn inject_scope_style(doc: &web_sys::Document) {
@@ -164,7 +215,7 @@ fn inject_scope_style(doc: &web_sys::Document) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[component]
-fn C4Zoom(src: String, open: RwSignal<bool>) -> impl IntoView {
+fn C4Zoom(src: String, open: RwSignal<bool>, selected: RwSignal<Option<String>>) -> impl IntoView {
     let scale_pct: RwSignal<Option<i32>> = RwSignal::new(None);
     let overlay = RwSignal::new(false);
     let frame_ref: NodeRef<leptos::html::Iframe> = NodeRef::new();
@@ -266,6 +317,11 @@ fn C4Zoom(src: String, open: RwSignal<bool>) -> impl IntoView {
                         src=src
                         title="LikeC4 diagram"
                         node_ref=frame_ref
+                        on:load=move |_| {
+                            if let Some(doc) = frame_ref.get_untracked().and_then(|f| f.content_document()) {
+                                attach_node_bridge(&doc, selected);
+                            }
+                        }
                     ></iframe>
                     <div class="diagram-zoom__controls">
                         <button class="diagram-zoom__ctl" aria-label="Zoom out" on:click=move |_| zoom_step(false)>"−"</button>

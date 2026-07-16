@@ -79,6 +79,27 @@ pub fn chapter_count(book: &BookDto) -> usize {
         .count()
 }
 
+/// One hop of a click's composed path, target-first: `(tag_name, class_attr, data_id)`.
+pub type C4PathHop = (String, String, Option<String>);
+
+/// Resolve a click inside the LikeC4 viewer to an element FQN (oracle: `C4NodeResolver`).
+/// Walking target-first: a `<button>` BEFORE the node is one of LikeC4's own controls
+/// (relationships/details) — let the viewer keep it. A node must carry the EXACT
+/// `react-flow__node` class token (edges carry random-hash ids but not the token) and a
+/// non-empty `data-id` — the dotted element FQN.
+pub fn resolve_c4_node(path: &[C4PathHop]) -> Option<String> {
+    for (tag, classes, data_id) in path {
+        if tag.eq_ignore_ascii_case("button") {
+            return None;
+        }
+        let is_node = classes.split_whitespace().any(|c| c == "react-flow__node");
+        if is_node {
+            return data_id.clone().filter(|id| !id.is_empty());
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 #[path = "logic_tests.rs"]
 mod tests;

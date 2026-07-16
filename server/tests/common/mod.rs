@@ -4,6 +4,9 @@ use std::path::Path;
 use std::sync::Arc;
 
 use axum::Router;
+use synapse_server::AppDeps;
+use synapse_server::blog::application::BlogService;
+use synapse_server::blog::infrastructure::FileSystemBlogRepository;
 use synapse_server::catalog::application::CatalogService;
 use synapse_server::catalog::infrastructure::FileSystemContentRepository;
 use synapse_server::execution::application::RunCodeService;
@@ -11,44 +14,37 @@ use synapse_server::execution::infrastructure::GoJudgeRunner;
 use synapse_server::identity::application::IdentityService;
 use synapse_server::identity::http::IdentityRoutesState;
 use synapse_server::identity::infrastructure::JwksTokenVerifier;
+use synapse_server::platform::rate_limiter::{RateLimitBucket, RateLimiter};
 use synapse_server::submission::application::SubmitSolution;
 use synapse_server::submission::infrastructure::{FsProblemTests, PostgresSubmissionRepository};
 
-/// The full app over a content root (integration tests drive the REAL stack, middleware and
-/// all). A nonexistent root is valid — the catalog is simply empty.
-#[allow(dead_code)] // each IT binary compiles common on its own; not all use every helper
-pub fn app_over(content_root: &Path) -> Router {
-    // Port 9 (discard) refuses connections — tests that need a live sandbox point the
-    // executor elsewhere via `app_with_executor`.
-    app_with(content_root, "http://127.0.0.1:9", None)
-}
+/// A budget big enough that only the dedicated rate-limit ITs ever hit it.
+const TEST_BUCKET: RateLimitBucket = RateLimitBucket {
+    window_seconds: 60,
+    limit: 10_000,
+};
 
-/// The full app with an explicit go-judge base URL.
+/// The default wiring over a content root — tests tweak fields before `synapse_server::app`.
+/// A nonexistent root is valid (empty catalog + blog); port 9 (discard) refuses connections,
+/// so executor/issuer/likec4 default to unreachable; the pool is LAZY so store-free routes
+/// stay green; the static root is absent so no SPA routes mount.
 #[allow(dead_code)] // each IT binary compiles common on its own; not all use every helper
-pub fn app_with_executor(content_root: &Path, executor_url: &str) -> Router {
-    app_with(content_root, executor_url, None)
-}
-
-/// The full app with an explicit database too (the gated Postgres ITs). Without one, a LAZY
-/// pool pointed at a refusing port stands in — routes that never touch the store stay green.
-pub fn app_with(content_root: &Path, executor_url: &str, pool: Option<sqlx::PgPool>) -> Router {
-    // A refusing issuer: anonymous paths work; token paths 503 (Keycloak-down semantics).
-    app_with_issuer(
+pub fn deps(content_root: &Path) -> AppDeps {
+    deps_with(
         content_root,
-        executor_url,
-        pool,
+        "http://127.0.0.1:9",
+        None,
         "http://127.0.0.1:9/realms/synapse",
     )
 }
 
-/// The full app with an explicit OIDC issuer (the identity ITs run a local JWKS stub).
-#[allow(dead_code)]
-pub fn app_with_issuer(
+/// The knobs every IT combination needs: executor, database, issuer.
+pub fn deps_with(
     content_root: &Path,
     executor_url: &str,
     pool: Option<sqlx::PgPool>,
     issuer: &str,
-) -> Router {
+) -> AppDeps {
     let pool = pool.unwrap_or_else(|| {
         sqlx::postgres::PgPoolOptions::new()
             .connect_lazy("postgres://nobody:nowhere@127.0.0.1:9/none")
@@ -64,7 +60,7 @@ pub fn app_with_issuer(
         ))),
         Arc::clone(&runner),
     ));
-    let identity = IdentityRoutesState {
+    let ident = IdentityRoutesState {
         identity: Arc::new(IdentityService::new(JwksTokenVerifier::new(
             issuer,
             "synapse-web",
@@ -72,5 +68,57 @@ pub fn app_with_issuer(
         issuer: issuer.to_owned(),
         audience: "synapse-web".to_owned(),
     };
-    synapse_server::app(Arc::new(CatalogService::new(repo)), runner, submit, identity)
+    AppDeps {
+        catalog: Arc::new(CatalogService::new(repo)),
+        run: runner,
+        submit,
+        ident,
+        blog: Arc::new(BlogService::new(FileSystemBlogRepository::new(
+            content_root,
+            true,
+        ))),
+        limiter: Arc::new(RateLimiter::new(TEST_BUCKET, TEST_BUCKET)),
+        static_root: content_root.join("__no_dist__").to_string_lossy().into_owned(),
+        likec4_url: "http://127.0.0.1:9".to_owned(),
+    }
+}
+
+/// The full app over a content root (integration tests drive the REAL stack, middleware and
+/// all).
+#[allow(dead_code)]
+pub fn app_over(content_root: &Path) -> Router {
+    synapse_server::app(deps(content_root))
+}
+
+/// The full app with an explicit go-judge base URL.
+#[allow(dead_code)]
+pub fn app_with_executor(content_root: &Path, executor_url: &str) -> Router {
+    synapse_server::app(deps_with(
+        content_root,
+        executor_url,
+        None,
+        "http://127.0.0.1:9/realms/synapse",
+    ))
+}
+
+/// The full app with an explicit database too (the gated Postgres ITs).
+#[allow(dead_code)]
+pub fn app_with(content_root: &Path, executor_url: &str, pool: Option<sqlx::PgPool>) -> Router {
+    synapse_server::app(deps_with(
+        content_root,
+        executor_url,
+        pool,
+        "http://127.0.0.1:9/realms/synapse",
+    ))
+}
+
+/// The full app with an explicit OIDC issuer (the identity ITs run a local JWKS stub).
+#[allow(dead_code)]
+pub fn app_with_issuer(
+    content_root: &Path,
+    executor_url: &str,
+    pool: Option<sqlx::PgPool>,
+    issuer: &str,
+) -> Router {
+    synapse_server::app(deps_with(content_root, executor_url, pool, issuer))
 }

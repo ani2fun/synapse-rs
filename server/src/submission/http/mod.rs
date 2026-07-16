@@ -17,8 +17,11 @@ use synapse_shared::submission::{DeleteResultDto, SubmissionAcceptedDto, Submiss
 use uuid::Uuid;
 
 use crate::catalog::infrastructure::FileSystemContentRepository;
+use crate::execution::http::over_budget;
 use crate::execution::infrastructure::GoJudgeRunner;
 use crate::identity::http::{LiveIdentityService, bearer, to_auth_error};
+use crate::platform::client_ip::{Peer, client_ip};
+use crate::platform::rate_limiter::RateLimiter;
 use crate::submission::application::{SubmitSolution, Submitter};
 use crate::submission::domain::SubmissionId;
 use crate::submission::infrastructure::{FsProblemTests, PostgresSubmissionRepository};
@@ -31,6 +34,7 @@ pub type LiveSubmitSolution =
 pub struct SubmissionRoutesState {
     pub submit: Arc<LiveSubmitSolution>,
     pub identity: Arc<LiveIdentityService>,
+    pub limiter: Arc<RateLimiter>,
 }
 
 type ApiResult<T> = Result<(StatusCode, Json<T>), (StatusCode, Json<ApiError>)>;
@@ -82,11 +86,13 @@ fn needs_token(verb: &str) -> (StatusCode, Json<ApiError>) {
     request_body = SubmitRequestDto,
     responses(
         (status = 202, description = "Stored; judging in background", body = SubmissionAcceptedDto),
-        (status = 404, description = "Not a problem", body = ApiError)
+        (status = 404, description = "Not a problem", body = ApiError),
+        (status = 429, description = "Over the submission budget", body = ApiError)
     )
 )]
 pub(crate) async fn submit_solution(
     State(state): State<SubmissionRoutesState>,
+    peer: Peer,
     headers: HeaderMap,
     Json(request): Json<SubmitRequestDto>,
 ) -> ApiResult<SubmissionAcceptedDto> {
@@ -94,6 +100,14 @@ pub(crate) async fn submit_solution(
         user_id: user.id.0,
         username: user.username,
     });
+    // The budget gate (step 19's port): signed-in meters per subject, anonymous per IP.
+    let consumed = match &submitter {
+        Some(s) => state.limiter.consume_authenticated(&s.user_id),
+        None => state.limiter.consume_anonymous(&client_ip(&headers, peer.0)),
+    };
+    if let Err(throttled) = consumed {
+        return Err(over_budget(throttled, "Sign in for a bigger submission budget."));
+    }
     tracing::info!(path = request.path.join("/"), "POST /api/submissions");
     match state
         .submit

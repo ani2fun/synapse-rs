@@ -1,0 +1,35 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   ⌘K SEARCH (step 18) — the header trigger and the palette (oracle: SearchPalette
+   classes kept verbatim: cmdk-scrim / cmdk / cmdk__input / cmdk__results).
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.header__search { display: inline-flex; align-items: center; gap: 0.5rem;
+                  margin-left: 1rem; padding: 0.25rem 0.75rem; font-size: 0.8rem;
+                  border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 0.45rem;
+                  background: rgba(255, 255, 255, 0.12); color: #f0fdfa; cursor: pointer; }
+.header__search:hover { background: rgba(255, 255, 255, 0.2); }
+.header__search-kbd { font-size: 0.68rem; padding: 0.05rem 0.3rem; border-radius: 0.25rem;
+                      background: rgba(255, 255, 255, 0.18); font-family: inherit; }
+.header__link { font-size: 0.85rem; font-weight: 600; color: #f0fdfa; text-decoration: none; }
+.header__link:hover { text-decoration: underline; }
+
+.cmdk-scrim { position: fixed; inset: 0; z-index: 60; background: rgb(15 23 42 / 0.35);
+              display: flex; justify-content: center; align-items: flex-start;
+              padding-top: 12vh; }
+.cmdk { width: min(34rem, 92vw); background: #fff; border-radius: 0.75rem;
+        box-shadow: 0 20px 50px rgb(15 23 42 / 0.3); overflow: hidden; }
+.cmdk__input { width: 100%; padding: 0.85rem 1rem; font-size: 0.95rem; border: none;
+               border-bottom: 1px solid #e2e8f0; outline: none; }
+.cmdk__results { max-height: 20rem; overflow-y: auto; list-style: none; margin: 0;
+                 padding: 0.35rem; }
+.cmdk__results li { list-style: none; }
+.cmdk__empty { padding: 0.75rem 1rem; font-size: 0.85rem; color: #64748b; }
+.cmdk__result { display: flex; gap: 0.7rem; align-items: center; padding: 0.5rem 0.7rem;
+                border-radius: 0.5rem; text-decoration: none; }
+.cmdk__result--active, .cmdk__result:hover { background: #f0fdfa; }
+.cmdk__result-kind { flex: none; width: 3.4rem; font-size: 0.66rem; font-weight: 700;
+                     letter-spacing: 0.05em; text-transform: uppercase; color: #0d9488; }
+.cmdk__result-text { display: flex; flex-direction: column; min-width: 0; }
+.cmdk__result-label { font-size: 0.9rem; color: #0f172a; }
+.cmdk__result-sub { font-size: 0.72rem; color: #64748b; white-space: nowrap;
+                    overflow: hidden; text-overflow: ellipsis; }

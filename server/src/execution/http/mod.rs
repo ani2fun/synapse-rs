@@ -1,12 +1,14 @@
-//! `POST /api/run` (oracle: `ExecutionRoutes` + `ExecutionDtos`, step 10). A badly-running
-//! program is a 200 with a non-`Accepted` status; the error channel is for the CALLER's
-//! mistakes (422/413) and the BACKEND's failures (503/502). The rate-limit/identity gate
-//! grafts on in its own step, as it did in the oracle (step 19).
+//! `POST /api/run` (oracle: `ExecutionRoutes` + `ExecutionDtos`, step 10; the rate-limit +
+//! identity gate grafted at step 19's port). A badly-running program is a 200 with a
+//! non-`Accepted` status; the error channel is for the CALLER's mistakes (422/413), the
+//! BACKEND's failures (503/502), and the budget (429). The gate is identity-aware: an absent
+//! bearer meters per IP, a verified bearer per subject (bad tokens 401, never silently
+//! anonymous), and the signed-in budget is deliberately bigger.
 
 use std::sync::Arc;
 
 use axum::extract::State;
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::routing::post;
 use axum::{Json, Router};
 use synapse_shared::api::ApiError;
@@ -14,13 +16,21 @@ use synapse_shared::execution::{RunRequest, RunResult};
 
 use crate::execution::application::{ExecutionError, RunCodeService};
 use crate::execution::infrastructure::GoJudgeRunner;
+use crate::identity::http::{LiveIdentityService, bearer, to_auth_error};
+use crate::platform::client_ip::{Peer, client_ip};
+use crate::platform::rate_limiter::{RateLimiter, Throttled};
 
 pub type LiveRunService = RunCodeService<GoJudgeRunner>;
 
-pub fn routes(service: Arc<LiveRunService>) -> Router {
-    Router::new()
-        .route("/api/run", post(run_code))
-        .with_state(service)
+#[derive(Clone)]
+pub struct ExecutionRoutesState {
+    pub run: Arc<LiveRunService>,
+    pub identity: Arc<LiveIdentityService>,
+    pub limiter: Arc<RateLimiter>,
+}
+
+pub fn routes(state: ExecutionRoutesState) -> Router {
+    Router::new().route("/api/run", post(run_code)).with_state(state)
 }
 
 /// Run one snippet in the sandbox.
@@ -31,21 +41,54 @@ pub fn routes(service: Arc<LiveRunService>) -> Router {
     request_body = RunRequest,
     responses(
         (status = 200, description = "The run's outcome (including failed programs)", body = RunResult),
+        (status = 401, description = "Bad bearer token", body = ApiError),
         (status = 422, description = "Unknown language", body = ApiError),
         (status = 413, description = "Payload over the byte caps", body = ApiError),
+        (status = 429, description = "Over the run budget", body = ApiError),
         (status = 502, description = "Backend failed", body = ApiError),
         (status = 503, description = "Backend unavailable", body = ApiError)
     )
 )]
 pub(crate) async fn run_code(
-    State(service): State<Arc<LiveRunService>>,
+    State(state): State<ExecutionRoutesState>,
+    peer: Peer,
+    headers: HeaderMap,
     Json(request): Json<RunRequest>,
 ) -> Result<Json<RunResult>, (StatusCode, Json<ApiError>)> {
+    // The gate first: resolve the caller (bad token → 401), then meter the right ledger.
+    let subject = match bearer(&headers) {
+        None => None,
+        Some(token) => match state.identity.authenticate(&token).await {
+            Ok(user) => Some(user.id.0),
+            Err(error) => return Err(to_auth_error(&error)),
+        },
+    };
+    let consumed = match &subject {
+        Some(sub) => state.limiter.consume_authenticated(sub),
+        None => state.limiter.consume_anonymous(&client_ip(&headers, peer.0)),
+    };
+    if let Err(throttled) = consumed {
+        return Err(over_budget(throttled, "Sign in for a bigger run budget."));
+    }
+
     tracing::info!(language = request.language, "POST /api/run");
-    match service.run(&request).await {
+    match state.run.run(&request).await {
         Ok(result) => Ok(Json(result)),
         Err(error) => Err(to_error(&error)),
     }
+}
+
+/// 429 with the retry seconds in the BODY — the uniform `(status, ApiError)` envelope, no
+/// `Retry-After` header (the oracle's deliberate fork).
+pub(crate) fn over_budget(throttled: Throttled, hint: &str) -> (StatusCode, Json<ApiError>) {
+    (
+        StatusCode::TOO_MANY_REQUESTS,
+        Json(ApiError {
+            error: "Rate limit exceeded".to_owned(),
+            detail: Some(format!("Retry after {}s", throttled.retry_after_sec)),
+            hint: Some(hint.to_owned()),
+        }),
+    )
 }
 
 fn to_error(error: &ExecutionError) -> (StatusCode, Json<ApiError>) {

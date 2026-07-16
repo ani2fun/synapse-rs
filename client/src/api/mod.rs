@@ -5,6 +5,7 @@
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use synapse_shared::api::ApiError;
+use synapse_shared::blog::{BlogPostDto, BlogSummaryDto};
 use synapse_shared::catalog::{LessonPayloadDto, SynapseIndexDto};
 use synapse_shared::execution::{RunRequest, RunResult};
 use synapse_shared::identity::{AuthConfigDto, MeDto};
@@ -55,6 +56,16 @@ pub async fn submit(request: &SubmitRequestDto) -> Result<SubmissionAcceptedDto,
 /// One poll tick.
 pub async fn submission(id: &str) -> Result<SubmissionDto, String> {
     fetch_json(&format!("/api/submissions/{id}")).await
+}
+
+/// The blog listing, newest first.
+pub async fn blog_list() -> Result<Vec<BlogSummaryDto>, String> {
+    fetch_json("/api/blog").await
+}
+
+/// One post with body + neighbours.
+pub async fn blog_post(slug: &str) -> Result<BlogPostDto, String> {
+    fetch_json(&format!("/api/blog/{slug}")).await
 }
 
 /// The SPA's Keycloak coordinates.

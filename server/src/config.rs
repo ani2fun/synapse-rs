@@ -32,6 +32,21 @@ pub struct AppConfig {
     pub identity_issuer: String,
     /// The client id expected in `aud`/`azp` (step 16). Env: `OIDC_AUDIENCE`.
     pub identity_audience: String,
+    /// The production SPA dist dir (step 18). Absent (the dev default) → no static routes;
+    /// Vite serves the client. Env: `STATIC_ROOT`.
+    pub static_root: String,
+    /// The LikeC4 upstream the `/c4` proxy forwards to (step 18). Prod gotcha: the image
+    /// serves UNDER `/c4`, so the value ends in `/c4` and the stripped prefix cancels.
+    /// Env: `LIKEC4_URL`.
+    pub likec4_url: String,
+    /// Anonymous run/submit budget: per-IP fixed window (step 18). Envs:
+    /// `RATE_LIMIT_ANON_WINDOW_SECONDS` / `RATE_LIMIT_ANON_LIMIT`.
+    pub rate_limit_anon_window_seconds: u64,
+    pub rate_limit_anon_limit: u32,
+    /// Signed-in budget: per-subject, deliberately bigger. Envs:
+    /// `RATE_LIMIT_AUTH_WINDOW_SECONDS` / `RATE_LIMIT_AUTH_LIMIT`.
+    pub rate_limit_auth_window_seconds: u64,
+    pub rate_limit_auth_limit: u32,
 }
 
 impl Default for AppConfig {
@@ -44,6 +59,12 @@ impl Default for AppConfig {
             database_url: "postgres://synapse:synapse@localhost:5532/synapse_rs".to_owned(),
             identity_issuer: "http://localhost:8181/realms/synapse".to_owned(),
             identity_audience: "synapse-web".to_owned(),
+            static_root: "client/dist".to_owned(),
+            likec4_url: "http://localhost:8190".to_owned(),
+            rate_limit_anon_window_seconds: 60,
+            rate_limit_anon_limit: 10,
+            rate_limit_auth_window_seconds: 3600,
+            rate_limit_auth_limit: 100,
         }
     }
 }
@@ -71,11 +92,25 @@ impl AppConfig {
                 "identity_audience".into()
             }
         });
+        // The step-18 platform names (the oracle's deploy-manifest spellings, no prefix).
+        let platform = Env::raw()
+            .only(&["STATIC_ROOT", "LIKEC4_URL"])
+            .map(|key| key.as_str().to_lowercase().into());
+        let rate = Env::raw()
+            .only(&[
+                "RATE_LIMIT_ANON_WINDOW_SECONDS",
+                "RATE_LIMIT_ANON_LIMIT",
+                "RATE_LIMIT_AUTH_WINDOW_SECONDS",
+                "RATE_LIMIT_AUTH_LIMIT",
+            ])
+            .map(|key| key.as_str().to_lowercase().into());
         Figment::from(Serialized::defaults(Self::default()))
             .merge(env)
             .merge(executor)
             .merge(database)
             .merge(oidc)
+            .merge(platform)
+            .merge(rate)
             .extract()
             .map_err(Box::new)
     }
@@ -103,6 +138,19 @@ mod tests {
             jail.set_env("PORT", "1234");
             let cfg = AppConfig::load().map_err(|e| *e)?;
             assert_eq!(cfg.port, 9999);
+            Ok(())
+        });
+    }
+
+    #[test]
+    fn platform_and_rate_limit_envs_use_the_oracle_names() {
+        figment::Jail::expect_with(|jail| {
+            jail.set_env("LIKEC4_URL", "http://synapse-likec4/c4");
+            jail.set_env("RATE_LIMIT_ANON_LIMIT", "3");
+            let cfg = AppConfig::load().map_err(|e| *e)?;
+            assert_eq!(cfg.likec4_url, "http://synapse-likec4/c4");
+            assert_eq!(cfg.rate_limit_anon_limit, 3);
+            assert_eq!(cfg.rate_limit_anon_window_seconds, 60, "default stays");
             Ok(())
         });
     }

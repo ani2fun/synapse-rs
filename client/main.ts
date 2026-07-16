@@ -7,6 +7,8 @@
 import "./styles/markdown.css";
 import "./styles/reader.css";
 import "./styles/runnable.css";
+import "./styles/blog.css";
+import "./styles/search.css";
 import init from "./pkg/synapse_client.js";
 
 await init({

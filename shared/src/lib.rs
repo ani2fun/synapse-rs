@@ -4,6 +4,7 @@
 //! in RS-P7.
 
 pub mod api;
+pub mod blog;
 pub mod catalog;
 pub mod execution;
 pub mod identity;

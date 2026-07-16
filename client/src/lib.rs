@@ -8,11 +8,13 @@
 //! it stays in its own chunk, exactly like the oracle's `@JSImport` loader pattern.
 
 pub mod api;
+pub mod blog;
 pub mod catalog;
 pub mod execution;
 pub mod identity;
 pub mod islands;
 pub mod router;
+pub mod search;
 pub mod shell;
 
 use wasm_bindgen::prelude::wasm_bindgen;

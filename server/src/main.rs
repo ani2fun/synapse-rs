@@ -5,6 +5,8 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use synapse_server::blog::application::BlogService;
+use synapse_server::blog::infrastructure::FileSystemBlogRepository;
 use synapse_server::catalog::application::CatalogService;
 use synapse_server::catalog::infrastructure::FileSystemContentRepository;
 use synapse_server::execution::application::RunCodeService;
@@ -12,6 +14,7 @@ use synapse_server::execution::infrastructure::GoJudgeRunner;
 use synapse_server::identity::application::IdentityService;
 use synapse_server::identity::http::IdentityRoutesState;
 use synapse_server::identity::infrastructure::JwksTokenVerifier;
+use synapse_server::platform::rate_limiter::{RateLimitBucket, RateLimiter};
 use synapse_server::submission::application::SubmitSolution;
 use synapse_server::submission::infrastructure::{FsProblemTests, PostgresSubmissionRepository};
 use tracing_subscriber::EnvFilter;
@@ -59,6 +62,20 @@ async fn main() -> anyhow::Result<()> {
         issuer: cfg.identity_issuer.clone(),
         audience: cfg.identity_audience.clone(),
     };
+    let blog = Arc::new(BlogService::new(FileSystemBlogRepository::new(
+        &cfg.content_root,
+        cfg.auto_reload,
+    )));
+    let limiter = Arc::new(RateLimiter::new(
+        RateLimitBucket {
+            window_seconds: cfg.rate_limit_anon_window_seconds,
+            limit: cfg.rate_limit_anon_limit,
+        },
+        RateLimitBucket {
+            window_seconds: cfg.rate_limit_auth_window_seconds,
+            limit: cfg.rate_limit_auth_limit,
+        },
+    ));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], cfg.port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
@@ -67,9 +84,22 @@ async fn main() -> anyhow::Result<()> {
         content_root = cfg.content_root,
         auto_reload = cfg.auto_reload,
         executor_url = cfg.executor_url,
+        static_root = cfg.static_root,
+        likec4_url = cfg.likec4_url,
         "synapse-rs server started"
     );
 
-    axum::serve(listener, synapse_server::app(catalog, runner, submit, identity)).await?;
+    let app = synapse_server::app(synapse_server::AppDeps {
+        catalog,
+        run: runner,
+        submit,
+        ident: identity,
+        blog,
+        limiter,
+        static_root: cfg.static_root.clone(),
+        likec4_url: cfg.likec4_url.clone(),
+    });
+    // Connect info feeds the anonymous rate-limit key's socket-peer fallback.
+    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await?;
     Ok(())
 }

@@ -8,7 +8,7 @@
       "_id": "wrk_synapse_rs",
       "_type": "workspace",
       "name": "Synapse-RS API",
-      "description": "Synapse-RS HTTP endpoints — maintained in dev-tools/, updated as endpoints land (same rule as the oracle repo: never let it drift).",
+      "description": "Synapse-RS HTTP endpoints \u2014 maintained in dev-tools/, updated as endpoints land (same rule as the oracle repo: never let it drift).",
       "scope": "collection"
     },
     {
@@ -31,7 +31,7 @@
       "_type": "request",
       "parentId": "fld_platform",
       "name": "GET /api/health",
-      "description": "Liveness check — 200 with {\"status\": \"ok (walking skeleton)\"} while the server is up. (step 01)",
+      "description": "Liveness check \u2014 200 with {\"status\": \"ok (walking skeleton)\"} while the server is up. (step 01)",
       "method": "GET",
       "url": "{{ _.base_url }}/api/health"
     },
@@ -46,7 +46,7 @@
       "_type": "request",
       "parentId": "fld_catalog",
       "name": "GET /api/synapse/index",
-      "description": "The browsable library index — kind-discriminated category/book tree. Carries the content cache header. (step 06)",
+      "description": "The browsable library index \u2014 kind-discriminated category/book tree. Carries the content cache header. (step 06)",
       "method": "GET",
       "url": "{{ _.base_url }}/api/synapse/index"
     },
@@ -54,8 +54,8 @@
       "_id": "req_catalog_lesson",
       "_type": "request",
       "parentId": "fld_catalog",
-      "name": "GET /api/synapse/{paths…}",
-      "description": "A lesson payload by its directory-mirror path (category…/book/chapter…/lesson) — raw markdown + frontmatter + full prev/next. (step 06)",
+      "name": "GET /api/synapse/{paths\u2026}",
+      "description": "A lesson payload by its directory-mirror path (category\u2026/book/chapter\u2026/lesson) \u2014 raw markdown + frontmatter + full prev/next. (step 06)",
       "method": "GET",
       "url": "{{ _.base_url }}/api/synapse/learn/dsa/lists/singly"
     },
@@ -63,7 +63,8 @@
       "_id": "fld_execution",
       "_type": "request_group",
       "parentId": "wrk_synapse_rs",
-      "name": "execution"
+      "name": "execution",
+      "description": "Rate limited (step 18): anonymous 10/60s per IP, signed-in 100/3600s per sub; over the window = 429 + retry seconds in the ApiError detail (no Retry-After header)."
     },
     {
       "_id": "req_run",
@@ -89,7 +90,7 @@
       "_type": "request",
       "parentId": "fld_catalog",
       "name": "GET /api/synapse/c4-doc/{elementId}?lesson=",
-      "description": "A LikeC4 component's tutorial doc — the co-located _c4-docs/<leaf>.md sidecar next to the lesson. (step 06)",
+      "description": "A LikeC4 component's tutorial doc \u2014 the co-located _c4-docs/<leaf>.md sidecar next to the lesson. (step 06)",
       "method": "GET",
       "url": "{{ _.base_url }}/api/synapse/c4-doc/synapse.client.reader?lesson=learn/dsa/lists/singly"
     },
@@ -97,14 +98,15 @@
       "_id": "fld_submissions",
       "_type": "request_group",
       "parentId": "wrk_synapse_rs",
-      "name": "submissions"
+      "name": "submissions",
+      "description": "POST shares the step-18 rate-limit gate (429 + 'Sign in for a bigger submission budget.')."
     },
     {
       "_id": "req_submit",
       "_type": "request",
       "parentId": "fld_submissions",
       "name": "POST /api/submissions",
-      "description": "Submit a solution — 202 + id; the suite judges in the background (step 14). 404 not-a-problem, 500 invalid suite.",
+      "description": "Submit a solution \u2014 202 + id; the suite judges in the background (step 14). 404 not-a-problem, 500 invalid suite.",
       "method": "POST",
       "url": "{{ _.base_url }}/api/submissions",
       "body": {
@@ -156,7 +158,7 @@
       "_type": "request",
       "parentId": "fld_identity",
       "name": "GET /api/me",
-      "description": "Who am I — requires a bearer; 401 missing/invalid, 503 verifier down (step 16).",
+      "description": "Who am I \u2014 requires a bearer; 401 missing/invalid, 503 verifier down (step 16).",
       "method": "GET",
       "url": "{{ _.base_url }}/api/me",
       "headers": [
@@ -171,7 +173,7 @@
       "_type": "request",
       "parentId": "fld_submissions",
       "name": "DELETE /api/submissions/{id}",
-      "description": "Owner-only delete — 401 anonymous, 403 someone else's (step 16).",
+      "description": "Owner-only delete \u2014 401 anonymous, 403 someone else's (step 16).",
       "method": "DELETE",
       "url": "{{ _.base_url }}/api/submissions/00000000-0000-0000-0000-000000000000",
       "headers": [
@@ -186,7 +188,7 @@
       "_type": "request",
       "parentId": "fld_submissions",
       "name": "DELETE /api/submissions",
-      "description": "Erase every submission of the caller — reset my data (step 16).",
+      "description": "Erase every submission of the caller \u2014 reset my data (step 16).",
       "method": "DELETE",
       "url": "{{ _.base_url }}/api/submissions",
       "headers": [
@@ -195,6 +197,49 @@
           "value": "Bearer {{ _.token }}"
         }
       ]
+    },
+    {
+      "_id": "fld_blog",
+      "_type": "request_group",
+      "parentId": "wrk_synapse_rs",
+      "name": "blog",
+      "description": "The flat, chronological blog: markdown posts at synapse-content/blog/<slug>.md (drafts are _-prefixed and never ship). Same markdown pipeline as lessons, no workbenches."
+    },
+    {
+      "_id": "req_blog_list",
+      "_type": "request",
+      "parentId": "fld_blog",
+      "name": "GET /api/blog",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/blog",
+      "description": "The listing: [{slug, title, summary, publishedAt, tags, readMinutes, eyebrow}], newest first (undated last). Public content read \u2014 carries the edge cache header.",
+      "headers": [],
+      "body": {},
+      "parameters": []
+    },
+    {
+      "_id": "req_blog_post",
+      "_type": "request",
+      "parentId": "fld_blog",
+      "name": "GET /api/blog/{slug}",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/blog/rebuilding-cortex-in-scala",
+      "description": "One post: frontmatter + markdown body + prev/next slugs (publish order; prev = older, next = newer, null at the ends).",
+      "headers": [],
+      "body": {},
+      "parameters": []
+    },
+    {
+      "_id": "req_blog_missing",
+      "_type": "request",
+      "parentId": "fld_blog",
+      "name": "GET /api/blog/{unknown}",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/blog/no-such-post",
+      "description": "An unknown slug is a 404 + ApiError.",
+      "headers": [],
+      "body": {},
+      "parameters": []
     }
   ]
 }

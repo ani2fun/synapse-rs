@@ -3,6 +3,7 @@
 //! complexity; `platform` is the thin, flat cross-cutting context. `app()` assembles the full
 //! HTTP surface; the binary (`main.rs`) is the wiring point.
 
+pub mod blog;
 pub mod catalog;
 pub mod config;
 pub mod execution;
@@ -13,37 +14,71 @@ pub mod submission;
 use std::sync::Arc;
 
 use axum::Router;
+use axum::routing::get;
+use blog::http::LiveBlogService;
 use catalog::http::LiveCatalogService;
-use execution::http::LiveRunService;
+use execution::http::{ExecutionRoutesState, LiveRunService};
 use identity::http::IdentityRoutesState;
+use platform::rate_limiter::RateLimiter;
+use platform::static_routes::StaticRoutes;
 use submission::http::{LiveSubmitSolution, SubmissionRoutesState};
 use synapse_shared::api::{ApiError, HealthStatus};
+use synapse_shared::blog::{BlogPostDto, BlogSummaryDto};
 use synapse_shared::catalog::{ComponentDocDto, LessonPayloadDto, SynapseIndexDto};
 use synapse_shared::execution::{RunRequest, RunResult};
 use synapse_shared::identity::{AuthConfigDto, MeDto};
 use synapse_shared::submission::{DeleteResultDto, SubmissionAcceptedDto, SubmissionDto, SubmitRequestDto};
 use utoipa::OpenApi;
 
+/// Everything `app` composes — one wiring struct so `main` and the ITs build the same graph
+/// field by field.
+pub struct AppDeps {
+    pub catalog: Arc<LiveCatalogService>,
+    pub run: Arc<LiveRunService>,
+    pub submit: Arc<LiveSubmitSolution>,
+    pub ident: IdentityRoutesState,
+    pub blog: Arc<LiveBlogService>,
+    pub limiter: Arc<RateLimiter>,
+    /// The production dist dir; absent (dev) → no static routes, and `/` answers plain text.
+    pub static_root: String,
+    pub likec4_url: String,
+}
+
 /// The assembled HTTP surface. Contexts contribute their routers here as they land; integration
 /// tests drive this exact router, so what the suite exercises is what the binary serves.
-/// `ContentCacheControl` wraps the whole surface — it stamps only public content GETs on 200.
-pub fn app(
-    catalog: Arc<LiveCatalogService>,
-    run: Arc<LiveRunService>,
-    submit: Arc<LiveSubmitSolution>,
-    ident: IdentityRoutesState,
-) -> Router {
+/// Precedence mirrors the oracle: API (cache-stamped) → `/c4` proxy → static+SPA fallback →
+/// the plain-text root. The SPA fallback ENUMERATES its segments, so it can never shadow
+/// `/api`; `ContentCacheControl` stamps only public content GETs on 200.
+pub fn app(deps: AppDeps) -> Router {
     let submissions = SubmissionRoutesState {
-        submit,
-        identity: Arc::clone(&ident.identity),
+        submit: deps.submit,
+        identity: Arc::clone(&deps.ident.identity),
+        limiter: Arc::clone(&deps.limiter),
     };
-    Router::new()
+    let execution = ExecutionRoutesState {
+        run: deps.run,
+        identity: Arc::clone(&deps.ident.identity),
+        limiter: deps.limiter,
+    };
+    let statics = StaticRoutes::new(&deps.static_root);
+    let mut router = Router::new()
         .merge(platform::http::routes())
-        .merge(catalog::http::routes(catalog))
-        .merge(execution::http::routes(run))
+        .merge(catalog::http::routes(deps.catalog))
+        .merge(execution::http::routes(execution))
         .merge(submission::http::routes(submissions))
-        .merge(identity::http::routes(ident))
+        .merge(identity::http::routes(deps.ident))
+        .merge(blog::http::routes(deps.blog))
         .layer(axum::middleware::from_fn(platform::content_cache_control::stamp))
+        .merge(platform::likec4_proxy::routes(&deps.likec4_url));
+    if statics.enabled() {
+        router = router.merge(statics.routes());
+    } else {
+        router = router.route(
+            "/",
+            get(|| async { "synapse-rs server — see /api/health or /api/synapse/index" }),
+        );
+    }
+    router
 }
 
 /// The code-first OpenAPI document (utoipa). The contract-lock test diffs this rendered
@@ -65,7 +100,9 @@ pub fn app(
         submission::http::delete_submission,
         submission::http::erase_all,
         identity::http::get_me,
-        identity::http::get_auth_config
+        identity::http::get_auth_config,
+        blog::http::list_posts,
+        blog::http::get_post
     ),
     components(schemas(
         HealthStatus,
@@ -80,7 +117,9 @@ pub fn app(
         SubmissionDto,
         DeleteResultDto,
         MeDto,
-        AuthConfigDto
+        AuthConfigDto,
+        BlogSummaryDto,
+        BlogPostDto
     ))
 )]
 pub struct ApiDoc;

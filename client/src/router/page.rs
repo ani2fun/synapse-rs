@@ -6,6 +6,8 @@
 pub enum Page {
     Library,
     Lesson(Vec<String>),
+    Blog,
+    BlogPost(String),
     NotFound(String),
 }
 
@@ -18,6 +20,8 @@ impl Page {
             Some((&"synapse", rest)) if !rest.is_empty() => {
                 Self::Lesson(rest.iter().map(|s| (*s).to_owned()).collect())
             }
+            Some((&"blog", [])) => Self::Blog,
+            Some((&"blog", [slug])) => Self::BlogPost((*slug).to_owned()),
             _ => Self::NotFound(segments.join("/")),
         }
     }
@@ -27,6 +31,8 @@ impl Page {
         match self {
             Self::Library => "/".to_owned(),
             Self::Lesson(path) => format!("/synapse/{}", path.join("/")),
+            Self::Blog => "/blog".to_owned(),
+            Self::BlogPost(slug) => format!("/blog/{slug}"),
             Self::NotFound(raw) => format!("/{raw}"),
         }
     }
@@ -58,6 +64,16 @@ mod tests {
             Page::from_segments(&["synapse"]),
             Page::NotFound("synapse".into())
         );
+        assert_eq!(Page::from_segments(&["blog"]), Page::Blog);
+        assert_eq!(
+            Page::from_segments(&["blog", "hello"]),
+            Page::BlogPost("hello".into())
+        );
+        // Blog posts are flat — deeper paths are not pages.
+        assert_eq!(
+            Page::from_segments(&["blog", "a", "b"]),
+            Page::NotFound("blog/a/b".into())
+        );
         assert_eq!(
             Page::from_segments(&["ghost", "town"]),
             Page::NotFound("ghost/town".into())
@@ -69,6 +85,8 @@ mod tests {
         let lesson = Page::Lesson(vec!["learn".into(), "dsa".into(), "intro".into()]);
         assert_eq!(lesson.url(), "/synapse/learn/dsa/intro");
         assert_eq!(Page::Library.url(), "/");
+        assert_eq!(Page::Blog.url(), "/blog");
+        assert_eq!(Page::BlogPost("hello".into()).url(), "/blog/hello");
         assert_eq!(Page::segments_of("a//b/c/"), vec!["a", "b", "c"]);
     }
 }

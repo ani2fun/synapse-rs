@@ -60,3 +60,4 @@ introduced the feature, never as later afterthoughts.
 | 30 | `step-30` | [The practice widget](30-the-practice-widget.md) | 2026-07-16 |
 | 31 | `step-31` | [The diagram slice](31-the-diagram-slice.md) | 2026-07-17 |
 | 32 | `step-32` | [The landing tour](32-the-landing-tour.md) | 2026-07-17 |
+| 33 | `step-33` | [The mobile drawer + LikeC4 chrome](33-mobile-drawer-and-c4-chrome.md) | 2026-07-17 |

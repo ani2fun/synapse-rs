@@ -93,3 +93,25 @@
 /* ── the LikeC4 lesson embed: the authored <iframe> on a rounded dark frame ── */
 .reader-prose iframe[src^="/c4/"] { width: 100%; border: 1px solid hsl(var(--border));
                                     border-radius: 12px; background: #101014; }
+
+/* ── the LikeC4 embed chrome (step 33): Enlarge top-LEFT; guard steps it aside ── */
+.c4-embed { position: relative; }
+.c4-embed__zoom { position: absolute; top: 10px; left: 10px; z-index: 2;
+                  border: 1px solid hsl(var(--primary) / 0.3); border-radius: 6px;
+                  background: hsl(var(--primary) / 0.08); color: hsl(var(--primary));
+                  font-size: 13px; font-weight: 500; padding: 6px 12px; cursor: pointer;
+                  backdrop-filter: blur(4px); }
+.c4-embed__zoom:hover { background: hsl(var(--primary) / 0.16); }
+.c4-embed--overlay .c4-embed__zoom { display: none; }
+
+.diagram-zoom__hint { padding: 0 6px 0 4px; font-size: 0.75rem;
+                      color: hsl(var(--muted-foreground)); user-select: none;
+                      white-space: nowrap; }
+@media (max-width: 720px) { .diagram-zoom__hint { display: none; } }
+.diagram-zoom__live { position: relative; width: 100%; height: 100%; display: block; }
+.diagram-zoom__iframe { width: 100%; height: 100%; border: 0; display: block;
+                        background: transparent; pointer-events: auto; }
+.diagram-zoom--fill { max-width: none; max-height: none; padding: 0; overflow: hidden;
+                      background: hsl(var(--card)); }
+.diagram-zoom--c4-overlay .diagram-zoom__close,
+.diagram-zoom--c4-overlay .diagram-zoom__controls { display: none; }

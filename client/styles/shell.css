@@ -59,7 +59,5 @@
                                   border-radius: var(--radius-sm); font-family: var(--font-mono); }
 .lesson-nav { display: flex; justify-content: space-between; margin-top: 2rem;
               border-top: 1px solid hsl(var(--border)); padding-top: 0.75rem; }
-@media (max-width: 48rem) {
-  .reader { grid-template-columns: 1fr; }
-  .reader-sidebar { border-right: none; }
-}
+/* The mobile boundary lives in reader.css (step 33): <1024px hides the sidebar and
+   shows the nav-FAB drawer instead. */

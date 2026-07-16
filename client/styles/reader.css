@@ -100,3 +100,50 @@ html[data-reader-width] .lesson.lesson--problem,
 
 /* the auth-gated Edit button */
 .wb__ghost:disabled { opacity: 0.45; cursor: default; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   THE MOBILE NAV DRAWER (step 33; oracle step 38) — the bottom-LEFT FAB opens an
+   off-canvas drawer reusing the reader sidebar; one breakpoint (1024px) governs
+   both hiding the desktop sidebar and showing the mobile affordances.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.reader-nav-fab { position: fixed; left: 20px; bottom: 20px; z-index: 40;
+                  width: 44px; height: 44px; display: inline-flex; align-items: center;
+                  justify-content: center; border-radius: 9999px; border: 0; cursor: pointer;
+                  background: hsl(var(--primary)); color: hsl(var(--primary-foreground));
+                  box-shadow: 0 6px 18px -4px rgb(0 0 0 / 0.25), 0 2px 4px -1px rgb(0 0 0 / 0.1);
+                  transition: opacity 180ms ease, transform 180ms ease; }
+.reader-nav-fab:hover { opacity: 0.92; transform: translateY(-1px); }
+.reader-nav-fab:focus-visible { outline: 2px solid hsl(var(--primary)); outline-offset: 3px; }
+.reader-nav-fab__ic { width: 20px; height: 20px; }
+
+.reader-nav-scrim { position: fixed; inset: 0; z-index: 44;
+                    background: hsl(var(--foreground) / 0.25); backdrop-filter: blur(2px); }
+.reader-nav-drawer { position: fixed; top: 0; left: 0; bottom: 0; z-index: 45;
+                     width: min(320px, 88vw); display: flex; flex-direction: column;
+                     overflow-y: auto; background: hsl(var(--card));
+                     border-right: 1px solid hsl(var(--border));
+                     box-shadow: 14px 0 44px hsl(var(--foreground) / 0.16);
+                     animation: reader-nav-in 0.22s ease; padding: 0 14px 14px; }
+@keyframes reader-nav-in { from { transform: translateX(-24px); opacity: 0; }
+                           to { transform: translateX(0); opacity: 1; } }
+.reader-nav-drawer__head { display: flex; align-items: center; justify-content: space-between;
+                           padding: 14px 0 10px; border-bottom: 1px solid hsl(var(--border));
+                           margin-bottom: 10px; }
+.reader-nav-drawer__title { font-size: 12px; font-weight: 600; letter-spacing: 0.08em;
+                            text-transform: uppercase; color: hsl(var(--muted-foreground)); }
+.reader-nav-drawer__close { display: inline-flex; align-items: center; justify-content: center;
+                            width: 30px; height: 30px; border-radius: 8px; border: 0;
+                            background: transparent; color: hsl(var(--muted-foreground));
+                            cursor: pointer; }
+.reader-nav-drawer__close:hover { background: hsl(var(--muted)); color: hsl(var(--foreground)); }
+
+/* One breakpoint: ≥1024px = desktop sidebar, no mobile chrome. */
+@media (min-width: 1024px) {
+    .reader-nav-fab, .reader-nav-scrim, .reader-nav-drawer { display: none; }
+}
+@media (max-width: 1023.9px) {
+    .reader { grid-template-columns: 1fr; }
+    .reader-sidebar { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .reader-nav-drawer { animation: none; } }

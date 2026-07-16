@@ -1,6 +1,7 @@
 //! The catalog views (the view layer): the library (browse) and the reader (lesson + sidebar).
 //! Markdown crosses the island bridge; everything else is signals → DOM.
 
+mod c4;
 mod diagrams;
 mod library;
 mod prefs;

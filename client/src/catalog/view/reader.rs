@@ -31,6 +31,72 @@ pub fn LessonPage() -> impl IntoView {
                 }}
             </article>
         </div>
+        // OUTSIDE the grid on purpose (oracle step-38 prod bug): the drawer's in-flow
+        // wrapper would otherwise become a phantom third grid item at desktop width.
+        <ReaderNavDrawer path=path />
+    }
+}
+
+/// The mobile navigation drawer (oracle: `ReaderNavDrawer`, step 38): a bottom-LEFT FAB
+/// (<1024px only — the desktop sidebar hides there) opens an off-canvas drawer reusing the
+/// SAME `Sidebar`, always expanded. Three closes: scrim, Escape, any nav-link tap.
+#[component]
+fn ReaderNavDrawer(path: Memo<Vec<String>>) -> impl IntoView {
+    let open = RwSignal::new(false);
+    let esc = window_event_listener(leptos::ev::keydown, move |event| {
+        if event.key() == "Escape" && open.get_untracked() {
+            open.set(false);
+        }
+    });
+    on_cleanup(move || esc.remove());
+    view! {
+        <div>
+            <button
+                class="reader-nav-fab"
+                aria-label="Contents"
+                aria-expanded=move || open.get().to_string()
+                on:click=move |_| open.set(true)
+            >
+                <svg class="reader-nav-fab__ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect width="18" height="18" x="3" y="3" rx="2"></rect>
+                    <path d="M9 3v18 M14 9l3 3-3 3"></path>
+                </svg>
+            </button>
+            {move || open.get().then(|| view! {
+                <div>
+                    <div class="reader-nav-scrim" on:click=move |_| open.set(false)></div>
+                    <aside
+                        class="reader-nav-drawer"
+                        // Close-on-navigate: any click landing on (or inside) an <a> closes;
+                        // the link itself still routes.
+                        on:click=move |event| {
+                            use wasm_bindgen::JsCast;
+                            let closes = event
+                                .target()
+                                .and_then(|t| t.dyn_into::<web_sys::Element>().ok())
+                                .and_then(|el| el.closest("a").ok().flatten())
+                                .is_some();
+                            if closes {
+                                open.set(false);
+                            }
+                        }
+                    >
+                        <div class="reader-nav-drawer__head">
+                            <span class="reader-nav-drawer__title">"Contents"</span>
+                            <button
+                                class="reader-nav-drawer__close"
+                                aria-label="Close"
+                                on:click=move |_| open.set(false)
+                            >
+                                "✕"
+                            </button>
+                        </div>
+                        <Sidebar path=path />
+                    </aside>
+                </div>
+            })}
+        </div>
     }
 }
 
@@ -154,6 +220,7 @@ fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> impl IntoVi
                     viz_modal,
                 );
                 handles.extend(crate::catalog::view::diagrams::hydrate_diagrams(&body));
+                handles.extend(crate::catalog::view::c4::hydrate_c4_embeds(&body));
                 handles.extend(crate::execution::view::hydrate_practices(
                     &body,
                     &owned_segments,

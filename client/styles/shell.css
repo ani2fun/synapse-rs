@@ -1,0 +1,73 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   SHELL CHROME (step 25) — the polished header (oracle: header.css), the
+   library, and the reader scaffolding, all on the tokens. The header is a
+   fixed, translucent, blurred bar; the main column pads below it.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* ── header ── */
+.header { position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+          background: hsl(var(--background) / 0.85); backdrop-filter: blur(8px);
+          border-bottom: 1px solid hsl(var(--border) / 0.6); }
+.header__nav { padding: 0.75rem 1.25rem; display: flex; justify-content: space-between;
+               align-items: center; gap: 1rem; max-width: 80rem; margin: 0 auto; }
+.header__brand { display: inline-flex; align-items: center; gap: 0.55rem; }
+.header__chip { flex: none; }
+.header__wordmark { font-family: var(--font-mono); font-weight: 600; font-size: 1.05rem;
+                    color: hsl(var(--foreground)); letter-spacing: -0.01em; }
+.header__mid { flex: 1; display: flex; justify-content: center; min-width: 0; }
+.header__search { display: inline-flex; align-items: center; gap: 0.5rem;
+                  width: min(24rem, 100%); padding: 0.4rem 0.85rem; font-size: 0.85rem;
+                  border: 1px solid hsl(var(--border)); border-radius: var(--radius-md);
+                  background: hsl(var(--secondary) / 0.3); color: hsl(var(--muted-foreground));
+                  cursor: pointer; font-family: inherit; }
+.header__search:hover { border-color: hsl(var(--primary) / 0.4); }
+.header__search-text { flex: 1; text-align: left; }
+.header__search-kbd { font-size: 0.68rem; padding: 0.05rem 0.35rem;
+                      border-radius: var(--radius-sm); border: 1px solid hsl(var(--border));
+                      background: hsl(var(--muted)); color: hsl(var(--muted-foreground));
+                      font-family: var(--font-mono); }
+.header__actions { display: flex; align-items: center; gap: 0.75rem; }
+.header__link { font-size: 0.875rem; font-weight: 500; color: hsl(var(--foreground) / 0.85); }
+.header__link:hover { color: hsl(var(--primary)); }
+
+/* the shadcn outline icon button (theme toggle) */
+.header__icon-btn { display: inline-flex; align-items: center; justify-content: center;
+                    width: 2.5rem; height: 2.5rem; border-radius: var(--radius-md);
+                    border: 1px solid hsl(var(--input)); background: hsl(var(--background));
+                    color: hsl(var(--foreground)); cursor: pointer; transition: background 0.15s; }
+.header__icon-btn:hover { background: hsl(var(--accent)); color: hsl(var(--accent-foreground)); }
+.header__icon-btn svg { width: 18px; height: 18px; }
+
+.shell-main { padding: 4.75rem 1.25rem 1.25rem; max-width: 72rem; margin: 0 auto; }
+
+/* ── library ── */
+.library-level { display: flex; flex-direction: column; gap: 0.75rem; }
+.library-category { margin: 0.75rem 0; }
+.library-category h2 { color: hsl(var(--primary)); font-size: 1.1rem; }
+.book-card { display: block; border: 1px solid hsl(var(--border)); border-radius: var(--radius-lg);
+             padding: 0.9rem 1.1rem; background: hsl(var(--card)); }
+.book-card:hover { border-color: hsl(var(--primary) / 0.5); }
+.book-card h3 { margin: 0 0 0.25rem; color: hsl(var(--card-foreground)); }
+.book-card p { margin: 0; }
+.badge { font-size: 0.75rem; color: hsl(var(--primary)); }
+
+/* ── reader scaffolding ── */
+.reader { display: grid; grid-template-columns: 16rem 1fr; gap: 1.5rem; }
+.reader-sidebar { border-right: 1px solid hsl(var(--border)); padding-right: 1rem; }
+.sidebar-book { font-size: 0.95rem; color: hsl(var(--primary)); }
+.sidebar-lessons { list-style: none; padding: 0; margin: 0; }
+.sidebar-lessons li { padding: 0.2rem 0.4rem; border-radius: var(--radius-sm); }
+.sidebar-lessons li.current { background: hsl(var(--primary) / 0.12); }
+.sidebar-lessons a { color: hsl(var(--foreground) / 0.8); }
+.sidebar-lessons li.current a { color: hsl(var(--primary)); font-weight: 600; }
+.lesson-book { margin: 0; font-size: 0.85rem; }
+.lesson-summary { color: hsl(var(--muted-foreground)); }
+.lesson-body { line-height: 1.65; }
+.lesson-body code:not(pre code) { background: hsl(var(--muted)); padding: 0.1rem 0.3rem;
+                                  border-radius: var(--radius-sm); font-family: var(--font-mono); }
+.lesson-nav { display: flex; justify-content: space-between; margin-top: 2rem;
+              border-top: 1px solid hsl(var(--border)); padding-top: 0.75rem; }
+@media (max-width: 48rem) {
+  .reader { grid-template-columns: 1fr; }
+  .reader-sidebar { border-right: none; }
+}

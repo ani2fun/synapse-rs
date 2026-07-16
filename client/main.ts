@@ -4,6 +4,8 @@
 // carries); the explicit URL keeps the .wasm asset itself under Vite's control.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import "./styles/tokens.css";
+import "./styles/shell.css";
 import "./styles/markdown.css";
 import "./styles/reader.css";
 import "./styles/runnable.css";

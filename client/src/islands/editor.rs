@@ -27,6 +27,8 @@ extern "C" {
     fn get_value_js(this: &EditorHandle) -> String;
     #[wasm_bindgen(method, js_name = setReadOnly)]
     fn set_read_only_js(this: &EditorHandle, read_only: bool);
+    #[wasm_bindgen(method, js_name = setTheme)]
+    fn set_theme_js(this: &EditorHandle, dark: bool);
     #[wasm_bindgen(method, js_name = dispose)]
     fn dispose_js(this: &EditorHandle);
 }
@@ -50,6 +52,11 @@ impl MountedEditor {
 
     pub fn set_read_only(&self, read_only: bool) {
         self.handle.set_read_only_js(read_only);
+    }
+
+    /// `monaco.editor.setTheme` is GLOBAL (re-themes every editor) — cheap + idempotent.
+    pub fn set_theme(&self, dark: bool) {
+        self.handle.set_theme_js(dark);
     }
 }
 
@@ -75,6 +82,7 @@ pub async fn mount(
     value: &str,
     language: &str,
     read_only: bool,
+    dark: bool,
     callbacks: EditorCallbacks,
 ) -> Result<MountedEditor, JsValue> {
     let on_change = Closure::<dyn FnMut(String)>::new(callbacks.on_change);
@@ -86,7 +94,7 @@ pub async fn mount(
         value,
         language,
         read_only,
-        false, // light theme; the dark-mode step re-themes
+        dark,
         on_change.as_ref().unchecked_ref(),
         on_run.as_ref().unchecked_ref(),
         on_toggle_edit.as_ref().unchecked_ref(),

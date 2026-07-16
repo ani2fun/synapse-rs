@@ -1,0 +1,128 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   DESIGN TOKENS (step 25) — the oracle's tailwind.css token layer, VERBATIM
+   (ADR-S015/S018, the HelloInterview teal palette). HSL channel triplets,
+   consumed as hsl(var(--token)); :root = light, .dark = dark — one rule works
+   in both themes. No Tailwind here: components reference the raw tokens.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  color-scheme: light;
+  --background: 45 44% 96%;
+  --foreground: 224 14% 16%;
+  --card: 0 0% 100%;
+  --card-foreground: 224 14% 16%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 224 14% 16%;
+  --primary: 169 82% 27%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 45 32% 90%;
+  --secondary-foreground: 224 14% 16%;
+  --muted: 45 35% 93%;
+  --muted-foreground: 221 8% 45%;
+  --accent: 45 32% 90%;
+  --accent-foreground: 224 14% 16%;
+  --destructive: 4 54% 50%;
+  --destructive-foreground: 0 0% 100%;
+  /* run-status badges (Accepted / failed) */
+  --status-ok: 150 45% 34%;
+  --status-ok-bg: 150 45% 40%;
+  --status-err: 2 62% 48%;
+  --status-err-bg: 2 62% 50%;
+  --border: 43 26% 86%;
+  --input: 43 26% 86%;
+  --ring: 169 82% 27%;
+  --radius: 0.875rem;
+  /* code (syntax) palette — teal/sage/amber, on-brand (ADR-S018) */
+  --syn-kw: var(--primary);
+  --syn-fn: #1f8a7a;
+  --syn-str: #5c8a57;
+  --syn-num: #b9762a;
+  --syn-com: hsl(var(--muted-foreground));
+
+  /* fonts (the @theme seams, resolved) */
+  --font-sans: "Noto Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Noto Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Monaco, monospace;
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+.dark {
+  color-scheme: dark;
+  --background: 223 15% 9%;
+  --foreground: 60 6% 90%;
+  --card: 222 15% 13%;
+  --card-foreground: 60 6% 90%;
+  --popover: 222 15% 13%;
+  --popover-foreground: 60 6% 90%;
+  --primary: 166 63% 48%;
+  --primary-foreground: 168 71% 8%;
+  --secondary: 220 15% 16%;
+  --secondary-foreground: 60 6% 90%;
+  --muted: 220 15% 16%;
+  --muted-foreground: 220 7% 66%;
+  --accent: 220 15% 16%;
+  --accent-foreground: 60 6% 90%;
+  --destructive: 5 70% 62%;
+  --destructive-foreground: 60 6% 90%;
+  /* run-status badges — brighter text on the dark surface (tints keep the light triplets) */
+  --status-ok: 150 50% 62%;
+  --status-err: 6 78% 70%;
+  --border: 220 15% 20%;
+  --input: 220 15% 20%;
+  --ring: 166 63% 48%;
+  /* code palette — brighter on the dark surface */
+  --syn-fn: #54b3a1;
+  --syn-str: #84b87d;
+  --syn-num: #d59a55;
+}
+
+/* ── the viz role palette (theme-aware pointer identity, RenderKit.themed) ── */
+:root {
+  --viz-role-anchor: #3a5a8c;
+  --viz-role-active: #4f5bd5;
+  --viz-role-trail: #8a4f7d;
+  --viz-role-ahead: #478047;
+  --viz-role-end: #a13e3e;
+  --viz-role-changed: #6a9656;
+  --viz-role-alt1: #a3814b;
+  --viz-role-alt2: #5f8fa3;
+}
+.dark {
+  --viz-role-anchor: #82a8de;
+  --viz-role-active: #9aa2f2;
+  --viz-role-trail: #d094bf;
+  --viz-role-ahead: #8cc98c;
+  --viz-role-end: #e08b8b;
+  --viz-role-changed: #96c47f;
+  --viz-role-alt1: #d9b880;
+  --viz-role-alt2: #9cc4d6;
+}
+
+/* ── base (the oracle's @layer base) ── */
+/* Tailwind v4 defaults borders to currentColor — this universal reset is load-bearing. */
+*,
+::after,
+::before {
+  border-color: hsl(var(--border));
+}
+html {
+  scroll-behavior: smooth;
+}
+body {
+  margin: 0;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans);
+}
+a {
+  color: hsl(var(--primary));
+  text-decoration: none;
+}
+.muted {
+  color: hsl(var(--muted-foreground));
+}
+.error {
+  color: hsl(var(--status-err));
+}

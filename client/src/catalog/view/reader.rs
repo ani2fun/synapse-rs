@@ -121,6 +121,7 @@ fn LessonBody(lesson: RwSignal<AsyncResult<LessonPayloadDto>>, segments: Vec<Str
 fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> impl IntoView + use<> {
     // Captured IN-TREE: hydrated blocks mount out-of-tree and cannot reach App's context.
     let auth = crate::identity::state::AuthStore::from_context();
+    let theme = crate::shell::theme::ThemeStore::from_context();
     // The Coach's editor snapshot — filled by the hydrated workbench on mount + every edit.
     let code_ctx = RwSignal::new((String::new(), String::new()));
     // The body crosses the island bridge asynchronously; once the HTML lands, the interactive
@@ -148,6 +149,7 @@ fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> impl IntoVi
                     &owned_segments,
                     auth,
                     code_ctx,
+                    theme,
                 ));
             }
             Err(error) => html.set(format!("<p>markdown island failed: {error:?}</p>")),

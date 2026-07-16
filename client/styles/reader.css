@@ -30,70 +30,73 @@ html[data-reader-width] .lesson.lesson--problem,
 .reader-prefs-fab {
   position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 40;
   width: 2.75rem; height: 2.75rem; border-radius: 9999px;
-  border: 1px solid #cbd5e1; background: #fff; color: #0f172a;
+  border: 1px solid hsl(var(--border)); background: hsl(var(--card)); color: hsl(var(--foreground));
   font-weight: 700; font-size: 0.95rem; cursor: pointer;
-  box-shadow: 0 4px 12px rgb(15 23 42 / 0.12);
+  box-shadow: 0 4px 12px hsl(var(--foreground) / 0.12);
 }
-.reader-prefs-fab:hover { border-color: #0d9488; color: #0d9488; }
+.reader-prefs-fab:hover { border-color: hsl(var(--primary)); color: hsl(var(--primary)); }
 .reader-prefs-scrim { position: fixed; inset: 0; z-index: 41; }
 .reader-prefs-pop {
   position: fixed; right: 1.25rem; bottom: 4.5rem; z-index: 42;
   width: 17rem; padding: 0.9rem 1rem; border-radius: 0.75rem;
-  border: 1px solid #e2e8f0; background: #fff;
-  box-shadow: 0 12px 32px rgb(15 23 42 / 0.16);
+  border: 1px solid hsl(var(--border)); background: hsl(var(--card));
+  box-shadow: 0 12px 32px hsl(var(--foreground) / 0.16);
   display: flex; flex-direction: column; gap: 0.7rem;
 }
 .reader-prefs-pop__eyebrow {
   font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em;
-  text-transform: uppercase; color: #64748b;
+  text-transform: uppercase; color: hsl(var(--muted-foreground));
 }
-.reader-prefs__label { font-size: 0.75rem; color: #475569; margin-bottom: 0.25rem; }
-.reader-prefs__seg { display: flex; border: 1px solid #e2e8f0; border-radius: 0.5rem; overflow: hidden; }
+.reader-prefs__label { font-size: 0.75rem; color: hsl(var(--muted-foreground)); margin-bottom: 0.25rem; }
+.reader-prefs__seg { display: flex; border: 1px solid hsl(var(--border)); border-radius: 0.5rem; overflow: hidden; }
 .reader-prefs__opt {
-  flex: 1; padding: 0.35rem 0; font-size: 0.8rem; background: #fff;
-  border: none; border-right: 1px solid #e2e8f0; cursor: pointer; color: #334155;
+  flex: 1; padding: 0.35rem 0; font-size: 0.8rem; background: hsl(var(--card));
+  border: none; border-right: 1px solid hsl(var(--border)); cursor: pointer; color: hsl(var(--foreground) / 0.85);
 }
 .reader-prefs__opt:last-child { border-right: none; }
-.reader-prefs__opt--active { background: #ccfbf1; color: #0f766e; font-weight: 600; }
+.reader-prefs__opt--active { background: hsl(var(--primary) / 0.15); color: hsl(var(--primary)); font-weight: 600; }
 .reader-prefs__opt--serif { font-family: Georgia, serif; }
 .reader-prefs__opt--sans { font-family: system-ui, sans-serif; }
 .reader-prefs__opt--mono { font-family: ui-monospace, monospace; }
 .reader-prefs__reset {
   margin-top: 0.15rem; padding: 0.4rem 0; font-size: 0.8rem;
-  border: 1px solid #e2e8f0; border-radius: 0.5rem; background: #f8fafc;
-  color: #475569; cursor: pointer;
+  border: 1px solid hsl(var(--border)); border-radius: 0.5rem; background: hsl(var(--muted) / 0.5);
+  color: hsl(var(--muted-foreground)); cursor: pointer;
 }
-.reader-prefs__reset:hover { border-color: #0d9488; color: #0d9488; }
+.reader-prefs__reset:hover { border-color: hsl(var(--primary)); color: hsl(var(--primary)); }
 
 /* ── collapsible sidebar chapters ── */
 .sidebar-chapter { list-style: none; margin: 0.35rem 0; }
 .sidebar-chapter__title {
-  cursor: pointer; font-size: 0.8rem; font-weight: 600; color: #475569;
+  cursor: pointer; font-size: 0.8rem; font-weight: 600; color: hsl(var(--muted-foreground));
   padding: 0.2rem 0; user-select: none;
 }
-.sidebar-chapter__title:hover { color: #0d9488; }
+.sidebar-chapter__title:hover { color: hsl(var(--primary)); }
 .sidebar-chapter details > .sidebar-lessons,
 .sidebar-chapter .sidebar-lessons { margin-left: 0.75rem; }
 
 /* ── the account chip (step 17) ── */
 .shell-spacer { flex: 1; }
-.account-chip__signin { padding: 0.3rem 0.9rem; font-size: 0.85rem; font-weight: 600;
-                        border: 1px solid rgba(255,255,255,0.5); border-radius: 0.45rem;
-                        background: transparent; color: #f0fdfa; cursor: pointer; }
-.account-chip__signin:hover { background: rgba(255,255,255,0.1); }
+.account-chip__signin { padding: 0.35rem 0.9rem; font-size: 0.85rem; font-weight: 600;
+                        border: none; border-radius: var(--radius-md);
+                        background: hsl(var(--primary)); color: hsl(var(--primary-foreground));
+                        cursor: pointer; }
+.account-chip__signin:hover { filter: brightness(1.06); }
 .account-chip__quiet { opacity: 0.5; }
 .account-chip__menu-wrap { position: relative; }
-.account-chip__user { padding: 0.3rem 0.75rem; font-size: 0.85rem; font-weight: 600;
-                      border: none; border-radius: 0.45rem; background: rgba(255,255,255,0.15);
-                      color: #f0fdfa; cursor: pointer; }
+.account-chip__user { padding: 0.35rem 0.75rem; font-size: 0.85rem; font-weight: 600;
+                      border: 1px solid hsl(var(--border)); border-radius: var(--radius-md);
+                      background: hsl(var(--secondary) / 0.4);
+                      color: hsl(var(--foreground)); cursor: pointer; }
+.account-chip__user:hover { border-color: hsl(var(--primary) / 0.4); }
 .account-chip__menu { position: absolute; right: 0; top: 2.2rem; z-index: 40; display: flex;
-                      flex-direction: column; min-width: 11rem; background: #fff;
-                      border: 1px solid #e2e8f0; border-radius: 0.5rem;
-                      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12); overflow: hidden; }
+                      flex-direction: column; min-width: 11rem; background: hsl(var(--card));
+                      border: 1px solid hsl(var(--border)); border-radius: 0.5rem;
+                      box-shadow: 0 8px 24px hsl(var(--foreground) / 0.12); overflow: hidden; }
 .account-chip__item { padding: 0.55rem 0.9rem; font-size: 0.85rem; text-align: left;
-                      background: #fff; border: none; color: #0f172a; cursor: pointer;
+                      background: hsl(var(--card)); border: none; color: hsl(var(--foreground)); cursor: pointer;
                       text-decoration: none; }
-.account-chip__item:hover { background: #f0fdfa; }
+.account-chip__item:hover { background: hsl(var(--primary) / 0.08); }
 
 /* the auth-gated Edit button */
 .wb__ghost:disabled { opacity: 0.45; cursor: default; }

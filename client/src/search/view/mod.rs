@@ -158,7 +158,7 @@ pub fn SearchButton() -> impl IntoView {
     let store = SearchStore::from_context();
     view! {
         <button class="header__search" title="Search the library (⌘K)" on:click=move |_| store.open()>
-            "Search the library…"
+            <span class="header__search-text">"Search the library…"</span>
             <kbd class="header__search-kbd">"⌘K"</kbd>
         </button>
     }

@@ -28,6 +28,8 @@ pub fn RunnableBlock(
     // The Coach's snapshot of what the learner sees: (source, language), kept current on
     // every edit; the pane reads it only at send time.
     code_sink: RwSignal<(String, String)>,
+    // Same out-of-tree rule as `auth`: context is unreachable here, so the theme rides in.
+    theme: crate::shell::theme::ThemeStore,
 ) -> impl IntoView {
     let store = BlockStore::new(&variant.source);
     code_sink.set((variant.source.clone(), variant.language.clone()));
@@ -93,9 +95,19 @@ pub fn RunnableBlock(
                     .is_some()
                     .then(move || Box::new(do_submit) as Box<dyn FnMut()>),
             };
-            match editor::mount(&node, &value, &lang, true, callbacks).await {
+            let dark = theme.is_dark();
+            match editor::mount(&node, &value, &lang, true, dark, callbacks).await {
                 Ok(handle) => mounted.set_value(Some(handle)),
                 Err(error) => leptos::logging::error!("monaco island failed: {error:?}"),
+            }
+        });
+    });
+    // Monaco paints its own canvas — the toggle re-themes it (setTheme is global+idempotent).
+    Effect::new(move |_| {
+        let dark = theme.mode.get() == crate::shell::theme::Mode::Dark;
+        mounted.with_value(|editor| {
+            if let Some(editor) = editor {
+                editor.set_theme(dark);
             }
         });
     });

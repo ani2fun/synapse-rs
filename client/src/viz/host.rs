@@ -13,13 +13,25 @@ use crate::viz::transport::TransportBar;
 // Component props are moved by design (leptos owns them for the view's lifetime).
 #[allow(clippy::needless_pass_by_value)]
 #[component]
-pub fn WidgetHost(name: String, structure: Option<VizStructure>, cases: Option<VizCases>) -> impl IntoView {
+pub fn WidgetHost(
+    name: String,
+    structure: Option<VizStructure>,
+    cases: Option<VizCases>,
+    /// The modal drives the SAME stepper its keyboard reads (external playback).
+    #[prop(optional)]
+    external: Option<RwSignal<State>>,
+    /// The modal shows the data-driven legend; inline widgets never do.
+    #[prop(optional)]
+    legend: bool,
+) -> impl IntoView {
     match (structure, cases) {
         (Some(structure), Some(cases)) => {
             let Some(graph) = cases.cases.iter().find(|g| !g.steps.is_empty()).cloned() else {
                 return unavailable(structure.token());
             };
-            let state = RwSignal::new(State::initial(i64::try_from(graph.steps.len()).unwrap_or(1)));
+            let state = external.unwrap_or_else(|| {
+                RwSignal::new(State::initial(i64::try_from(graph.steps.len()).unwrap_or(1)))
+            });
             let step_index = Signal::derive(move || state.get().index);
             let Some(canvas) = registry::render(structure, &cases, step_index) else {
                 return unavailable(structure.token());
@@ -40,6 +52,7 @@ pub fn WidgetHost(name: String, structure: Option<VizStructure>, cases: Option<V
                             caption_graph.steps[i].annotation.body.clone()
                         }}
                     </div>
+                    {legend.then(|| legend_view(&graph))}
                 </div>
             }
             .into_any()
@@ -47,6 +60,32 @@ pub fn WidgetHost(name: String, structure: Option<VizStructure>, cases: Option<V
         (None, _) => unavailable(&name),
         (Some(_), None) => bad_payload(&name),
     }
+}
+
+/// The data-driven legend (oracle: `DomKit.legend`): rows appear only when the trace uses
+/// the cue.
+fn legend_view(graph: &synapse_shared::viz::graph::VizGraph) -> AnyView {
+    let any_cursor = graph.steps.iter().any(|s| !s.cursor.is_empty());
+    let any_new = graph.steps.iter().any(|s| !s.highlight.is_empty());
+    let any_changed = graph.steps.iter().any(|s| !s.changed.is_empty());
+    let any_removed = graph.steps.iter().any(|s| !s.removed.is_empty());
+    let item = |swatch_class: &'static str, text: &'static str| {
+        view! {
+            <span class="viz-legend__item">
+                <span class=format!("viz-legend__swatch {swatch_class}")></span>
+                <span class="viz-legend__text">{text}</span>
+            </span>
+        }
+    };
+    view! {
+        <div class="viz-legend">
+            {any_cursor.then(|| item("viz-legend__swatch--cursor", "▾ a variable points here"))}
+            {any_new.then(|| item("viz-legend__swatch--new", "new this step"))}
+            {any_changed.then(|| item("viz-legend__swatch--changed", "value changed"))}
+            {any_removed.then(|| item("viz-legend__swatch--removed", "removed"))}
+        </div>
+    }
+    .into_any()
 }
 
 fn unavailable(name: &str) -> AnyView {

@@ -14,11 +14,20 @@ struct RawVariant {
     viz: Option<String>,
 }
 
-/// One language rendition of a runnable block (oracle: shared `CodeVariant`).
+/// One language rendition of a runnable block (oracle: shared `CodeVariant` + the
+/// positionally-paired `VizHints`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Variant {
     pub language: String,
     pub source: String,
+    /// The fence's `viz=<structure>[:<root>]` hint, raw (parsed on use).
+    pub viz: Option<String>,
+}
+
+/// Visualise needs a Python or Java variant with a `viz=` hint (oracle:
+/// `WorkbenchLogic.canVisualise`).
+pub fn can_visualise(variant: &Variant) -> bool {
+    variant.viz.is_some() && matches!(variant.language.to_lowercase().as_str(), "python" | "java")
 }
 
 /// Decode the (already URI-decoded) `data-variants` JSON. Malformed or empty → `None`
@@ -30,6 +39,7 @@ pub fn parse_variants(json: &str) -> Option<Vec<Variant>> {
         .map(|v| Variant {
             language: v.lang.trim().to_owned(),
             source: v.source,
+            viz: v.viz,
         })
         .filter(|v| !v.language.is_empty())
         .collect();

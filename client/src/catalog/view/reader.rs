@@ -122,6 +122,7 @@ fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> impl IntoVi
     // Captured IN-TREE: hydrated blocks mount out-of-tree and cannot reach App's context.
     let auth = crate::identity::state::AuthStore::from_context();
     let theme = crate::shell::theme::ThemeStore::from_context();
+    let viz_modal = crate::viz::modal::VizModalStore::from_context();
     // The Coach's editor snapshot — filled by the hydrated workbench on mount + every edit.
     let code_ctx = RwSignal::new((String::new(), String::new()));
     // The body crosses the island bridge asynchronously; once the HTML lands, the interactive
@@ -150,6 +151,7 @@ fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> impl IntoVi
                     auth,
                     code_ctx,
                     theme,
+                    viz_modal,
                 );
                 // The viz widgets (step 27): every planted `div.viz-widget` mounts a host.
                 for (element, spec) in crate::viz::blocks::discover(&body) {

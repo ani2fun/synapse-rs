@@ -19,7 +19,8 @@ gloo-net = { workspace = true }
 gloo-timers = { workspace = true }
 console_error_panic_hook = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
+thiserror = { workspace = true }
 
 [lints]
 workspace = true

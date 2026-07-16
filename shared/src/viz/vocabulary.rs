@@ -13,7 +13,7 @@ pub enum LayoutKind {
 }
 
 /// The closed set of authored data-structure vocabularies.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum VizStructure {
     Array,
     Grid,

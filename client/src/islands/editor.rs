@@ -29,6 +29,8 @@ extern "C" {
     fn set_read_only_js(this: &EditorHandle, read_only: bool);
     #[wasm_bindgen(method, js_name = setTheme)]
     fn set_theme_js(this: &EditorHandle, dark: bool);
+    #[wasm_bindgen(method, js_name = setLineHighlights)]
+    fn set_line_highlights_js(this: &EditorHandle, current: u32, next: Option<u32>);
     #[wasm_bindgen(method, js_name = dispose)]
     fn dispose_js(this: &EditorHandle);
 }
@@ -57,6 +59,11 @@ impl MountedEditor {
     /// `monaco.editor.setTheme` is GLOBAL (re-themes every editor) — cheap + idempotent.
     pub fn set_theme(&self, dark: bool) {
         self.handle.set_theme_js(dark);
+    }
+
+    /// The Visualise modal's source pane: highlight the current (+ next) 1-indexed lines.
+    pub fn set_line_highlights(&self, current: u32, next: Option<u32>) {
+        self.handle.set_line_highlights_js(current, next);
     }
 }
 

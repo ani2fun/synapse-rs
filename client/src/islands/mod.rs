@@ -5,3 +5,4 @@
 pub mod auth;
 pub mod editor;
 pub mod markdown;
+pub mod tracer;

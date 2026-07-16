@@ -24,6 +24,7 @@ pub fn App() -> impl IntoView {
     crate::blog::state::BlogStore::provide();
     crate::search::state::SearchStore::provide();
     ThemeStore::provide();
+    crate::viz::modal::VizModalStore::provide();
     view! {
         <Router>
             <header class="header">
@@ -53,6 +54,7 @@ pub fn App() -> impl IntoView {
                 </Routes>
             </main>
             <SearchPalette />
+            <crate::viz::modal::VisualiseModal />
         </Router>
     }
 }

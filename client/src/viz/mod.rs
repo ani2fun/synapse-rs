@@ -5,7 +5,10 @@
 //! Layout is computed ONCE over the union of steps; the step signal only toggles drawing.
 
 pub mod blocks;
+pub mod decoder;
 pub mod host;
+pub mod modal;
 pub mod registry;
 pub mod render;
+pub mod session;
 pub mod transport;

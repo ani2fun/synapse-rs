@@ -30,6 +30,7 @@ pub fn RunnableBlock(
     code_sink: RwSignal<(String, String)>,
     // Same out-of-tree rule as `auth`: context is unreachable here, so the theme rides in.
     theme: crate::shell::theme::ThemeStore,
+    viz_modal: crate::viz::modal::VizModalStore,
 ) -> impl IntoView {
     let store = BlockStore::new(&variant.source);
     code_sink.set((variant.source.clone(), variant.language.clone()));
@@ -64,6 +65,28 @@ pub fn RunnableBlock(
 
     let run_click = run.clone();
     let submit_click = do_submit.clone();
+
+    // Visualise (step 28): a Python/Java variant with a viz= hint traces through the SAME
+    // /api/run and plays in the modal. The stdin snapshot mirrors Run's.
+    let visualisable = logic::can_visualise(&variant);
+    let viz_hint = StoredValue::new(variant.viz.clone());
+    let viz_lang = language.clone();
+    let open_visualise = move |_| {
+        let Some(hint) = viz_hint.read_value().clone() else {
+            return;
+        };
+        let Some((structure, root)) = synapse_shared::viz::vocabulary::VizStructure::parse(&hint) else {
+            return;
+        };
+        let key = crate::viz::session::Key {
+            language: viz_lang.clone(),
+            source: store.state.get_untracked().code,
+            structure,
+            root,
+            stdin: stdin().unwrap_or_default(),
+        };
+        viz_modal.open(crate::viz::session::obtain(key));
+    };
 
     // Mount monaco once the container exists; the handle + closures live in `mounted` and are
     // dropped (→ disposed) when the block unmounts.
@@ -171,6 +194,15 @@ pub fn RunnableBlock(
                             {move || if judging.get() { "Judging…" } else { "Submit" }}
                         </button>
                     </span>
+                })}
+                {visualisable.then(|| view! {
+                    <button
+                        class="wb__ghost"
+                        title="Trace this code and watch the structure animate"
+                        on:click=open_visualise.clone()
+                    >
+                        "Visualise"
+                    </button>
                 })}
                 <button
                     class="runnable__run"

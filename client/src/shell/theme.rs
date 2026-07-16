@@ -16,7 +16,7 @@ pub struct ThemeStore {
     pub mode: RwSignal<Mode>,
 }
 
-fn html_is_dark() -> bool {
+pub fn html_is_dark() -> bool {
     web_sys::window()
         .and_then(|w| w.document())
         .and_then(|d| d.document_element())

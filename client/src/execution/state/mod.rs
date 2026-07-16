@@ -25,8 +25,9 @@ impl BlockStore {
         }
     }
 
-    /// Run the current buffer. Guards like the Run button: a run in flight wins.
-    pub fn launch(self, language: String) {
+    /// Run the current buffer. Guards like the Run button: a run in flight wins. `stdin` is
+    /// the tests panel's seam — the active case's values, shaped by the shared `stdin_for`.
+    pub fn launch(self, language: String, stdin: Option<String>) {
         let current = self.state.get_untracked();
         if current.run_state == RunState::Running {
             return;
@@ -39,7 +40,7 @@ impl BlockStore {
             let request = RunRequest {
                 language,
                 source,
-                stdin: None,
+                stdin,
             };
             match api::run(&request).await {
                 Ok(result) => self.state.update(|s| *s = s.completed(handle, result)),
@@ -58,5 +59,79 @@ impl BlockStore {
             self.unlocked.set(true);
             self.state.update(|s| *s = s.enter_edit());
         }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SUBMIT (oracle: `WorkbenchCtx.submit` + `SubmitState`, step-15 scope)
+// ─────────────────────────────────────────────────────────────────────────────
+
+use synapse_shared::submission::{SubmissionDto, SubmitRequestDto};
+
+/// The submit lifecycle the verdict panel renders.
+#[derive(Debug, Clone, PartialEq)]
+pub enum SubmitState {
+    Idle,
+    Judging(String),
+    Done(Box<SubmissionDto>),
+    Failed(String),
+}
+
+/// One workbench's submit machinery: POST → poll every 1.2 s (≤ 100 tries), gated by `alive`
+/// so an unmounted block stops polling.
+#[derive(Clone, Copy)]
+pub struct SubmitStore {
+    pub state: RwSignal<SubmitState>,
+    alive: RwSignal<bool>,
+}
+
+impl SubmitStore {
+    pub fn new() -> Self {
+        let store = Self {
+            state: RwSignal::new(SubmitState::Idle),
+            alive: RwSignal::new(true),
+        };
+        on_cleanup(move || store.alive.set(false));
+        store
+    }
+
+    /// Guarded like the button: one judging at a time.
+    pub fn submit(self, path: Vec<String>, language: String, source: String) {
+        if matches!(self.state.get_untracked(), SubmitState::Judging(_)) {
+            return;
+        }
+        spawn_local(async move {
+            let request = SubmitRequestDto {
+                path,
+                language,
+                source,
+            };
+            let id = match crate::api::submit(&request).await {
+                Ok(accepted) => accepted.id,
+                Err(message) => return self.state.set(SubmitState::Failed(message)),
+            };
+            self.state.set(SubmitState::Judging(id.clone()));
+            for _ in 0..100 {
+                gloo_timers::future::TimeoutFuture::new(1_200).await;
+                if !self.alive.get_untracked() {
+                    return; // the block unmounted — stop polling
+                }
+                match crate::api::submission(&id).await {
+                    Ok(dto) if dto.status == "completed" => {
+                        return self.state.set(SubmitState::Done(Box::new(dto)));
+                    }
+                    Ok(_) => {} // still pending/judging — keep polling
+                    Err(message) => return self.state.set(SubmitState::Failed(message)),
+                }
+            }
+            self.state
+                .set(SubmitState::Failed("judging timed out".to_owned()));
+        });
+    }
+}
+
+impl Default for SubmitStore {
+    fn default() -> Self {
+        Self::new()
     }
 }

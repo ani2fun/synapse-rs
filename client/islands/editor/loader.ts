@@ -23,8 +23,9 @@ export async function mountEditor(
   onChange: (value: string) => void,
   onRun: () => void,
   onToggleEdit: () => void,
+  onSubmit: (() => void) | undefined,
 ): Promise<EditorHandle> {
   const { createEditor } = await import("./monaco");
-  const opts: EditorOptions = { value, language, readOnly, dark, onChange, onRun, onToggleEdit };
+  const opts: EditorOptions = { value, language, readOnly, dark, onChange, onRun, onToggleEdit, onSubmit };
   return createEditor(container, opts);
 }

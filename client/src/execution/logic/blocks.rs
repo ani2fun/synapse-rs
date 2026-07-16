@@ -51,6 +51,22 @@ pub fn display_lang(alias: &str) -> String {
     }
 }
 
+/// Seed the values grid from an authored case (oracle: `WorkbenchLogic.seedValues`).
+pub fn seed_values(
+    spec: &synapse_shared::execution::TestSpec,
+    case_index: usize,
+) -> std::collections::BTreeMap<String, String> {
+    spec.cases
+        .get(case_index)
+        .map(|case| case.args.clone())
+        .unwrap_or_default()
+}
+
+/// The active case's expected stdout, when declared.
+pub fn expected_for(spec: &synapse_shared::execution::TestSpec, case_index: usize) -> Option<String> {
+    spec.cases.get(case_index).and_then(|case| case.expected.clone())
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {

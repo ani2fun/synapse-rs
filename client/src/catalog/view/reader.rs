@@ -25,8 +25,9 @@ pub fn LessonPage() -> impl IntoView {
             </aside>
             <article class="reader-main">
                 {move || {
-                    let lesson = state::load_lesson(path.get());
-                    view! { <LessonBody lesson=lesson /> }
+                    let segments = path.get();
+                    let lesson = state::load_lesson(segments.clone());
+                    view! { <LessonBody lesson=lesson segments=segments /> }
                 }}
             </article>
         </div>
@@ -104,19 +105,20 @@ fn sidebar_entries(
 }
 
 #[component]
-fn LessonBody(lesson: RwSignal<AsyncResult<LessonPayloadDto>>) -> impl IntoView {
+fn LessonBody(lesson: RwSignal<AsyncResult<LessonPayloadDto>>, segments: Vec<String>) -> impl IntoView {
+    let segments = StoredValue::new(segments);
     view! {
         {move || match lesson.get() {
             AsyncResult::Loading => view! { <p class="muted">"Loading…"</p> }.into_any(),
             AsyncResult::Failed(message) => {
                 view! { <p class="error">"Lesson failed to load: " {message}</p> }.into_any()
             }
-            AsyncResult::Loaded(payload) => loaded_lesson(&payload).into_any(),
+            AsyncResult::Loaded(payload) => loaded_lesson(&payload, &segments.read_value()).into_any(),
         }}
     }
 }
 
-fn loaded_lesson(payload: &LessonPayloadDto) -> impl IntoView + use<> {
+fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> impl IntoView + use<> {
     // The body crosses the island bridge asynchronously; once the HTML lands, the interactive
     // placeholders hydrate (runnable blocks today; solutions/quizzes/diagrams with their
     // steps). The boxed unmount handles keep the mounts alive; clearing them (navigation /
@@ -125,6 +127,7 @@ fn loaded_lesson(payload: &LessonPayloadDto) -> impl IntoView + use<> {
     let body_ref: NodeRef<leptos::html::Div> = NodeRef::new();
     let mounts: StoredValue<Vec<Box<dyn std::any::Any>>, LocalStorage> = StoredValue::new_local(Vec::new());
     let raw = payload.raw.clone();
+    let segments = segments.to_vec();
     spawn_local(async move {
         match islands::markdown::render(&raw).await {
             Ok(rendered) => {
@@ -135,7 +138,7 @@ fn loaded_lesson(payload: &LessonPayloadDto) -> impl IntoView + use<> {
                     return;
                 };
                 body.set_inner_html(&rendered);
-                mounts.set_value(crate::execution::view::hydrate_workbenches(&body));
+                mounts.set_value(crate::execution::view::hydrate_workbenches(&body, &segments));
             }
             Err(error) => html.set(format!("<p>markdown island failed: {error:?}</p>")),
         }

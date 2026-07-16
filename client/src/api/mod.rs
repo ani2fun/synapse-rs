@@ -7,6 +7,7 @@ use serde::de::DeserializeOwned;
 use synapse_shared::api::ApiError;
 use synapse_shared::catalog::{LessonPayloadDto, SynapseIndexDto};
 use synapse_shared::execution::{RunRequest, RunResult};
+use synapse_shared::submission::{SubmissionAcceptedDto, SubmissionDto, SubmitRequestDto};
 
 /// A fetch's reactive lifecycle (oracle: `AsyncResult`).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,6 +29,16 @@ pub async fn lesson(path: &[String]) -> Result<LessonPayloadDto, String> {
 /// the server promises.
 pub async fn run(request: &RunRequest) -> Result<RunResult, String> {
     post_json("/api/run", request).await
+}
+
+/// Submit a solution — the 202 hands back the id the poll loop watches.
+pub async fn submit(request: &SubmitRequestDto) -> Result<SubmissionAcceptedDto, String> {
+    post_json("/api/submissions", request).await
+}
+
+/// One poll tick.
+pub async fn submission(id: &str) -> Result<SubmissionDto, String> {
+    fetch_json(&format!("/api/submissions/{id}")).await
 }
 
 async fn post_json<B: Serialize, T: DeserializeOwned>(url: &str, body: &B) -> Result<T, String> {

@@ -1,25 +1,51 @@
-//! One runnable code block (oracle: `Workbench` reduced to step 11): toolbar (eyebrow · lang
-//! pill · Edit · Run), a Monaco editor across the `@editor` island, and the output panel.
-//! The ⌘⏎/⌘E keymap arrives through monaco actions wired at mount; ⇧⌘⏎ Submit joins with the
-//! submissions step, and the identity step adds the auth gate on Edit.
+//! One runnable code block (oracle: `Workbench`, now at step-15 scope): toolbar (eyebrow · lang
+//! pill · Edit · Run · Submit), the Monaco island, the tests panel when the block carries an
+//! authored suite, the output panel (judged against the active case), and the verdict panel.
+//! Identity later gates Edit/Submit on sign-in, exactly as the oracle staged it.
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use synapse_shared::execution::RunResult;
+use synapse_shared::execution::{RunResult, TestSpec, Verdict, judge, stdin_for};
 
 use crate::execution::logic::{self, RunState, Variant};
-use crate::execution::state::BlockStore;
+use crate::execution::state::{BlockStore, SubmitState, SubmitStore};
+use crate::execution::view::workbench::{TestsPanel, TestsState, VerdictPanel};
 use crate::islands::editor::{self, MountedEditor};
 
-// Component props are moved by design (leptos owns them for the view's lifetime).
-#[allow(clippy::needless_pass_by_value)]
+// Component props are moved by design (leptos owns them for the view's lifetime); the length
+// is the component's cohesive wiring — props → stores → callbacks → view — and splitting it
+// would hide the flow (the oracle keeps `Workbench.apply` as one unit too).
+#[allow(clippy::needless_pass_by_value, clippy::too_many_lines)]
 #[component]
-pub fn RunnableBlock(variant: Variant) -> impl IntoView {
+pub fn RunnableBlock(variant: Variant, spec: Option<TestSpec>, lesson_path: Vec<String>) -> impl IntoView {
     let store = BlockStore::new(&variant.source);
+    let submit = SubmitStore::new();
     let language = variant.language.clone();
     let authored = StoredValue::new(variant.source.clone());
+    let spec = spec.map(StoredValue::new);
+    let tests = spec.map(|s| TestsState::new(&s.read_value()));
+    let lesson_path = StoredValue::new(lesson_path);
     let mounted: StoredValue<Option<MountedEditor>, LocalStorage> = StoredValue::new_local(None);
     let editor_ref: NodeRef<leptos::html::Div> = NodeRef::new();
+
+    // The Run seam: with a suite, stdin is the active case's values through the SHARED shape.
+    let stdin = move || match (spec, tests) {
+        (Some(spec), Some(tests)) => Some(stdin_for(&spec.read_value().args, &tests.values.get_untracked())),
+        _ => None,
+    };
+    let run_lang = language.clone();
+    let run = move || store.launch(run_lang.clone(), stdin());
+    let submit_lang = language.clone();
+    let do_submit = move || {
+        submit.submit(
+            lesson_path.read_value().clone(),
+            submit_lang.clone(),
+            store.state.get_untracked().code,
+        );
+    };
+
+    let run_click = run.clone();
+    let submit_click = do_submit.clone();
 
     // Mount monaco once the container exists; the handle + closures live in `mounted` and are
     // dropped (→ disposed) when the block unmounts.
@@ -30,15 +56,23 @@ pub fn RunnableBlock(variant: Variant) -> impl IntoView {
         }
         let value = store.state.get_untracked().code;
         let lang = language.clone();
+        let run = run.clone();
+        let do_submit = do_submit.clone();
         spawn_local(async move {
-            let on_change = move |code: String| store.state.update(|s| *s = s.set_code(&code));
-            let run_lang = lang.clone();
-            let on_run = move || store.launch(run_lang.clone());
-            let on_toggle = move || {
-                store.toggle_edit(&authored.read_value());
-                sync_editor(mounted, store);
+            let callbacks = editor::EditorCallbacks {
+                on_change: Box::new(move |code: String| {
+                    store.state.update(|s| *s = s.set_code(&code));
+                }),
+                on_run: Box::new(run),
+                on_toggle_edit: Box::new(move || {
+                    store.toggle_edit(&authored.read_value());
+                    sync_editor(mounted, store);
+                }),
+                on_submit: spec
+                    .is_some()
+                    .then(move || Box::new(do_submit) as Box<dyn FnMut()>),
             };
-            match editor::mount(&node, &value, &lang, true, on_change, on_run, on_toggle).await {
+            match editor::mount(&node, &value, &lang, true, callbacks).await {
                 Ok(handle) => mounted.set_value(Some(handle)),
                 Err(error) => leptos::logging::error!("monaco island failed: {error:?}"),
             }
@@ -47,50 +81,69 @@ pub fn RunnableBlock(variant: Variant) -> impl IntoView {
     on_cleanup(move || mounted.set_value(None));
 
     let running = Memo::new(move |_| store.state.read().run_state == RunState::Running);
+    let judging = Memo::new(move |_| matches!(submit.state.get(), SubmitState::Judging(_)));
     let unlocked = store.unlocked;
     let pill = logic::display_lang(&variant.language);
-    let run_lang = variant.language.clone();
     let height = format!("height: {}px;", editor::default_height_px(&variant.source));
+
+    let toolbar = view! {
+        <div class="runnable__bar">
+            <span class="wb__eyebrow"><span class="wb__prompt">">_"</span>" CODE"</span>
+            <span class="wb__actions">
+                <span class="wb__lang-pill">{pill}</span>
+                <span
+                    class="wb__tip"
+                    data-tip=move || {
+                        if unlocked.get() {
+                            "Editing — your changes stay on this page (⌘E toggles)"
+                        } else {
+                            "Edit this code — changes stay on this page (⌘E)"
+                        }
+                    }
+                >
+                    <button
+                        class="wb__ghost"
+                        class:wb__ghost--live=move || unlocked.get()
+                        on:click=move |_| {
+                            store.toggle_edit(&authored.read_value());
+                            sync_editor(mounted, store);
+                        }
+                    >
+                        {move || if unlocked.get() { "Editing" } else { "Edit" }}
+                    </button>
+                </span>
+                {spec.is_some().then(|| view! {
+                    <button
+                        class="wb__submit"
+                        title="Submit against the hidden suite (⇧⌘⏎)"
+                        prop:disabled=move || judging.get()
+                        on:click=move |_| submit_click()
+                    >
+                        {move || if judging.get() { "Judging…" } else { "Submit" }}
+                    </button>
+                })}
+                <button
+                    class="runnable__run"
+                    title="Run (⌘⏎)"
+                    prop:disabled=move || running.get()
+                    on:click=move |_| run_click()
+                >
+                    {move || if running.get() { "Running…" } else { "▶ Run" }}
+                </button>
+            </span>
+        </div>
+    };
 
     view! {
         <div class="runnable not-prose">
-            <div class="runnable__bar">
-                <span class="wb__eyebrow"><span class="wb__prompt">">_"</span>" CODE"</span>
-                <span class="wb__actions">
-                    <span class="wb__lang-pill">{pill}</span>
-                    <span
-                        class="wb__tip"
-                        data-tip=move || {
-                            if unlocked.get() {
-                                "Editing — your changes stay on this page (⌘E toggles)"
-                            } else {
-                                "Edit this code — changes stay on this page (⌘E)"
-                            }
-                        }
-                    >
-                        <button
-                            class="wb__ghost"
-                            class:wb__ghost--live=move || unlocked.get()
-                            on:click=move |_| {
-                                store.toggle_edit(&authored.read_value());
-                                sync_editor(mounted, store);
-                            }
-                        >
-                            {move || if unlocked.get() { "Editing" } else { "Edit" }}
-                        </button>
-                    </span>
-                    <button
-                        class="runnable__run"
-                        title="Run (⌘⏎)"
-                        prop:disabled=move || running.get()
-                        on:click=move |_| store.launch(run_lang.clone())
-                    >
-                        {move || if running.get() { "Running…" } else { "▶ Run" }}
-                    </button>
-                </span>
-            </div>
+            {toolbar}
             <div class="runnable__editor" node_ref=editor_ref style=height></div>
-            <Output store=store />
+            {match (spec, tests) {
+                (Some(spec), Some(tests)) => Some(view! { <TestsPanel spec=spec tests=tests /> }),
+                _ => None,
+            }}
+            <Output store=store spec=spec tests=tests />
+            <VerdictPanel submit=submit />
         </div>
     }
 }
@@ -110,7 +163,11 @@ fn sync_editor(mounted: StoredValue<Option<MountedEditor>, LocalStorage>, store:
 }
 
 #[component]
-fn Output(store: BlockStore) -> impl IntoView {
+fn Output(
+    store: BlockStore,
+    spec: Option<StoredValue<TestSpec>>,
+    tests: Option<TestsState>,
+) -> impl IntoView {
     view! {
         {move || {
             let state = store.state.get();
@@ -118,7 +175,13 @@ fn Output(store: BlockStore) -> impl IntoView {
                 return error_panel(error).into_any();
             }
             if let Some(result) = &state.result {
-                return result_panel(result).into_any();
+                let expected = match (spec, tests) {
+                    (Some(spec), Some(tests)) => {
+                        logic::expected_for(&spec.read_value(), tests.active_case.get())
+                    }
+                    _ => None,
+                };
+                return result_panel(result, expected.as_deref()).into_any();
             }
             if state.run_state == RunState::Running {
                 return view! { <div class="runnable__out runnable__out--running">"Running…"</div> }
@@ -138,11 +201,24 @@ fn error_panel(error: &str) -> impl IntoView + use<> {
     }
 }
 
-fn result_panel(result: &RunResult) -> impl IntoView + use<> {
-    let badge_class = if result.status.is_success() {
+/// With an expected output the stdout is JUDGED (the wb-legend tint); without one it renders
+/// plain — exactly the oracle's split.
+fn result_panel(result: &RunResult, expected: Option<&str>) -> impl IntoView + use<> {
+    let verdict = expected.map(|e| judge(result, Some(e)));
+    let (badge_label, badge_ok) = match verdict {
+        Some(Verdict::Accepted) => ("Accepted ✓".to_owned(), true),
+        Some(Verdict::WrongAnswer) => ("Wrong answer ✗".to_owned(), false),
+        _ => (result.status.label().to_owned(), result.status.is_success()),
+    };
+    let badge_class = if badge_ok {
         "runnable__badge runnable__badge--ok"
     } else {
         "runnable__badge runnable__badge--fail"
+    };
+    let stdout_class = match verdict {
+        Some(Verdict::Accepted) => "runnable__stdout wb-legend--ok",
+        Some(Verdict::WrongAnswer) => "runnable__stdout wb-legend--err",
+        _ => "runnable__stdout",
     };
     let time = result.time_seconds.map(|s| format!("{s:.3} s"));
     let memory = result.memory_kb.map(|kb| format!("{} MB", kb / 1024));
@@ -150,7 +226,7 @@ fn result_panel(result: &RunResult) -> impl IntoView + use<> {
     view! {
         <div class="runnable__out">
             <div class="runnable__status">
-                <span class=badge_class>{result.status.label()}</span>
+                <span class=badge_class>{badge_label}</span>
                 {time.map(|t| view! { <span class="runnable__meta">{t}</span> })}
                 {memory.map(|m| view! { <span class="runnable__meta">{m}</span> })}
             </div>
@@ -159,7 +235,7 @@ fn result_panel(result: &RunResult) -> impl IntoView + use<> {
             {if stdout.is_empty() {
                 view! { <p class="runnable__empty">"(no output)"</p> }.into_any()
             } else {
-                view! { <pre class="runnable__stdout">{stdout}</pre> }.into_any()
+                view! { <pre class=stdout_class>{stdout}</pre> }.into_any()
             }}
         </div>
     }

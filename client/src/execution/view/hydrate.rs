@@ -12,7 +12,7 @@ use wasm_bindgen::JsCast;
 use crate::execution::logic;
 use crate::execution::view::RunnableBlock;
 
-pub fn hydrate_workbenches(root: &web_sys::HtmlElement) -> Vec<Box<dyn Any>> {
+pub fn hydrate_workbenches(root: &web_sys::HtmlElement, lesson_path: &[String]) -> Vec<Box<dyn Any>> {
     let mut handles: Vec<Box<dyn Any>> = Vec::new();
     let Ok(nodes) = root.query_selector_all("div.workbench") else {
         return handles;
@@ -31,11 +31,19 @@ pub fn hydrate_workbenches(root: &web_sys::HtmlElement) -> Vec<Box<dyn Any>> {
         let Some(variants) = logic::parse_variants(&String::from(decoded)) else {
             continue;
         };
-        // Step-11 scope: the first variant (the language switch joins with the workbench step).
+        // First variant for now (the language switch joins with the multi-variant step).
         let Some(variant) = variants.into_iter().next() else {
             continue;
         };
-        let handle = leptos::mount::mount_to(element, move || view! { <RunnableBlock variant=variant /> });
+        // The authored suite rides in data-spec (absent on plain lesson blocks).
+        let spec = element
+            .get_attribute("data-spec")
+            .and_then(|encoded| js_sys::decode_uri_component(&encoded).ok())
+            .and_then(|decoded| serde_json::from_str(&String::from(decoded)).ok());
+        let path = lesson_path.to_vec();
+        let handle = leptos::mount::mount_to(element, move || {
+            view! { <RunnableBlock variant=variant spec=spec lesson_path=path /> }
+        });
         handles.push(Box::new(handle));
     }
     handles

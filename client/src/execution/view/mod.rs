@@ -2,6 +2,7 @@
 
 mod hydrate;
 mod runnable;
+mod workbench;
 
 pub use hydrate::hydrate_workbenches;
 pub use runnable::RunnableBlock;

@@ -17,6 +17,7 @@ extern "C" {
         on_change: &js_sys::Function,
         on_run: &js_sys::Function,
         on_toggle_edit: &js_sys::Function,
+        on_submit: Option<&js_sys::Function>,
     ) -> js_sys::Promise;
 
     pub type EditorHandle;
@@ -35,6 +36,7 @@ pub struct MountedEditor {
     _on_change: Closure<dyn FnMut(String)>,
     _on_run: Closure<dyn FnMut()>,
     _on_toggle_edit: Closure<dyn FnMut()>,
+    _on_submit: Option<Closure<dyn FnMut()>>,
 }
 
 impl MountedEditor {
@@ -57,6 +59,15 @@ impl Drop for MountedEditor {
     }
 }
 
+/// The workbench verbs an editor wires (oracle: `Keymap`) — submit only where the surface has
+/// the verb.
+pub struct EditorCallbacks {
+    pub on_change: Box<dyn FnMut(String)>,
+    pub on_run: Box<dyn FnMut()>,
+    pub on_toggle_edit: Box<dyn FnMut()>,
+    pub on_submit: Option<Box<dyn FnMut()>>,
+}
+
 /// Mount a Monaco editor into `container`. The oracle's default height rule is applied by the
 /// caller (`clamp(lines*20+28, 64, 520)` px).
 pub async fn mount(
@@ -64,13 +75,12 @@ pub async fn mount(
     value: &str,
     language: &str,
     read_only: bool,
-    on_change: impl FnMut(String) + 'static,
-    on_run: impl FnMut() + 'static,
-    on_toggle_edit: impl FnMut() + 'static,
+    callbacks: EditorCallbacks,
 ) -> Result<MountedEditor, JsValue> {
-    let on_change = Closure::<dyn FnMut(String)>::new(on_change);
-    let on_run = Closure::<dyn FnMut()>::new(on_run);
-    let on_toggle_edit = Closure::<dyn FnMut()>::new(on_toggle_edit);
+    let on_change = Closure::<dyn FnMut(String)>::new(callbacks.on_change);
+    let on_run = Closure::<dyn FnMut()>::new(callbacks.on_run);
+    let on_toggle_edit = Closure::<dyn FnMut()>::new(callbacks.on_toggle_edit);
+    let on_submit = callbacks.on_submit.map(Closure::<dyn FnMut()>::new);
     let promise = mount_editor_js(
         container,
         value,
@@ -80,6 +90,7 @@ pub async fn mount(
         on_change.as_ref().unchecked_ref(),
         on_run.as_ref().unchecked_ref(),
         on_toggle_edit.as_ref().unchecked_ref(),
+        on_submit.as_ref().map(|c| c.as_ref().unchecked_ref()),
     );
     let handle = wasm_bindgen_futures::JsFuture::from(promise).await?;
     Ok(MountedEditor {
@@ -87,6 +98,7 @@ pub async fn mount(
         _on_change: on_change,
         _on_run: on_run,
         _on_toggle_edit: on_toggle_edit,
+        _on_submit: on_submit,
     })
 }
 

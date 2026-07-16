@@ -42,3 +42,4 @@ introduced the feature, never as later afterthoughts.
 | 12 | `step-12` | [Reader parity](12-reader-parity.md) | 2026-07-16 |
 | 13 | `step-13` | [The submission aggregate](13-the-submission-aggregate.md) | 2026-07-16 |
 | 14 | `step-14` | [Submissions: Postgres + 202/poll](14-submissions-infrastructure-http.md) | 2026-07-16 |
+| 15 | `step-15` | [The workbench submit path](15-the-workbench-submit-path.md) | 2026-07-16 |

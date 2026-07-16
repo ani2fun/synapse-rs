@@ -151,16 +151,15 @@
                           overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
                           max-width: 16rem; }
 
-/* ── legend (modal only) ── */
-.viz-legend { display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center;
-              font-size: 0.75rem; color: hsl(var(--muted-foreground)); }
-.viz-legend__item { display: inline-flex; align-items: center; gap: 0.35rem; }
-.viz-legend__swatch { width: 12px; height: 12px; border-radius: 3px;
-                      border: 1.5px solid hsl(var(--border)); background: hsl(var(--background)); }
-.viz-legend__swatch--cursor { border-color: hsl(var(--foreground)); }
-.viz-legend__swatch--new { border-color: hsl(var(--status-ok)); }
-.viz-legend__swatch--changed { border-color: hsl(var(--primary)); background: hsl(var(--primary) / 0.14); }
-.viz-legend__swatch--removed { opacity: 0.4; border-style: dashed; }
+/* ── legend (modal only; oracle DomKit.legend — inline colors, circle swatches) ── */
+.viz-legend { display: flex; flex-wrap: wrap; gap: 14px; border-top: 1px solid hsl(var(--border));
+              margin-top: 10px; padding-top: 8px; font-size: 11px;
+              color: hsl(var(--muted-foreground)); }
+.viz-legend__item { display: inline-flex; align-items: center; gap: 6px; }
+.viz-legend__swatch { display: inline-flex; align-items: center; justify-content: center;
+                      width: 14px; height: 14px; border: 2px solid currentColor;
+                      border-radius: 50%; font-size: 9px; flex: none; }
+.viz-legend__line { display: inline-block; width: 22px; height: 2px; border-radius: 1px; flex: none; }
 
 /* ── source-pane line highlights (monaco decorations from the island) ── */
 .wb-source-current-line { background: hsl(var(--primary) / 0.22);
@@ -168,3 +167,125 @@
 .wb-source-current-gutter { border-left: 3px solid hsl(var(--primary)); }
 .wb-source-next-line { background: hsl(var(--primary) / 0.10);
                        box-shadow: inset 3px 0 0 hsl(var(--muted-foreground) / 0.55); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   THE BESPOKE GALLERY (step 29; oracle step 33) — flow-layout HTML widgets:
+   hashmap buckets · queue/deque/stack strips · list compartments · grid table ·
+   the dual views. Shared: the floating cursor badge + the ∅ / → glyphs.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.viz-dom-widget { font-family: var(--font-mono); display: flex; flex-direction: column;
+                  gap: 10px; padding: 4px 0; }
+.viz-dom-cursor { position: absolute; bottom: calc(100% + 2px); left: 50%;
+                  transform: translateX(-50%); display: flex; flex-direction: column;
+                  align-items: center; line-height: 1.15; pointer-events: none; }
+.viz-dom-cursor__name { font-size: 11px; font-weight: 600; white-space: nowrap; }
+.viz-dom-cursor__caret { font-size: 10px; }
+.viz-dom-null { color: hsl(var(--muted-foreground)); font-size: 15px; }
+.viz-dom-connector { color: hsl(var(--muted-foreground)); padding: 0 8px; }
+
+/* ── hashmap buckets ── */
+.viz-hashmap { gap: 12px; }
+.viz-hashmap__empty { display: flex; align-items: center; gap: 6px; }
+.viz-hashmap__bucket { display: flex; align-items: center; gap: 10px; padding-top: 26px; }
+.viz-hashmap__index { min-width: 30px; height: 30px; display: inline-flex; align-items: center;
+                      justify-content: center; border: 1px solid hsl(var(--border));
+                      border-radius: 6px; background: hsl(var(--muted) / 0.6);
+                      color: hsl(var(--muted-foreground)); font-size: 13px; flex: none; }
+.viz-hashmap__index--new { border-color: hsl(var(--status-ok, var(--primary))); }
+.viz-hashmap__index--changed { background: hsl(var(--primary) / 0.14);
+                               border-color: hsl(var(--primary)); }
+.viz-hashmap__index--removed { opacity: 0.35; border-style: dashed; }
+.viz-hashmap__chain { display: flex; align-items: center; flex-wrap: wrap; row-gap: 8px; }
+.viz-hashmap__entry { position: relative; display: inline-flex; align-items: center; gap: 6px;
+                      padding: 6px 11px; border: 1px solid hsl(var(--border));
+                      border-radius: 6px; background: hsl(var(--card)); font-size: 14px; }
+.viz-hashmap__entry-key, .viz-hashmap__entry-sep { color: hsl(var(--muted-foreground)); }
+.viz-hashmap__entry-value { font-weight: 600; }
+.viz-hashmap__entry--new { border-color: hsl(var(--status-ok, var(--primary))); }
+.viz-hashmap__entry--changed { background: hsl(var(--primary) / 0.14);
+                               border-color: hsl(var(--primary)); }
+.viz-hashmap__entry--removed { opacity: 0.35; border-style: dashed; }
+.viz-hashmap__entry--cursor { box-shadow: 0 0 0 2px hsl(var(--primary) / 0.35); }
+
+/* ── queue / deque strip + stack column ── */
+.viz-queue { align-items: flex-start; }
+.viz-queue__hint { display: flex; justify-content: space-between; width: 100%;
+                   max-width: 460px; font-size: 12px; letter-spacing: 0.08em;
+                   text-transform: uppercase; color: hsl(var(--muted-foreground)); }
+.viz-queue__hint--stack { justify-content: center; max-width: 130px; }
+.viz-queue__cells { display: flex; margin-top: 30px; }
+.viz-queue__cells--stack { flex-direction: column; margin-top: 6px; width: 130px; }
+.viz-queue__cell { position: relative; display: flex; flex-direction: column;
+                   align-items: center; gap: 3px; min-width: 56px; padding: 10px 10px 8px;
+                   border: 1px solid hsl(var(--border)); border-right-width: 0;
+                   background: hsl(var(--card)); }
+.viz-queue__cell:first-child { border-radius: 8px 0 0 8px; }
+.viz-queue__cell:last-child { border-right-width: 1px; border-radius: 0 8px 8px 0; }
+.viz-queue__cell:only-child { border-radius: 8px; }
+.viz-queue__cells--stack .viz-queue__cell { border-right-width: 1px; border-bottom-width: 0;
+                                            width: 100%; }
+.viz-queue__cells--stack .viz-queue__cell:first-child { border-radius: 8px 8px 0 0; }
+.viz-queue__cells--stack .viz-queue__cell:last-child { border-bottom-width: 1px;
+                                                       border-radius: 0 0 8px 8px; }
+.viz-queue__cells--stack .viz-queue__cell:only-child { border-radius: 8px; }
+.viz-queue__cell--end { border-color: var(--viz-end-color, hsl(var(--border))); }
+.viz-queue__cell--end + .viz-queue__cell { border-left-color: var(--viz-end-color, hsl(var(--border))); }
+.viz-queue__cells--stack .viz-queue__cell--end + .viz-queue__cell {
+  border-left-color: hsl(var(--border));
+  border-top-color: var(--viz-end-color, hsl(var(--border))); }
+.viz-queue__cell-marker { font-size: 9px; text-transform: uppercase;
+                          color: var(--viz-end-color, transparent); min-height: 11px; }
+.viz-queue__cell-marker--blank { visibility: hidden; }
+.viz-queue__cell-value { font-size: 16px; font-weight: 600; }
+.viz-queue__cell-index { font-size: 11px; color: hsl(var(--muted-foreground)); }
+.viz-queue__cell--new { box-shadow: inset 0 0 0 1px hsl(var(--status-ok, var(--primary))); }
+.viz-queue__cell--changed { background: hsl(var(--primary) / 0.14); }
+.viz-queue__cell--removed { opacity: 0.35; }
+
+/* ── linked-list compartments ── */
+.viz-list__row { display: flex; align-items: center; flex-wrap: wrap; row-gap: 34px;
+                 padding-top: 30px; }
+.viz-list__node { position: relative; display: inline-flex; align-items: stretch;
+                  border: 1px solid hsl(var(--border)); border-radius: 6px;
+                  background: hsl(var(--card)); overflow: visible; }
+.viz-list__field { display: inline-flex; align-items: center; padding: 0 7px; font-size: 8px;
+                   text-transform: uppercase; color: hsl(var(--muted-foreground));
+                   background: hsl(var(--muted) / 0.45); }
+.viz-list__field--prev { border-right: 1px solid hsl(var(--border));
+                         border-radius: 5px 0 0 5px; }
+.viz-list__field--next { border-left: 1px solid hsl(var(--border));
+                         border-radius: 0 5px 5px 0; }
+.viz-list__val { padding: 8px 12px; font-weight: 600; font-size: 15px; }
+.viz-list__arrows { display: inline-flex; flex-direction: column; gap: 2px; padding: 0 2px;
+                    flex: none; }
+.viz-list__node--new { box-shadow: 0 0 0 2px hsl(var(--status-ok, var(--primary)) / 0.6); }
+.viz-list__node--changed { box-shadow: 0 0 0 2px hsl(var(--primary) / 0.6); }
+.viz-list__node--removed { opacity: 0.35; border-style: dashed; }
+
+/* ── grid table ── */
+.viz-grid { gap: 0; align-items: flex-start; padding-top: 26px; }
+.viz-grid__empty { display: flex; align-items: center; gap: 6px; }
+.viz-grid__row { display: flex; }
+.viz-grid__colidx, .viz-grid__rowidx, .viz-grid__corner {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 44px;
+  min-height: 26px; font-size: 11px; color: hsl(var(--muted-foreground)); flex: none; }
+.viz-grid__rowidx, .viz-grid__corner { min-width: 26px; }
+.viz-grid__cell { position: relative; display: inline-flex; align-items: center;
+                  justify-content: center; min-width: 44px; min-height: 38px; padding: 2px 6px;
+                  border: 1px solid hsl(var(--border)); margin: -0.5px;
+                  background: hsl(var(--card)); font-size: 14px; flex: none; }
+.viz-grid__cell--hole { background: transparent; border-style: dashed; opacity: 0.4; }
+.viz-grid__cell--new { box-shadow: inset 0 0 0 1px hsl(var(--status-ok, var(--primary))); }
+.viz-grid__cell--changed { background: hsl(var(--primary) / 0.14); }
+.viz-grid__cell--removed { opacity: 0.35; }
+.viz-grid__cell--cursor { box-shadow: 0 0 0 2px hsl(var(--primary) / 0.35); }
+
+/* ── dual views ── */
+.viz-dual { gap: 14px; }
+.viz-dual__pane { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.viz-dual__caption { font-size: 11px; color: hsl(var(--muted-foreground)); }
+.viz-modal__canvas-col .viz-dual .viz-svg { width: auto; max-width: 100%; max-height: 34vh; }
+
+/* ── frame line chips (the → next chip) ── */
+.viz-frame__line--next { background: transparent; color: hsl(var(--muted-foreground)); }

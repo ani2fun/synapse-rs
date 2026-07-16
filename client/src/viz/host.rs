@@ -52,7 +52,7 @@ pub fn WidgetHost(
                             caption_graph.steps[i].annotation.body.clone()
                         }}
                     </div>
-                    {legend.then(|| legend_view(&graph))}
+                    {legend.then(|| legend_view(&graph, structure))}
                 </div>
             }
             .into_any()
@@ -62,30 +62,94 @@ pub fn WidgetHost(
     }
 }
 
-/// The data-driven legend (oracle: `DomKit.legend`): rows appear only when the trace uses
-/// the cue.
-fn legend_view(graph: &synapse_shared::viz::graph::VizGraph) -> AnyView {
-    let any_cursor = graph.steps.iter().any(|s| !s.cursor.is_empty());
-    let any_new = graph.steps.iter().any(|s| !s.highlight.is_empty());
-    let any_changed = graph.steps.iter().any(|s| !s.changed.is_empty());
-    let any_removed = graph.steps.iter().any(|s| !s.removed.is_empty());
-    let item = |swatch_class: &'static str, text: &'static str| {
-        view! {
-            <span class="viz-legend__item">
-                <span class=format!("viz-legend__swatch {swatch_class}")></span>
-                <span class="viz-legend__text">{text}</span>
-            </span>
+/// The data-driven legend (oracle: `DomKit.legend`): rows appear only when some step uses
+/// the cue. Diff swatches wear the diff TOKENS (what the renderers tint); cursor/line items
+/// wear the marker palette. A doubly list adds the next/prev arrow lines.
+fn legend_view(graph: &synapse_shared::viz::graph::VizGraph, structure: VizStructure) -> AnyView {
+    use synapse_shared::viz::markers;
+
+    use crate::viz::render::themed;
+    let steps = &graph.steps;
+    let has_cursors = steps.iter().any(|s| !s.cursor.is_empty());
+    let has_new = steps.iter().any(|s| !s.highlight.is_empty());
+    let has_changed = steps.iter().any(|s| !s.changed.is_empty());
+    let has_removed = steps.iter().any(|s| !s.removed.is_empty());
+    let is_doubly = structure == VizStructure::List
+        && steps.iter().any(|s| {
+            s.edges
+                .iter()
+                .any(|e| matches!(e.label.as_str(), "prev" | "previous"))
+        });
+    let swatch = |color: String, dashed: bool, glyph: &'static str, text: &'static str| {
+        let mut style = format!("border-color: {color}; color: {color}");
+        if dashed {
+            style.push_str("; border-style: dashed");
         }
+        view! {
+            <div class="viz-legend__item">
+                <span class="viz-legend__swatch" style=style>{glyph}</span>
+                <span class="viz-legend__text">{text}</span>
+            </div>
+        }
+        .into_any()
     };
-    view! {
-        <div class="viz-legend">
-            {any_cursor.then(|| item("viz-legend__swatch--cursor", "▾ a variable points here"))}
-            {any_new.then(|| item("viz-legend__swatch--new", "new this step"))}
-            {any_changed.then(|| item("viz-legend__swatch--changed", "value changed"))}
-            {any_removed.then(|| item("viz-legend__swatch--removed", "removed"))}
-        </div>
+    let line = |color: String, text: &'static str| {
+        view! {
+            <div class="viz-legend__item">
+                <span class="viz-legend__line" style=format!("background: {color}")></span>
+                <span class="viz-legend__text">{text}</span>
+            </div>
+        }
+        .into_any()
+    };
+    let head = themed(markers::canon("head").unwrap_or_default());
+    let mut items: Vec<AnyView> = Vec::new();
+    if has_cursors {
+        items.push(swatch(head, false, "", "a variable points here"));
     }
-    .into_any()
+    if has_new {
+        items.push(swatch(
+            "hsl(var(--status-ok, var(--primary)))".to_owned(),
+            false,
+            "",
+            "new this step",
+        ));
+    }
+    if has_changed {
+        items.push(swatch(
+            "hsl(var(--primary))".to_owned(),
+            false,
+            "",
+            "value changed",
+        ));
+    }
+    if has_removed {
+        items.push(swatch(
+            "hsl(var(--muted-foreground))".to_owned(),
+            true,
+            "",
+            "removed",
+        ));
+    }
+    if has_cursors {
+        items.push(swatch(
+            "currentColor".to_owned(),
+            false,
+            "▾",
+            "pointer — labelled with the variable",
+        ));
+    }
+    if is_doubly {
+        items.push(line(themed(markers::canon("next").unwrap_or_default()), "next"));
+        items.push(line(
+            themed(markers::canon("previous").unwrap_or_default()),
+            "prev",
+        ));
+    }
+    if items.is_empty() {
+        return ().into_any();
+    }
+    view! { <div class="viz-legend">{items}</div> }.into_any()
 }
 
 fn unavailable(name: &str) -> AnyView {

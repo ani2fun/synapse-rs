@@ -291,13 +291,23 @@ fn FramesPanel(cases: VizCases, case_idx: RwSignal<usize>, step_state: RwSignal<
                     return ().into_any();
                 };
                 let current = step.line;
+                let next_line = cases
+                    .cases
+                    .get(idx)
+                    .and_then(|g: &VizGraph| g.steps.get(state.index + 1))
+                    .map(|s| s.line);
                 step.frames
                     .iter()
                     .map(|frame| {
                         let class = if frame.is_active { "viz-frame viz-frame--active" } else { "viz-frame" };
-                        let chips = frame.is_active.then(|| view! {
+                        let chips = (frame.is_active && current > 0).then(|| view! {
                             <span class="viz-frame__lines">
                                 <span class="viz-frame__line">{format!("L{current}")}</span>
+                                {next_line.map(|n| view! {
+                                    <span class="viz-frame__line viz-frame__line--next">
+                                        {format!("→ L{n}")}
+                                    </span>
+                                })}
                             </span>
                         });
                         let locals: Vec<_> = frame

@@ -2,9 +2,15 @@
 //! classes, the themed role-colour mapping, cursor stacking, top-margin headroom, and
 //! fitted text.
 
+pub mod buckets;
 pub mod cells;
 pub mod chain;
+pub mod dom;
+pub mod dual;
 pub mod graph_canvas;
+pub mod grid_table;
+pub mod list_chain;
+pub mod strip;
 pub mod tree;
 
 use leptos::prelude::*;

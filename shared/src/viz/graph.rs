@@ -74,7 +74,7 @@ impl Default for VizNode {
 }
 
 /// A directed edge; `label` is the field name it came from (`left`/`right`/`next`).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct VizEdge {
     pub from: NodeId,
     pub to: NodeId,

@@ -11,4 +11,5 @@ pub mod modal;
 pub mod registry;
 pub mod render;
 pub mod session;
+pub mod shapes;
 pub mod transport;

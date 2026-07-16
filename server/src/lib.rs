@@ -14,19 +14,26 @@ use std::sync::Arc;
 use axum::Router;
 use catalog::http::LiveCatalogService;
 use execution::http::LiveRunService;
+use submission::http::LiveSubmitSolution;
 use synapse_shared::api::{ApiError, HealthStatus};
 use synapse_shared::catalog::{ComponentDocDto, LessonPayloadDto, SynapseIndexDto};
 use synapse_shared::execution::{RunRequest, RunResult};
+use synapse_shared::submission::{SubmissionAcceptedDto, SubmissionDto, SubmitRequestDto};
 use utoipa::OpenApi;
 
 /// The assembled HTTP surface. Contexts contribute their routers here as they land; integration
 /// tests drive this exact router, so what the suite exercises is what the binary serves.
 /// `ContentCacheControl` wraps the whole surface — it stamps only public content GETs on 200.
-pub fn app(catalog: Arc<LiveCatalogService>, run: Arc<LiveRunService>) -> Router {
+pub fn app(
+    catalog: Arc<LiveCatalogService>,
+    run: Arc<LiveRunService>,
+    submit: Arc<LiveSubmitSolution>,
+) -> Router {
     Router::new()
         .merge(platform::http::routes())
         .merge(catalog::http::routes(catalog))
         .merge(execution::http::routes(run))
+        .merge(submission::http::routes(submit))
         .layer(axum::middleware::from_fn(platform::content_cache_control::stamp))
 }
 
@@ -42,7 +49,10 @@ pub fn app(catalog: Arc<LiveCatalogService>, run: Arc<LiveRunService>) -> Router
         catalog::http::routes::get_synapse_index,
         catalog::http::routes::get_component_doc,
         catalog::http::routes::get_synapse_lesson,
-        execution::http::run_code
+        execution::http::run_code,
+        submission::http::submit_solution,
+        submission::http::get_submission,
+        submission::http::list_submissions
     ),
     components(schemas(
         HealthStatus,
@@ -51,7 +61,10 @@ pub fn app(catalog: Arc<LiveCatalogService>, run: Arc<LiveRunService>) -> Router
         LessonPayloadDto,
         ComponentDocDto,
         RunRequest,
-        RunResult
+        RunResult,
+        SubmitRequestDto,
+        SubmissionAcceptedDto,
+        SubmissionDto
     ))
 )]
 pub struct ApiDoc;

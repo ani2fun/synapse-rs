@@ -41,3 +41,4 @@ introduced the feature, never as later afterthoughts.
 | 11 | `step-11` | [Monaco and the runnable block](11-monaco-and-the-runnable-block.md) | 2026-07-15 |
 | 12 | `step-12` | [Reader parity](12-reader-parity.md) | 2026-07-16 |
 | 13 | `step-13` | [The submission aggregate](13-the-submission-aggregate.md) | 2026-07-16 |
+| 14 | `step-14` | [Submissions: Postgres + 202/poll](14-submissions-infrastructure-http.md) | 2026-07-16 |

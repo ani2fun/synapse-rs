@@ -77,7 +77,12 @@
         "mimeType": "application/json",
         "text": "{\n  \"language\": \"py\",\n  \"source\": \"print(21 * 2)\"\n}"
       },
-      "headers": [{ "name": "Content-Type", "value": "application/json" }]
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
     },
     {
       "_id": "req_catalog_c4doc",
@@ -87,6 +92,49 @@
       "description": "A LikeC4 component's tutorial doc — the co-located _c4-docs/<leaf>.md sidecar next to the lesson. (step 06)",
       "method": "GET",
       "url": "{{ _.base_url }}/api/synapse/c4-doc/synapse.client.reader?lesson=learn/dsa/lists/singly"
+    },
+    {
+      "_id": "fld_submissions",
+      "_type": "request_group",
+      "parentId": "wrk_synapse_rs",
+      "name": "submissions"
+    },
+    {
+      "_id": "req_submit",
+      "_type": "request",
+      "parentId": "fld_submissions",
+      "name": "POST /api/submissions",
+      "description": "Submit a solution — 202 + id; the suite judges in the background (step 14). 404 not-a-problem, 500 invalid suite.",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/submissions",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"path\": [\n    \"dsa\",\n    \"two-sum\"\n  ],\n  \"language\": \"py\",\n  \"source\": \"print(1)\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_submission_get",
+      "_type": "request",
+      "parentId": "fld_submissions",
+      "name": "GET /api/submissions/{id}",
+      "description": "Poll one submission until status == completed (step 14).",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/submissions/00000000-0000-0000-0000-000000000000"
+    },
+    {
+      "_id": "req_submission_list",
+      "_type": "request",
+      "parentId": "fld_submissions",
+      "name": "GET /api/submissions?path=",
+      "description": "Submissions for a lesson, newest first (identity later scopes it to the caller).",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/submissions?path=dsa/two-sum"
     }
   ]
 }

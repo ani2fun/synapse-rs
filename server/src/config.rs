@@ -22,6 +22,10 @@ pub struct AppConfig {
     /// The go-judge sandbox `POST /run` base URL (step 10). Env: `EXECUTOR_URL` (the oracle's
     /// deploy-manifest name, mapped in `load`) or `SYNAPSE_EXECUTOR_URL`.
     pub executor_url: String,
+    /// The submissions store (step 14). Env: `DATABASE_URL` (the ecosystem convention, honored
+    /// verbatim) or `SYNAPSE_DATABASE_URL`. The server FAILS FAST when Postgres is down
+    /// (oracle parity — Keycloak degrades, Postgres does not).
+    pub database_url: String,
 }
 
 impl Default for AppConfig {
@@ -31,6 +35,7 @@ impl Default for AppConfig {
             content_root: "../synapse-content".to_owned(),
             auto_reload: true,
             executor_url: "http://localhost:5150".to_owned(),
+            database_url: "postgres://synapse:synapse@localhost:5532/synapse_rs".to_owned(),
         }
     }
 }
@@ -50,9 +55,11 @@ impl AppConfig {
         });
         // `EXECUTOR_URL` is the oracle's deploy-manifest name (no prefix) — honored verbatim.
         let executor = Env::raw().only(&["EXECUTOR_URL"]).map(|_| "executor_url".into());
+        let database = Env::raw().only(&["DATABASE_URL"]).map(|_| "database_url".into());
         Figment::from(Serialized::defaults(Self::default()))
             .merge(env)
             .merge(executor)
+            .merge(database)
             .extract()
             .map_err(Box::new)
     }

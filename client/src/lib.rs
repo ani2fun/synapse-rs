@@ -17,6 +17,7 @@ pub mod router;
 pub mod search;
 pub mod shell;
 pub mod tutoring;
+pub mod viz;
 
 use wasm_bindgen::prelude::wasm_bindgen;
 

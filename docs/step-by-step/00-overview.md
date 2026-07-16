@@ -54,3 +54,4 @@ introduced the feature, never as later afterthoughts.
 | 24 | `step-24` | [The geometry families](24-the-geometry-families.md) | 2026-07-16 |
 | 25 | `step-25` | [Design system + dark mode](25-design-system-dark-mode.md) | 2026-07-16 |
 | 26 | `step-26` | [The adapt pipeline](26-the-adapt-pipeline.md) | 2026-07-16 |
+| 27 | `step-27` | [The widget spine](27-the-widget-spine.md) | 2026-07-16 |

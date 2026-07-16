@@ -1,0 +1,68 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   VIZ WIDGETS (step 27) — the widget host, the SVG families, the transport bar
+   (oracle: viz.css classes verbatim, on the tokens). The --viz-role-* palette
+   lives in tokens.css.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.viz-widget-host { border: 1px solid hsl(var(--border)); border-radius: 12px;
+                   background: hsl(var(--card) / 0.5); padding: 0.75rem;
+                   margin: 1.25rem 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.viz-widget-host__title { font-weight: 600; font-size: 0.9rem; color: hsl(var(--foreground)); }
+.viz-widget-host__canvas { display: flex; overflow: auto; }
+.viz-widget-host__scale { width: max-content; min-width: 100%; margin: auto; }
+.viz-widget-host__caption { color: hsl(var(--muted-foreground)); text-align: center;
+                            font-size: 0.85rem; min-height: 1.2em; }
+.viz-widget-host--unavailable { color: hsl(var(--muted-foreground)); font-size: 0.875rem; }
+.viz-widget-host--error { border-color: hsl(var(--status-err) / 0.4);
+                          background: hsl(var(--status-err-bg) / 0.08);
+                          color: hsl(var(--status-err)); font-size: 0.875rem; }
+
+.viz-svg { max-width: 100%; height: auto; }
+
+/* ── cells ── */
+.viz-array__index text { fill: hsl(var(--muted-foreground)); font-family: var(--font-mono); font-size: 11px; }
+.viz-cell rect { fill: hsl(var(--background)); stroke: hsl(var(--border));
+                 transition: fill var(--viz-fade, 350ms), stroke var(--viz-fade, 350ms); }
+.viz-cell text { font-family: var(--font-mono); font-size: 15px; fill: hsl(var(--foreground)); }
+.viz-cell--new rect { stroke: hsl(var(--status-ok)); }
+.viz-cell--changed rect { fill: hsl(var(--primary) / 0.14); stroke: hsl(var(--primary)); }
+.viz-cell--removed rect { opacity: 0.35; stroke-dasharray: 4 3; }
+.viz-caret__name { font-family: var(--font-mono); font-size: 11px; font-weight: 600; }
+.viz-caret text { font-size: 12px; }
+.viz-stack__top { fill: hsl(var(--primary)); font-family: var(--font-mono); font-size: 11px; font-weight: 600; }
+
+/* ── nodes (tree/chain/graph) ── */
+.viz-node circle, .viz-node rect { fill: hsl(var(--background)); stroke: hsl(var(--border));
+                 transition: fill var(--viz-fade, 350ms), stroke var(--viz-fade, 350ms); }
+.viz-node text { font-family: var(--font-mono); font-size: 14px; fill: hsl(var(--foreground)); }
+.viz-node--new circle, .viz-node--new rect { stroke: hsl(var(--status-ok)); }
+.viz-node--changed circle, .viz-node--changed rect { fill: hsl(var(--primary) / 0.14); stroke: hsl(var(--primary)); }
+.viz-node--removed circle, .viz-node--removed rect { opacity: 0.35; stroke-dasharray: 4 3; }
+.viz-node--cursor circle { stroke-width: 2; }
+.viz-node--key > text { fill: hsl(var(--muted-foreground)); font-style: italic; }
+.viz-node__ring { stroke-width: 2; }
+.viz-node__cursor { font-family: var(--font-mono); font-size: 11px; font-weight: 600; }
+.viz-node__cursor-caret { font-size: 10px; }
+.viz-edge { stroke: hsl(var(--muted-foreground)); stroke-width: 1.5; }
+.viz-edge--prev { stroke-dasharray: 3 3; opacity: 0.7; }
+.viz-arrowhead { fill: hsl(var(--muted-foreground)); }
+.viz-chain__null text, .viz-chain__null { fill: hsl(var(--muted-foreground)); font-size: 18px; }
+.viz-edge__label { fill: hsl(var(--muted-foreground)); font-family: var(--font-mono); font-size: 11px; }
+
+/* labels stay readable over lines: a card-colored halo */
+.viz-edge__label, .viz-node__cursor, .viz-node__cursor-caret, .viz-caret__name {
+  paint-order: stroke; stroke: hsl(var(--card)); stroke-width: 4px; }
+
+/* ── transport ── */
+.transport { display: flex; align-items: center; gap: 8px; padding: 0.35rem 0.5rem;
+             border: 1px solid hsl(var(--border)); border-radius: var(--radius-md);
+             background: hsl(var(--card) / 0.6); }
+.transport__btn { min-width: 30px; height: 30px; border: 1px solid hsl(var(--border));
+                  border-radius: var(--radius-sm); background: hsl(var(--background));
+                  color: hsl(var(--foreground)); cursor: pointer; font-size: 0.8rem; }
+.transport__btn:hover { border-color: hsl(var(--primary) / 0.4); }
+.transport__btn--play { background: hsl(var(--primary)); color: hsl(var(--primary-foreground));
+                        border-color: hsl(var(--primary)); }
+.transport__scrubber { flex: 1; accent-color: hsl(var(--primary)); }
+.transport__label { font-family: var(--font-mono); font-size: 0.75rem; text-align: right;
+                    min-width: 56px; color: hsl(var(--muted-foreground)); }

@@ -144,13 +144,27 @@ fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> impl IntoVi
                     return;
                 };
                 body.set_inner_html(&rendered);
-                mounts.set_value(crate::execution::view::hydrate_workbenches(
+                let mut handles = crate::execution::view::hydrate_workbenches(
                     &body,
                     &owned_segments,
                     auth,
                     code_ctx,
                     theme,
-                ));
+                );
+                // The viz widgets (step 27): every planted `div.viz-widget` mounts a host.
+                for (element, spec) in crate::viz::blocks::discover(&body) {
+                    let handle = leptos::mount::mount_to(element, move || {
+                        view! {
+                            <crate::viz::host::WidgetHost
+                                name=spec.name
+                                structure=spec.structure
+                                cases=spec.cases
+                            />
+                        }
+                    });
+                    handles.push(Box::new(handle));
+                }
+                mounts.set_value(handles);
             }
             Err(error) => html.set(format!("<p>markdown island failed: {error:?}</p>")),
         }

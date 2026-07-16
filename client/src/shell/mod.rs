@@ -37,6 +37,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/blog") view=BlogListPage />
                     <Route path=path!("/blog/:slug") view=BlogPostPage />
                     <Route path=path!("/account") view=crate::identity::view::AccountPage />
+                    <Route path=path!("/admin") view=crate::identity::view::AdminPage />
                 </Routes>
             </main>
             <SearchPalette />

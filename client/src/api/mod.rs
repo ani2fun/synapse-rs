@@ -89,6 +89,35 @@ pub async fn delete_account() -> Result<serde_json::Value, String> {
     delete_json("/api/me").await
 }
 
+/// The admin allowlist (server re-checks admin per call — these 401/403 for everyone else).
+pub async fn allowlist() -> Result<Vec<synapse_shared::submission::AllowlistEntryDto>, String> {
+    fetch_json("/api/admin/allowlist").await
+}
+
+pub async fn allowlist_grant(
+    request: &synapse_shared::submission::GrantRequestDto,
+) -> Result<synapse_shared::submission::AllowlistEntryDto, String> {
+    post_json("/api/admin/allowlist", request).await
+}
+
+/// `Ok(())` on 204; a 404 surfaces as the `ApiError` message.
+pub async fn allowlist_revoke(username: &str) -> Result<(), String> {
+    let mut request = gloo_net::http::Request::delete(&format!("/api/admin/allowlist/{username}"));
+    if let Some(token) = bearer() {
+        request = request.header("Authorization", &format!("Bearer {token}"));
+    }
+    let response = request.send().await.map_err(|error| error.to_string())?;
+    if response.ok() {
+        return Ok(());
+    }
+    match response.json::<ApiError>().await {
+        Ok(envelope) => Err(envelope
+            .detail
+            .map_or(envelope.error.clone(), |d| format!("{}: {d}", envelope.error))),
+        Err(_) => Err(format!("HTTP {}", response.status())),
+    }
+}
+
 async fn delete_json<T: DeserializeOwned>(url: &str) -> Result<T, String> {
     let mut request = gloo_net::http::Request::delete(url);
     if let Some(token) = bearer() {

@@ -222,3 +222,31 @@ async fn the_allowlist_migration_seeds_the_dev_users() {
     assert!(allowlist.is_allowed("test1").await.unwrap(), "seeded");
     assert!(!allowlist.is_allowed("stranger").await.unwrap());
 }
+
+#[tokio::test]
+async fn allowlist_grant_list_revoke_round_trip() {
+    use synapse_server::submission::application::SubmissionAllowlist;
+    use synapse_server::submission::infrastructure::PostgresSubmissionAllowlist;
+    let Some(pool) = gated_pool().await else { return };
+    let allowlist = PostgresSubmissionAllowlist::new(pool);
+    // Clean slate for the IT-owned username.
+    let _ = allowlist.revoke("it-rs-user").await;
+
+    let granted = allowlist.grant("it-rs-user", Some("via IT")).await.unwrap();
+    assert_eq!(granted.username, "it-rs-user");
+    assert_eq!(granted.note.as_deref(), Some("via IT"));
+
+    // Upsert refreshes the note in place.
+    let regranted = allowlist.grant("it-rs-user", Some("refreshed")).await.unwrap();
+    assert_eq!(regranted.note.as_deref(), Some("refreshed"));
+
+    let listed = allowlist.list().await.unwrap();
+    assert!(listed.iter().any(|e| e.username == "it-rs-user"));
+    assert!(allowlist.is_allowed("it-rs-user").await.unwrap());
+
+    assert!(allowlist.revoke("it-rs-user").await.unwrap());
+    assert!(
+        !allowlist.revoke("it-rs-user").await.unwrap(),
+        "second revoke finds nothing"
+    );
+}

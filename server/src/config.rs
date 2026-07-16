@@ -55,6 +55,9 @@ pub struct AppConfig {
     /// `KEYCLOAK_ADMIN_CLIENT_SECRET` (dev realm file seeds `synapse-admin`/`dev-admin-secret`).
     pub keycloak_admin_client_id: String,
     pub keycloak_admin_client_secret: String,
+    /// Who may manage the allowlist (step 21) — comma-separated usernames, compared lowercase.
+    /// A raw string (not a list) so the env override stays a plain value. Env: `ADMIN_USERS`.
+    pub admin_users: String,
 }
 
 impl Default for AppConfig {
@@ -76,7 +79,19 @@ impl Default for AppConfig {
             submission_allowlist_enforced: false,
             keycloak_admin_client_id: "synapse-admin".to_owned(),
             keycloak_admin_client_secret: "dev-admin-secret".to_owned(),
+            admin_users: "tester".to_owned(),
         }
+    }
+}
+
+impl AppConfig {
+    /// `ADMIN_USERS` as the canonical set: split on `,`, trim, lowercase, drop empties.
+    pub fn admin_user_set(&self) -> std::collections::HashSet<String> {
+        self.admin_users
+            .split(',')
+            .map(|u| u.trim().to_lowercase())
+            .filter(|u| !u.is_empty())
+            .collect()
     }
 }
 
@@ -120,6 +135,7 @@ impl AppConfig {
                 "SUBMISSION_ALLOWLIST_ENFORCED",
                 "KEYCLOAK_ADMIN_CLIENT_ID",
                 "KEYCLOAK_ADMIN_CLIENT_SECRET",
+                "ADMIN_USERS",
             ])
             .map(|key| key.as_str().to_lowercase().into());
         Figment::from(Serialized::defaults(Self::default()))
@@ -172,6 +188,17 @@ mod tests {
             assert_eq!(cfg.rate_limit_anon_window_seconds, 60, "default stays");
             Ok(())
         });
+    }
+
+    #[test]
+    fn admin_users_canonicalise_to_a_lowercase_set() {
+        let cfg = AppConfig {
+            admin_users: " Ada, GRACE ,, tester ".to_owned(),
+            ..AppConfig::default()
+        };
+        let set = cfg.admin_user_set();
+        assert_eq!(set.len(), 3);
+        assert!(set.contains("ada") && set.contains("grace") && set.contains("tester"));
     }
 
     #[test]

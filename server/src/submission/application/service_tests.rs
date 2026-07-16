@@ -78,12 +78,22 @@ impl ProblemTests for FakeTests {
     }
 }
 
-/// The in-memory allowlist: a fixed set of lowercase usernames.
+/// The in-memory allowlist: a fixed set of lowercase usernames (the gate's side; the
+/// management verbs are exercised by the admin route ITs with their own fake).
 struct FakeAllowlist(Vec<&'static str>);
 
 impl SubmissionAllowlist for FakeAllowlist {
     async fn is_allowed(&self, username: &str) -> Result<bool, SubmissionError> {
         Ok(self.0.contains(&username))
+    }
+    async fn list(&self) -> Result<Vec<AllowlistEntry>, SubmissionError> {
+        unreachable!("the gate never lists")
+    }
+    async fn grant(&self, _username: &str, _note: Option<&str>) -> Result<AllowlistEntry, SubmissionError> {
+        unreachable!("the gate never grants")
+    }
+    async fn revoke(&self, _username: &str) -> Result<bool, SubmissionError> {
+        unreachable!("the gate never revokes")
     }
 }
 

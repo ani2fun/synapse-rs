@@ -4,8 +4,10 @@
 //! manage-account + sign-out. The admin entry joins with the admin step.
 
 mod account_page;
+mod admin_page;
 
 pub use account_page::AccountPage;
+pub use admin_page::AdminPage;
 
 use leptos::prelude::*;
 
@@ -27,6 +29,7 @@ pub fn AccountChip() -> impl IntoView {
                 .into_any(),
                 AuthStatus::Authed(me) => {
                     let username = format!("@{}", me.username);
+                    let is_admin = me.admin;
                     view! {
                         <span class="account-chip__menu-wrap">
                             <button
@@ -47,6 +50,16 @@ pub fn AccountChip() -> impl IntoView {
                                                 >
                                                     "Manage account & data"
                                                 </a>
+                                                {is_admin.then(|| view! {
+                                                    // UX only — the server re-checks per call.
+                                                    <a
+                                                        class="account-chip__item"
+                                                        href="/admin"
+                                                        on:click=move |_| open.set(false)
+                                                    >
+                                                        "Admin panel"
+                                                    </a>
+                                                })}
                                                 <button
                                                     class="account-chip__item"
                                                     on:click=move |_| store.sign_out()

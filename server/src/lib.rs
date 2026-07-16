@@ -27,7 +27,10 @@ use synapse_shared::blog::{BlogPostDto, BlogSummaryDto};
 use synapse_shared::catalog::{ComponentDocDto, LessonPayloadDto, SynapseIndexDto};
 use synapse_shared::execution::{RunRequest, RunResult};
 use synapse_shared::identity::{AuthConfigDto, MeDto};
-use synapse_shared::submission::{DeleteResultDto, SubmissionAcceptedDto, SubmissionDto, SubmitRequestDto};
+use synapse_shared::submission::{
+    AllowlistEntryDto, DeleteResultDto, GrantRequestDto, SubmissionAcceptedDto, SubmissionDto,
+    SubmitRequestDto,
+};
 use utoipa::OpenApi;
 
 /// Everything `app` composes — one wiring struct so `main` and the ITs build the same graph
@@ -39,6 +42,8 @@ pub struct AppDeps {
     pub ident: IdentityRoutesState,
     pub blog: Arc<LiveBlogService>,
     pub limiter: Arc<RateLimiter>,
+    /// The allowlist store the admin panel manages (the submit gate holds its own Arc).
+    pub allowlist: Arc<submission::infrastructure::PostgresSubmissionAllowlist>,
     /// The production dist dir; absent (dev) → no static routes, and `/` answers plain text.
     pub static_root: String,
     pub likec4_url: String,
@@ -62,6 +67,11 @@ pub fn app(deps: AppDeps) -> Router {
     };
     let statics = StaticRoutes::new(&deps.static_root);
     let security = platform::security_headers::SecurityHeaders::new(&deps.ident.issuer);
+    let admin = submission::http::admin::AdminRoutesState {
+        allowlist: deps.allowlist,
+        identity: Arc::clone(&deps.ident.identity),
+        admin_users: Arc::clone(&deps.ident.admin_users),
+    };
     let mut router = Router::new()
         .merge(platform::http::routes())
         .merge(catalog::http::routes(deps.catalog))
@@ -69,6 +79,7 @@ pub fn app(deps: AppDeps) -> Router {
         .merge(submission::http::routes(submissions))
         .merge(identity::http::routes(deps.ident))
         .merge(blog::http::routes(deps.blog))
+        .merge(submission::http::admin::routes(admin))
         .layer(axum::middleware::from_fn(platform::content_cache_control::stamp))
         .merge(platform::likec4_proxy::routes(&deps.likec4_url));
     if statics.enabled() {
@@ -107,8 +118,12 @@ pub fn app(deps: AppDeps) -> Router {
         submission::http::erase_all,
         identity::http::get_me,
         identity::http::get_auth_config,
+        identity::http::delete_me,
         blog::http::list_posts,
-        blog::http::get_post
+        blog::http::get_post,
+        submission::http::admin::list_allowlist,
+        submission::http::admin::grant_allowlist,
+        submission::http::admin::revoke_allowlist
     ),
     components(schemas(
         HealthStatus,
@@ -125,7 +140,9 @@ pub fn app(deps: AppDeps) -> Router {
         MeDto,
         AuthConfigDto,
         BlogSummaryDto,
-        BlogPostDto
+        BlogPostDto,
+        AllowlistEntryDto,
+        GrantRequestDto
     ))
 )]
 pub struct ApiDoc;

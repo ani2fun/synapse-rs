@@ -33,10 +33,29 @@ pub enum SubmissionError {
     NotAllowlisted(String),
 }
 
-/// Who may SAVE attempts (oracle: `SubmissionAllowlist`, step 21): keyed by the lowercase IdP
-/// username. Management verbs (list/grant/revoke) join with the admin-panel step.
+/// One grant, as stored.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AllowlistEntry {
+    pub username: String,
+    pub note: Option<String>,
+    pub granted_at: chrono::DateTime<chrono::Utc>,
+}
+
+/// Who may SAVE attempts (oracle: `SubmissionAllowlist`): keyed by the lowercase IdP
+/// username. The management verbs (step 21's admin panel) live on the same port — one
+/// capability, four verbs.
 pub trait SubmissionAllowlist: Send + Sync {
     fn is_allowed(&self, username: &str) -> impl Future<Output = Result<bool, SubmissionError>> + Send;
+    /// Newest grant first (`granted_at desc, username`).
+    fn list(&self) -> impl Future<Output = Result<Vec<AllowlistEntry>, SubmissionError>> + Send;
+    /// Upsert — re-granting refreshes the note; returns the stored row.
+    fn grant(
+        &self,
+        username: &str,
+        note: Option<&str>,
+    ) -> impl Future<Output = Result<AllowlistEntry, SubmissionError>> + Send;
+    /// `false` when there was nothing to revoke.
+    fn revoke(&self, username: &str) -> impl Future<Output = Result<bool, SubmissionError>> + Send;
 }
 
 /// The verified caller, projected for submissions: `user_id` = the stored `sub`,

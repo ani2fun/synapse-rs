@@ -54,15 +54,16 @@ pub fn deps_with(
     });
     let repo = FileSystemContentRepository::new(content_root, true);
     let runner = Arc::new(RunCodeService::new(GoJudgeRunner::new(executor_url)));
+    let allowlist = Arc::new(PostgresSubmissionAllowlist::new(pool.clone()));
     // Gate OFF (the dev default) — the gate tests exercise it over in-memory fakes.
     let submit = Arc::new(SubmitSolution::new(
-        Arc::new(PostgresSubmissionRepository::new(pool.clone())),
+        Arc::new(PostgresSubmissionRepository::new(pool)),
         Arc::new(FsProblemTests::new(FileSystemContentRepository::new(
             content_root,
             true,
         ))),
         Arc::clone(&runner),
-        Arc::new(PostgresSubmissionAllowlist::new(pool)),
+        Arc::clone(&allowlist),
         false,
     ));
     let ident = IdentityRoutesState {
@@ -72,12 +73,15 @@ pub fn deps_with(
         )),
         issuer: issuer.to_owned(),
         audience: "synapse-web".to_owned(),
+        // The dev default ("tester") — the minted IT token IS tester, so admin ITs pass the gate.
+        admin_users: Arc::new(std::collections::HashSet::from(["tester".to_owned()])),
     };
     AppDeps {
         catalog: Arc::new(CatalogService::new(repo)),
         run: runner,
         submit,
         ident,
+        allowlist,
         blog: Arc::new(BlogService::new(FileSystemBlogRepository::new(
             content_root,
             true,

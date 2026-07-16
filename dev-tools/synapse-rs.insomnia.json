@@ -252,6 +252,57 @@
       "headers": [],
       "body": {},
       "parameters": []
+    },
+    {
+      "_id": "fld_admin",
+      "_type": "request_group",
+      "parentId": "wrk_synapse_rs",
+      "name": "admin",
+      "description": "The allowlist panel's API (step 21). Admin-gated per call: ADMIN_USERS config (dev default 'tester'), compared lowercase against the verifier's canonical username. MeDto.admin is UX only."
+    },
+    {
+      "_id": "req_admin_list",
+      "_type": "request",
+      "parentId": "fld_admin",
+      "name": "GET /api/admin/allowlist",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/admin/allowlist",
+      "description": "Every grant, newest first. Anonymous \u2192 401; verified non-admin \u2192 403 'Admin only'.",
+      "headers": [],
+      "parameters": [],
+      "body": {}
+    },
+    {
+      "_id": "req_admin_grant",
+      "_type": "request",
+      "parentId": "fld_admin",
+      "name": "POST /api/admin/allowlist",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/admin/allowlist",
+      "description": "Grant (upsert): username trimmed + lowercased server-side; blank \u2192 400; returns the stored row.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"username\": \"newbie\",\n  \"note\": \"friend\"\n}"
+      }
+    },
+    {
+      "_id": "req_admin_revoke",
+      "_type": "request",
+      "parentId": "fld_admin",
+      "name": "DELETE /api/admin/allowlist/{username}",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/api/admin/allowlist/newbie",
+      "description": "Revoke \u2192 204; unknown grant \u2192 404.",
+      "headers": [],
+      "parameters": [],
+      "body": {}
     }
   ]
 }

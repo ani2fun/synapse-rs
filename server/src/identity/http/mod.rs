@@ -21,6 +21,8 @@ pub struct IdentityRoutesState {
     pub identity: Arc<LiveIdentityService>,
     pub issuer: String,
     pub audience: String,
+    /// Lowercase `ADMIN_USERS` — feeds `MeDto.admin` (UX) and the admin route gate (enforced).
+    pub admin_users: Arc<std::collections::HashSet<String>>,
 }
 
 type ApiResult<T> = Result<Json<T>, (StatusCode, Json<ApiError>)>;
@@ -84,12 +86,15 @@ pub(crate) async fn get_me(State(state): State<IdentityRoutesState>, headers: He
         return Err(missing_token());
     };
     match state.identity.authenticate(&token).await {
-        Ok(user) => Ok(Json(MeDto {
-            id: user.id.0,
-            username: user.username,
-            email: user.email,
-            admin: false, // UX flag — joins with the admin step; the server re-checks anyway
-        })),
+        Ok(user) => {
+            let admin = state.admin_users.contains(&user.username);
+            Ok(Json(MeDto {
+                id: user.id.0,
+                username: user.username,
+                email: user.email,
+                admin, // UX flag only — the admin routes re-check per call
+            }))
+        }
         Err(error) => Err(to_auth_error(&error)),
     }
 }

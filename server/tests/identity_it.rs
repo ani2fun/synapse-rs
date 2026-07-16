@@ -129,7 +129,9 @@ async fn a_public_spa_token_verifies_via_the_azp_branch_and_lowercases_the_usern
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["username"], "tester", "canonical LOWERCASE (step-36 fix)");
     assert_eq!(body["email"], "tester@synapse.local");
-    assert_eq!(body["admin"], false);
+    // tester IS the dev admin (ADMIN_USERS default) — and the flag only works because the
+    // MiXeD-case token was canonicalised before the compare.
+    assert_eq!(body["admin"], true);
 }
 
 #[tokio::test]

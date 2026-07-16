@@ -47,14 +47,15 @@ async fn main() -> anyhow::Result<()> {
     let repo = FileSystemContentRepository::new(&cfg.content_root, cfg.auto_reload);
     let catalog = Arc::new(CatalogService::new(repo));
     let runner = Arc::new(RunCodeService::new(GoJudgeRunner::new(&cfg.executor_url)));
+    let allowlist = Arc::new(PostgresSubmissionAllowlist::new(pool.clone()));
     let submit = Arc::new(SubmitSolution::new(
-        Arc::new(PostgresSubmissionRepository::new(pool.clone())),
+        Arc::new(PostgresSubmissionRepository::new(pool)),
         Arc::new(FsProblemTests::new(FileSystemContentRepository::new(
             &cfg.content_root,
             cfg.auto_reload,
         ))),
         Arc::clone(&runner),
-        Arc::new(PostgresSubmissionAllowlist::new(pool)),
+        Arc::clone(&allowlist),
         cfg.submission_allowlist_enforced,
     ));
 
@@ -69,6 +70,7 @@ async fn main() -> anyhow::Result<()> {
         )),
         issuer: cfg.identity_issuer.clone(),
         audience: cfg.identity_audience.clone(),
+        admin_users: Arc::new(cfg.admin_user_set()),
     };
     let blog = Arc::new(BlogService::new(FileSystemBlogRepository::new(
         &cfg.content_root,
@@ -104,6 +106,7 @@ async fn main() -> anyhow::Result<()> {
         ident: identity,
         blog,
         limiter,
+        allowlist,
         static_root: cfg.static_root.clone(),
         likec4_url: cfg.likec4_url.clone(),
     });

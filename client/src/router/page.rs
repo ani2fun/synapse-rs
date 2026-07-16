@@ -9,6 +9,7 @@ pub enum Page {
     Blog,
     BlogPost(String),
     Account,
+    Admin,
     NotFound(String),
 }
 
@@ -24,6 +25,7 @@ impl Page {
             Some((&"blog", [])) => Self::Blog,
             Some((&"blog", [slug])) => Self::BlogPost((*slug).to_owned()),
             Some((&"account", [])) => Self::Account,
+            Some((&"admin", [])) => Self::Admin,
             _ => Self::NotFound(segments.join("/")),
         }
     }
@@ -36,6 +38,7 @@ impl Page {
             Self::Blog => "/blog".to_owned(),
             Self::BlogPost(slug) => format!("/blog/{slug}"),
             Self::Account => "/account".to_owned(),
+            Self::Admin => "/admin".to_owned(),
             Self::NotFound(raw) => format!("/{raw}"),
         }
     }
@@ -69,6 +72,7 @@ mod tests {
         );
         assert_eq!(Page::from_segments(&["blog"]), Page::Blog);
         assert_eq!(Page::from_segments(&["account"]), Page::Account);
+        assert_eq!(Page::from_segments(&["admin"]), Page::Admin);
         assert_eq!(
             Page::from_segments(&["blog", "hello"]),
             Page::BlogPost("hello".into())

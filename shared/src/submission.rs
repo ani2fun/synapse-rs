@@ -66,3 +66,24 @@ pub struct SubmissionDto {
 pub struct DeleteResultDto {
     pub deleted: usize,
 }
+
+/// One allowlist grant (`/api/admin/allowlist`, step 21).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AllowlistEntryDto {
+    pub username: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    /// ISO-8601 instant.
+    pub granted_at: String,
+}
+
+/// The grant request — username is trimmed + lowercased server-side (canonical, matching the
+/// verifier); blank is a 400.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct GrantRequestDto {
+    pub username: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+}

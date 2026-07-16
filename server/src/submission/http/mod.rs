@@ -3,6 +3,7 @@
 //! GET poll, PRIVATE list (anonymous → `[]`, store untouched), owner-only delete + erase-all.
 //! DTO↔domain mapping lives ONLY here; the auth-error mapping is re-stated locally (qna Q27).
 
+pub mod admin;
 mod dto;
 
 use std::sync::Arc;

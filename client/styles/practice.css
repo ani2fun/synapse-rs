@@ -34,6 +34,21 @@
 
 .pwb__pane-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 18px 18px; }
 .pwb__pane.hidden { display: none; }
+
+/* ── the editorial's SECOND tab row: one pill per ## section (Intuition · Approach ·
+      Solution · …); sections stay mounted — switching only toggles .hidden ── */
+.pwb-esec-tabs { display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0 4px;
+                 padding-bottom: 8px; border-bottom: 1px dashed hsl(var(--border)); }
+.pwb-esec-tab { border-radius: 999px; padding: 4px 11px; font-size: 12px; font-weight: 500;
+                cursor: pointer; border: 1px solid hsl(var(--border)); background: transparent;
+                color: hsl(var(--muted-foreground)); transition: color 120ms, border-color 120ms,
+                background 120ms; }
+.pwb-esec-tab:hover { color: hsl(var(--foreground)); border-color: hsl(var(--primary) / 0.4); }
+.pwb-esec-tab--active { color: hsl(var(--primary)); background: hsl(var(--primary) / 0.08);
+                        border-color: hsl(var(--primary) / 0.35); font-weight: 600; }
+.pwb-esec.hidden { display: none; }
+/* The pills already name the section — the duplicated heading inside it steps back. */
+.pwb-esec > :is(h1, h2):first-child { margin-top: 0.4em; }
 .pwb__md { font-size: 15px; line-height: 1.65; }
 .pwb__md :is(h1, h2, h3) { margin-top: 1.2em; }
 

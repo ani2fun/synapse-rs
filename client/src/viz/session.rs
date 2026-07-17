@@ -43,6 +43,22 @@ pub struct Session {
 
 thread_local! {
     static CACHE: RefCell<HashMap<Key, Session>> = RefCell::new(HashMap::new());
+    // Sessions live in the global cache and outlive every view, so their signals must be
+    // owned by a DETACHED root — a session minted inside a click handler would otherwise die
+    // with that handler's reactive scope (the modal's own re-trace button disposes itself on
+    // store.open, and reading the dead signal panics the whole reactive graph).
+    static SESSION_OWNER: Owner = Owner::new_root(None);
+}
+
+/// A session whose `state` signal is owned by the detached root — safe to cache + read from
+/// any (later) view, regardless of which scope asked for the trace.
+fn mint(key: Key) -> Session {
+    SESSION_OWNER.with(|owner| {
+        owner.with(|| Session {
+            key,
+            state: RwSignal::new(TraceState::Tracing),
+        })
+    })
 }
 
 /// Cached: the same code+case re-opens instantly; `force` re-traces.
@@ -50,10 +66,7 @@ pub fn obtain(key: Key) -> Session {
     if let Some(session) = CACHE.with_borrow(|c| c.get(&key).cloned()) {
         return session;
     }
-    let session = Session {
-        key: key.clone(),
-        state: RwSignal::new(TraceState::Tracing),
-    };
+    let session = mint(key.clone());
     CACHE.with_borrow_mut(|c| c.insert(key, session.clone()));
     run(&session);
     session
@@ -61,10 +74,7 @@ pub fn obtain(key: Key) -> Session {
 
 /// A FRESH trace for a (possibly new) key — replaces any cached session and re-runs.
 pub fn obtain_fresh(key: Key) -> Session {
-    let session = Session {
-        key: key.clone(),
-        state: RwSignal::new(TraceState::Tracing),
-    };
+    let session = mint(key.clone());
     CACHE.with_borrow_mut(|c| c.insert(key, session.clone()));
     run(&session);
     session

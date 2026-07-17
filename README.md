@@ -15,8 +15,8 @@ and the ADRs (`docs/adr/`).
 ## Run
 
 ```sh
-dev-tools/dev          # server on :8180 (override: SYNAPSE_PORT)
-curl localhost:8180/api/health
+dev-tools/dev          # server on :8280 (override: SYNAPSE_PORT)
+curl localhost:8280/api/health
 ```
 
 ## Test & gates

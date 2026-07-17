@@ -17,15 +17,23 @@
    behind the zoom. */
 .diagram__figure svg { max-width: 100%; max-height: min(70vh, 32rem); height: auto; }
 
-/* The Enlarge pill — top-LEFT, revealed on hover once the figure has rendered. */
+/* The shared modal-chrome pill (oracle: dialog.css .modal-btn) — the teal
+   icon+label button both Enlarge (card) and Close (overlay) wear. */
+.modal-btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 6px;
+             padding: 6px 12px; font-size: 13px; font-weight: 500; line-height: 1;
+             cursor: pointer; border: 1px solid hsl(var(--primary) / 0.3);
+             background: hsl(var(--primary) / 0.08); color: hsl(var(--primary));
+             transition: color 0.12s, border-color 0.12s, background 0.12s; }
+.modal-btn:hover { background: hsl(var(--primary) / 0.15);
+                   border-color: hsl(var(--primary) / 0.5); }
+.modal-btn svg { width: 15px; height: 15px; flex: none; }
+
+/* The Enlarge pill — top-LEFT, revealed on hover once the figure has rendered.
+   Positioning only; .modal-btn owns the look. */
 .diagram__zoom { position: absolute; top: 6px; left: 6px; z-index: 1; opacity: 0;
-                 transition: opacity 140ms ease;
-                 border: 1px solid hsl(var(--border)); border-radius: 999px;
-                 background: hsl(var(--background) / 0.9);
-                 color: hsl(var(--muted-foreground)); font-size: 12px; padding: 3px 10px;
-                 cursor: pointer; backdrop-filter: blur(4px); }
+                 transition: opacity 140ms ease, color 0.12s, border-color 0.12s,
+                             background 0.12s; }
 .diagram:hover .diagram__zoom, .diagram__zoom:focus-visible { opacity: 1; }
-.diagram__zoom:hover { border-color: hsl(var(--primary)); color: hsl(var(--primary)); }
 
 /* Loud failure (ADR-S026): a visible card with the raw source — never a blank figure. */
 .diagram-error { width: 100%; margin: 1rem 0; padding: 0.75rem 1rem;
@@ -77,18 +85,18 @@
                        font-size: 0.8rem; color: hsl(var(--muted-foreground));
                        user-select: none; }
 
-/* Top-LEFT, deliberately: LikeC4's own chrome lives top-right, so ours never collides. */
-.diagram-zoom__close { position: absolute; top: 12px; left: 14px; z-index: 3;
-                       border: 1px solid hsl(var(--border)); border-radius: 999px;
-                       background: hsl(var(--background) / 0.9);
-                       color: hsl(var(--muted-foreground)); font-size: 12px;
-                       padding: 3px 10px; cursor: pointer; backdrop-filter: blur(4px); }
-.diagram-zoom__close:hover { border-color: hsl(var(--primary)); color: hsl(var(--primary)); }
+/* Top-LEFT, deliberately: LikeC4's own chrome lives top-right, so ours never collides.
+   Positioning only; .modal-btn owns the look. */
+.diagram-zoom__close { position: absolute; top: 12px; left: 14px; z-index: 3; }
 
 /* ── the d2 slideshow: the authored legacy wrapper passes through; the transport rides
       under the figure (classes shared with the viz transport bar in viz.css) ── */
 .d2-slides { display: contents; }
 .diagram .transport { margin-top: 10px; }
+/* Slideshow steps vary in intrinsic height — a FIXED figure box keeps the card (and the
+   page under it) perfectly still while stepping ‹ › ; detail lives behind the zoom. */
+.diagram--slides .diagram__figure { height: clamp(16rem, 70vh, 32rem); align-items: center; }
+.diagram--slides .diagram__figure svg { max-height: 100%; }
 
 /* ── the LikeC4 lesson embed: the authored <iframe> on a rounded dark frame ── */
 .reader-prose iframe[src^="/c4/"] { width: 100%; border: 1px solid hsl(var(--border));
@@ -116,8 +124,10 @@
 .diagram-zoom--c4-overlay .diagram-zoom__close,
 .diagram-zoom--c4-overlay .diagram-zoom__controls { display: none; }
 
-/* ── the C4 docs panel (step 34): the component guide slides in from the right ── */
-.c4-docs { position: fixed; top: 0; right: 0; bottom: 0; z-index: 60;
+/* ── the C4 docs panel (step 34): the component guide slides in from the right.
+      z-index sits ABOVE the diagram-zoom scrim (70) so the guide stays readable over the
+      fullscreen LikeC4 view, below the ⌘K modal (oracle: c4-docs.css, 250). ── */
+.c4-docs { position: fixed; top: 0; right: 0; bottom: 0; z-index: 250;
            width: min(440px, 92vw); overflow-y: auto; padding: 18px 22px 28px;
            background: hsl(var(--card)); border-left: 1px solid hsl(var(--border));
            box-shadow: -14px 0 44px hsl(var(--foreground) / 0.16);

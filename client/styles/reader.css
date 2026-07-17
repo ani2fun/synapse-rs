@@ -165,7 +165,15 @@ html[data-reader-width] .lesson.lesson--problem,
 }
 .reader-layout__main { padding: 2.5rem 1.25rem 6rem; min-width: 0; }
 @media (min-width: 768px) { .reader-layout__main { padding-left: 3rem; padding-right: 3rem; } }
+/* Problem pages take the WHOLE viewport: no 1600px cap, no sidebar column, slim padding —
+   the two-pane workbench earns every pixel (oracle: the sidebar-less problem layout). */
 .reader-layout--problem { max-width: none; }
+@media (min-width: 1024px) {
+    .reader-layout--problem,
+    .reader-layout--problem[data-sidebar] { grid-template-columns: minmax(0, 1fr); }
+}
+.reader-layout--problem .reader-sidebar { display: none; }
+.reader-layout--problem .reader-layout__main { padding: 1.25rem 1rem 3rem; }
 .reader-layout--problem .reader-layout__main { padding-left: 1rem; padding-right: 1.5rem; }
 
 /* ── prose header ── */
@@ -184,7 +192,16 @@ html[data-reader-width] .lesson.lesson--problem,
 .reader-sidebar { position: sticky; top: 65px; align-self: start; overflow-y: auto;
                   max-height: calc(100vh - 65px); border-right: 1px solid hsl(var(--border));
                   overscroll-behavior: contain; scrollbar-width: thin;
-                  transition: opacity 180ms ease; padding: 0; }
+                  transition: opacity 180ms ease, top 220ms ease, max-height 220ms ease;
+                  padding: 0; }
+/* When the sticky heading bar slides in (fixed full-width at top:65px) it would cover the
+   sidebar's toprow and the floating expand button — drop both below it while it shows;
+   they revert when the bar hides (no permanent gap). Anchored on body: both are fixed /
+   sticky elements that may sit outside .reader-layout. (Oracle: reader.css §sticky drop.) */
+body:has(.reader-sticky[data-on="true"]) .reader-sidebar {
+  top: 112px; max-height: calc(100vh - 112px);
+}
+body:has(.reader-sticky[data-on="true"]) .reader-expand { top: 120px; }
 .reader-sidebar__inner { display: flex; flex-direction: column; gap: 1rem;
                          padding: 2rem 1.25rem 3rem; }
 .reader-sidebar__toprow { display: flex; align-items: center; justify-content: space-between;
@@ -399,7 +416,8 @@ html[data-reader-width] .lesson.lesson--problem,
                          padding: 1px 5px; background: hsl(var(--background)); }
 
 /* ── floating expand (Hidden sidebar) ── */
-.reader-expand { position: fixed; left: 12px; top: 81px; z-index: 40; width: 34px; height: 34px;
+.reader-expand { position: fixed; left: 12px; top: 81px; z-index: 46; transition: top 220ms ease;
+                 width: 34px; height: 34px;
                  display: none; align-items: center; justify-content: center; border-radius: 8px;
                  border: 1px solid hsl(var(--border)); background: hsl(var(--card));
                  color: hsl(var(--muted-foreground)); cursor: pointer;

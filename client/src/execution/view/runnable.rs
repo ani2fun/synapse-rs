@@ -11,7 +11,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use synapse_shared::execution::{RunResult, TestSpec, Verdict, judge, stdin_for};
 
-use crate::execution::logic::{self, ExecutorState, RunState, Variant};
+use crate::execution::logic::{self, ExecutorState, RunHandle, RunState, Variant};
 use crate::execution::state::{BlockStore, SubmitState, SubmitStore};
 use crate::execution::view::workbench::{TestsPanel, TestsState, VerdictPanel};
 use crate::identity::state::AuthStore;
@@ -76,8 +76,35 @@ pub fn RunnableBlock(
     };
     let run = {
         let active_store = active_store.clone();
-        move || active_store().launch(variant_at(active.get_untracked()).language, stdin())
+        move || {
+            // Pin the case this launch answers for — the arriving result is judged against
+            // IT, not against whichever chip is selected by the time the reply lands.
+            if let Some(tests) = tests {
+                tests.ran_case.set(Some(tests.active_case.get_untracked()));
+            }
+            active_store().launch(variant_at(active.get_untracked()).language, stdin());
+        }
     };
+    // Record the per-case verdict the moment a judged result lands (oracle: the run callback's
+    // `verdicts.update`): sparse map — only cases actually Run ever carry a chip badge.
+    if let (Some(spec), Some(tests)) = (spec, tests) {
+        let store_at = store_at.clone();
+        Effect::new(move |last: Option<Option<RunHandle>>| {
+            let state = store_at(active.get()).state.get();
+            let seen = last.flatten();
+            if state.run_state != RunState::Done || seen == Some(state.run_id) {
+                return seen;
+            }
+            if let (Some(result), Some(case)) = (&state.result, tests.ran_case.get_untracked()) {
+                let expected = logic::expected_for(&spec.read_value(), case);
+                let verdict = judge(result, expected.as_deref());
+                tests.verdicts.update(|map| {
+                    map.insert(case, verdict);
+                });
+            }
+            Some(state.run_id)
+        });
+    }
     let do_submit = {
         let active_store = active_store.clone();
         move || {
@@ -420,7 +447,17 @@ pub fn RunnableBlock(
                 {copy_button(mounted)}
             </div>
             {match (spec, tests) {
-                (Some(spec), Some(tests)) => Some(view! { <TestsPanel spec=spec tests=tests /> }),
+                (Some(spec), Some(tests)) => {
+                    // Chip switch clears every variant's stale run output (oracle: switchCase
+                    // resets the FSM) — the chips keep their earlier ✓/✗ badges.
+                    let clear_stores = stores.clone();
+                    let on_switch = Callback::new(move |_case: usize| {
+                        for store in &clear_stores {
+                            store.state.update(|s| *s = s.clear_outcome());
+                        }
+                    });
+                    Some(view! { <TestsPanel spec=spec tests=tests on_switch=on_switch /> })
+                }
                 _ => None,
             }}
             <Output state=active_state spec=spec tests=tests />
@@ -499,10 +536,13 @@ fn Output(
                 return error_panel(error).into_any();
             }
             if let Some(result) = &state.result {
+                // Judged against the case the run was LAUNCHED for — switching chips must
+                // never re-label an old run's output under a different case's expected.
                 let expected = match (spec, tests) {
-                    (Some(spec), Some(tests)) => {
-                        logic::expected_for(&spec.read_value(), tests.active_case.get())
-                    }
+                    (Some(spec), Some(tests)) => tests
+                        .ran_case
+                        .get()
+                        .and_then(|case| logic::expected_for(&spec.read_value(), case)),
                     _ => None,
                 };
                 return result_panel(result, expected.as_deref()).into_any();
@@ -590,7 +630,7 @@ pub(crate) fn icon_play(class: &'static str) -> impl IntoView {
     }
 }
 
-fn icon_chevron_down() -> impl IntoView {
+pub(crate) fn icon_chevron_down() -> impl IntoView {
     view! {
         <svg class="wb__lang-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor"
              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

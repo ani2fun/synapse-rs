@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ── DEV LOOP ──────────────────────────────────────────────────────────────────
-# The whole loop: wasm dev build → server on :8180 (background) → Vite on
-# :5273 (foreground, proxies /api). Ctrl-C stops both. If :8180 is already
+# The whole loop: wasm dev build → server on :8280 (background) → Vite on
+# :5373 (foreground, proxies /api). Ctrl-C stops both. If :8280 is already
 # held by a running server, the fresh bind fails and Vite proxies to the
 # existing one — fine for UI work.
 #
@@ -17,4 +17,4 @@ cargo run -p synapse-server &
 SERVER_PID=$!
 trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
 
-cd client && exec npx vite --port 5273
+cd client && exec npx vite --port 5373 --strictPort

@@ -69,21 +69,14 @@
   font-size: 0.875em;
 }
 
-/* Interactive placeholders the pipeline plants — visible seams until their
-   steps mount real widgets (workbench step 09+, mermaid/d2 later). */
+/* Interactive placeholders the pipeline plants — bare mount hosts (oracle final
+   design): the hydrated widget owns its own card; the host carries only the
+   prose rhythm. No frame, no label — an unhydrated block renders as nothing. */
 .synapse-prose .workbench,
 .synapse-prose .solution-block,
 .synapse-prose .quiz-block {
-  border: 1px dashed hsl(var(--muted-foreground) / 0.6);
-  border-radius: 0.5rem;
-  padding: 0.75rem 1rem;
-  margin: 1em 0;
-  color: hsl(var(--muted-foreground));
-  background: hsl(var(--muted) / 0.5);
+  margin: 1.5rem 0;
 }
-.synapse-prose .workbench::before { content: "⌨ workbench — mounts in a later step"; font-size: 0.8rem; }
-.synapse-prose .quiz-block::before { content: "❓ quiz — mounts in a later step"; font-size: 0.8rem; }
-.synapse-prose .solution-block::before { content: "💡 solution — mounts in a later step"; font-size: 0.8rem; }
 .synapse-prose .workbench-error {
   border: 1px solid hsl(var(--status-err) / 0.4);
   background: hsl(var(--status-err-bg) / 0.08);
@@ -92,12 +85,11 @@
   padding: 0.6rem 1rem;
   margin: 1em 0;
 }
+/* Diagram placeholders are bare hosts too — the hydrated .diagram card inside
+   owns the white figure frame (a second card here doubles the border and pushes
+   the Enlarge pill off the corner). */
 .synapse-prose .mermaid-block,
-.synapse-prose .d2-block {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  padding: 0.75rem;
+.synapse-prose .d2-block,
+.synapse-prose .d2-slideshow {
   margin: 1em 0;
-  overflow-x: auto;
 }

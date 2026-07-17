@@ -325,20 +325,13 @@ pub(crate) fn mount_solutions(
         let Some(variants) = attr("data-variants").and_then(|json| logic::parse_variants(&json)) else {
             continue;
         };
-        let metas: Vec<String> = attr("data-metas")
-            .and_then(|json| serde_json::from_str(&json).ok())
-            .unwrap_or_default();
-        // A solution group may carry several languages; each gets its own viewer so
-        // Copy-to-editor is language-exact.
-        let viewers: Vec<_> = variants
-            .into_iter()
-            .enumerate()
-            .map(|(i, variant)| {
-                let chips = logic::solution_complexities(metas.get(i).map_or("", String::as_str));
-                view! { <SolutionViewer variant=variant chips=chips load_code=load_code theme=theme /> }
-            })
-            .collect();
-        let handle = leptos::mount::mount_to(element, move || viewers.into_view());
+        // A solution group's languages share ONE viewer behind the same language dropdown as
+        // the editor pane — Copy-to-editor stays language-exact (it sends the ACTIVE tab).
+        // The fence metas' time/space chips deliberately stay off the header row: the
+        // editorial's Complexity Analysis section already states them (user rule).
+        let handle = leptos::mount::mount_to(element, move || {
+            view! { <SolutionViewer variants=variants load_code=load_code theme=theme /> }.into_any()
+        });
         handles.push(Box::new(handle));
     }
     handles
@@ -347,17 +340,20 @@ pub(crate) fn mount_solutions(
 #[allow(clippy::needless_pass_by_value)]
 #[component]
 fn SolutionViewer(
-    variant: logic::Variant,
-    chips: Vec<(String, String)>,
+    variants: Vec<logic::Variant>,
     load_code: RwSignal<(u32, String, String)>,
     theme: crate::shell::theme::ThemeStore,
 ) -> impl IntoView {
     let node_ref: NodeRef<leptos::html::Div> = NodeRef::new();
     let mounted: StoredValue<Option<editor::MountedEditor>, LocalStorage> = StoredValue::new_local(None);
-    let source = variant.source.clone();
-    let language = variant.language.clone();
-    let mount_source = source.clone();
-    let mount_lang = language.clone();
+    let active = RwSignal::new(0_usize);
+    let lang_count = variants.len();
+    let first = variants[0].clone();
+    let variants = StoredValue::new(variants);
+    let variant_at = move |i: usize| variants.read_value()[i.min(lang_count - 1)].clone();
+
+    let mount_source = first.source.clone();
+    let mount_lang = first.language.clone();
     Effect::new(move |_| {
         let Some(node) = node_ref.get() else { return };
         if mounted.read_value().is_some() {
@@ -381,31 +377,94 @@ fn SolutionViewer(
     });
     on_cleanup(move || mounted.set_value(None));
 
-    let pill = logic::display_lang(&variant.language);
-    let height = format!("height: {}px;", editor::default_height_px(&variant.source));
-    let chip_views: Vec<_> = chips
-        .into_iter()
-        .map(|(name, value)| {
-            view! { <span class="solution__chip"><b>{name}</b>" "{value}</span> }
-        })
-        .collect();
+    // Switching languages swaps the ONE read-only Monaco in place (the editor pane's
+    // pattern): buffer + tokenizer follow the picked variant.
+    let switch_to = move |i: usize| {
+        if i == active.get_untracked() {
+            return;
+        }
+        active.set(i);
+        let variant = variant_at(i);
+        mounted.with_value(|editor| {
+            if let Some(editor) = editor {
+                editor.set_value(&variant.source);
+                editor.set_language(&variant.language);
+            }
+        });
+    };
+
+    // The SAME dropdown chrome as the workbench's language pill — one look for "pick the
+    // language" on both sides of the split.
+    let lang_chrome = if lang_count > 1 {
+        let menu_open = RwSignal::new(false);
+        view! {
+            <div class="wb__lang">
+                <button
+                    class="wb__lang-pill wb__lang-pill--btn"
+                    aria-label="Solution language"
+                    on:click=move |_| menu_open.update(|o| *o = !*o)
+                >
+                    <span>{move || logic::display_lang(&variant_at(active.get()).language)}</span>
+                    {super::runnable::icon_chevron_down()}
+                </button>
+                {move || {
+                    menu_open.get().then(|| {
+                        let options: Vec<_> = (0..lang_count)
+                            .map(|i| {
+                                let label = logic::display_lang(&variant_at(i).language);
+                                view! {
+                                    <button
+                                        class="wb__lang-opt"
+                                        class:wb__lang-opt--active=move || active.get() == i
+                                        on:click=move |_| {
+                                            switch_to(i);
+                                            menu_open.set(false);
+                                        }
+                                    >
+                                        {label}
+                                    </button>
+                                }
+                            })
+                            .collect();
+                        view! {
+                            <div>
+                                <div class="wb__lang-scrim" on:click=move |_| menu_open.set(false)></div>
+                                <div class="wb__lang-menu">{options}</div>
+                            </div>
+                        }
+                    })
+                }}
+            </div>
+        }
+        .into_any()
+    } else {
+        let pill = logic::display_lang(&first.language);
+        view! { <span class="wb__lang-pill">{pill}</span> }.into_any()
+    };
+
+    // The editor grows to the largest variant so switching never clips or reflows the page.
+    let height = variants
+        .read_value()
+        .iter()
+        .map(|v| editor::default_height_px(&v.source))
+        .max()
+        .unwrap_or_else(|| editor::default_height_px(&first.source));
+    let height = format!("height: {height}px;");
     view! {
         <div class="runnable not-prose solution">
             <div class="runnable__bar">
                 <span class="wb__eyebrow"><span class="wb__prompt">"✓"</span>" SOLUTION"</span>
                 <span class="wb__actions">
-                    <span class="wb__lang-pill">{pill}</span>
-                    {chip_views}
+                    {lang_chrome}
                     <button
                         class="wb__ghost"
                         title="Load this solution into its language tab on the right"
                         on:click=move |_| {
-                            let code = source.clone();
-                            let lang = language.clone();
+                            let variant = variant_at(active.get_untracked());
                             load_code.update(|(tick, slot_lang, slot)| {
                                 *tick += 1;
-                                *slot_lang = lang;
-                                *slot = code;
+                                *slot_lang = variant.language;
+                                *slot = variant.source;
                             });
                         }
                     >

@@ -106,6 +106,10 @@
 .wb__chip { padding: 0.25rem 0.7rem; font-size: 0.78rem; border: 1px solid hsl(var(--border));
             border-radius: 9999px; background: hsl(var(--card)); cursor: pointer; color: hsl(var(--muted-foreground)); }
 .wb__chip--active { background: hsl(var(--primary) / 0.15); border-color: hsl(var(--primary) / 0.35); color: hsl(var(--primary)); font-weight: 600; }
+/* Per-case verdict badges — only cases actually Run carry one (oracle: WorkbenchTests). */
+.wb__chip--ok { border-color: hsl(var(--status-ok) / 0.5); color: hsl(var(--status-ok)); }
+.wb__chip--fail { border-color: hsl(var(--status-err) / 0.5); color: hsl(var(--status-err)); }
+.wb__tick { margin-left: 0.35rem; font-weight: 700; }
 .wb__values { display: flex; gap: 0.75rem; flex-wrap: wrap; }
 .wb__field { display: flex; flex-direction: column; gap: 0.2rem; }
 .wb__field-label { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em;
@@ -135,3 +139,44 @@
 .wb__failure { margin-top: 0.5rem; font-weight: 400; }
 .wb__failure-line { margin: 0.15rem 0; padding: 0.3rem 0.5rem; background: hsl(var(--card));
                     border: 1px solid hsl(var(--status-err) / 0.35); border-radius: 0.35rem; font-size: 0.8rem; }
+
+/* ── the quiz card (oracle: QuizCard, step 16) — one check-your-understanding
+      question; Check tints the right answer green wherever it is, a wrong pick
+      red; Try again resets ── */
+.quiz { overflow: hidden; border-radius: 0.75rem; padding: 1rem;
+        border: 1px solid hsl(var(--border)); background: hsl(var(--card)); }
+.quiz__head { display: flex; flex-direction: column; gap: 0.375rem; margin-bottom: 0.5rem; }
+.quiz__prompt { margin: 0; font-size: 15px; font-weight: 500; color: hsl(var(--foreground)); }
+.quiz__input { margin: 0 0 0.5rem; overflow: auto; border-radius: 0.375rem;
+               padding: 0.5rem 0.75rem; font-size: 12.5px;
+               font-family: var(--font-mono, ui-monospace, monospace);
+               background: hsl(var(--muted) / 0.5); color: hsl(var(--foreground)); }
+.quiz__options { display: flex; flex-direction: column; gap: 0.375rem; }
+.quiz__option { border-radius: 0.375rem; padding: 0.5rem 0.75rem; text-align: left;
+                font-size: 13.5px; transition: border-color 120ms ease, background 120ms ease;
+                cursor: pointer; border: 1px solid hsl(var(--border));
+                background: hsl(var(--background) / 0.5); color: hsl(var(--foreground)); }
+.quiz__option:hover:not(:disabled) { border-color: hsl(var(--primary) / 0.45); }
+.quiz__option:disabled { cursor: default; }
+.quiz__option--selected { border-color: hsl(var(--primary));
+                          background: hsl(var(--primary) / 0.07); }
+.quiz__option--right { border-color: hsl(var(--status-ok));
+                       background: hsl(var(--status-ok-bg) / 0.12); color: hsl(var(--status-ok)); }
+.quiz__option--wrong { border-color: hsl(var(--status-err));
+                       background: hsl(var(--status-err-bg) / 0.1); color: hsl(var(--status-err)); }
+.quiz__foot { margin-top: 0.75rem; }
+.quiz__check { border-radius: 0.375rem; padding: 0.25rem 0.75rem; font-size: 0.75rem;
+               font-weight: 600; transition: background 120ms ease; border: 0;
+               background: hsl(var(--primary)); color: hsl(var(--primary-foreground));
+               cursor: pointer; }
+.quiz__check:hover:not(:disabled) { background: hsl(var(--primary) / 0.88); }
+.quiz__check:disabled { cursor: not-allowed; opacity: 0.6; }
+.quiz__verdict { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem;
+                 font-size: 13.5px; }
+.quiz__verdict-ok { color: hsl(var(--status-ok)); font-weight: 600; }
+.quiz__verdict-no { color: hsl(var(--status-err)); }
+.quiz__again { border-radius: 0.375rem; padding: 0.25rem 0.625rem; font-size: 0.75rem;
+               font-weight: 500; transition: color 120ms ease;
+               border: 1px solid hsl(var(--border)); background: transparent;
+               color: hsl(var(--muted-foreground)); cursor: pointer; }
+.quiz__again:hover { color: hsl(var(--foreground)); }

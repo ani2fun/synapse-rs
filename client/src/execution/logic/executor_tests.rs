@@ -115,3 +115,21 @@ fn dirtiness_and_changed_lines_compare_against_the_authored_source() {
         "one changed + one added"
     );
 }
+
+#[test]
+fn clear_outcome_drops_the_panel_but_keeps_code_and_stale_guards_inflight_runs() {
+    let state = ExecutorState::initial("authored").enter_edit().set_code("edited");
+    let ran = state.started();
+    let done = ran.completed(ran.run_id, result("42"));
+    let cleared = done.clear_outcome();
+    assert_eq!(cleared.run_state, RunState::Idle);
+    assert!(cleared.result.is_none() && cleared.error.is_none());
+    assert_eq!(cleared.code, "edited", "the buffer survives");
+    assert_eq!(cleared.edit_mode, EditMode::Editing, "the unlock survives");
+    // A reply still in flight for the old handle must not resurrect the panel.
+    let resurrected = cleared.completed(ran.run_id, result("stale"));
+    assert!(
+        resurrected.result.is_none(),
+        "the bumped handle drops the stale reply"
+    );
+}

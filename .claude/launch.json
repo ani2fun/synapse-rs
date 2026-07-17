@@ -5,7 +5,7 @@
       "name": "synapse-rs",
       "runtimeExecutable": "dev-tools/dev",
       "runtimeArgs": [],
-      "port": 5273
+      "port": 5373
     }
   ]
 }

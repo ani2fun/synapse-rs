@@ -17,7 +17,7 @@
       "parentId": "wrk_synapse_rs",
       "name": "Base Environment",
       "data": {
-        "base_url": "http://localhost:8180"
+        "base_url": "http://localhost:8280"
       }
     },
     {

@@ -209,6 +209,7 @@ fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> AnyView {
                     viz_modal,
                 );
                 handles.extend(crate::catalog::view::diagrams::hydrate_diagrams(&body));
+                handles.extend(crate::quiz::hydrate_quizzes(&body));
                 handles.extend(crate::catalog::view::c4::hydrate_c4_embeds(&body, c4_selected));
                 handles.extend(crate::execution::view::hydrate_practices(
                     &body,

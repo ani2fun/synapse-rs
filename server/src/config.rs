@@ -11,7 +11,9 @@ use serde::{Deserialize, Serialize};
 /// database, identity, rate limits, … arrive with their slices).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
-    /// TCP port the server binds (dev convention: 8180, same as the oracle). Env: `SYNAPSE_PORT`.
+    /// TCP port the server binds (dev convention: 8280 — synapse-rs owns its own port pair,
+    /// 5373/8280, so the Scala oracle's dev loop on 5273/8180 runs beside it). Env:
+    /// `SYNAPSE_PORT`.
     pub port: u16,
     /// The synapse-content checkout (step 06). Env: `SYNAPSE_ROOT` (the oracle's name — mapped
     /// in `load`) or `SYNAPSE_CONTENT_ROOT`.
@@ -68,7 +70,7 @@ pub struct AppConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            port: 8180,
+            port: 8280,
             content_root: "../synapse-content".to_owned(),
             auto_reload: true,
             executor_url: "http://localhost:5150".to_owned(),
@@ -173,7 +175,7 @@ mod tests {
 
     #[test]
     fn defaults_bind_the_dev_port() {
-        assert_eq!(AppConfig::default().port, 8180);
+        assert_eq!(AppConfig::default().port, 8280);
     }
 
     #[test]

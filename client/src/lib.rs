@@ -13,6 +13,7 @@ pub mod catalog;
 pub mod execution;
 pub mod identity;
 pub mod islands;
+pub mod quiz;
 pub mod router;
 pub mod search;
 pub mod shell;

@@ -74,6 +74,20 @@ impl ExecutorState {
         }
     }
 
+    /// Clear the run outcome (case switch): the buffer and edit unlock survive, the stale
+    /// result/error panel disappears, and the bumped handle stale-guards any run in flight —
+    /// its reply must not resurrect the panel under the newly selected case.
+    #[must_use]
+    pub fn clear_outcome(&self) -> Self {
+        Self {
+            run_state: RunState::Idle,
+            result: None,
+            error: None,
+            run_id: self.run_id.next(),
+            ..self.clone()
+        }
+    }
+
     /// Cancel without a real HTTP cancel: back to Idle and BUMP the handle, so the in-flight
     /// run's eventual result is stale on arrival.
     #[must_use]

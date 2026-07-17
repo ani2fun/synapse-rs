@@ -155,7 +155,7 @@ fn D2Slideshow(slides: Vec<String>) -> impl IntoView {
         svg_html.set(Some(svg));
     });
     view! {
-        <div class="diagram not-prose">
+        <div class="diagram diagram--slides not-prose">
             <ZoomAffordance svg_html=svg_html />
             <div class="diagram__figure" node_ref=figure_ref></div>
             <div class="transport">
@@ -187,17 +187,39 @@ fn D2Slideshow(slides: Vec<String>) -> impl IntoView {
 // Enlarge (card) and Close (overlay) both live top-LEFT — the house corner.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Lucide `maximize` — the Enlarge pill's glyph (oracle: Icons.maximize).
+fn icon_maximize() -> impl IntoView {
+    view! {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M15 3h6v6" /><path d="M9 21H3v-6" />
+            <path d="m21 3-7 7" /><path d="m3 21 7-7" />
+        </svg>
+    }
+}
+
+/// Lucide `x` — the overlay Close pill's glyph (oracle: Icons.close).
+fn icon_close() -> impl IntoView {
+    view! {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+        </svg>
+    }
+}
+
 #[component]
 fn ZoomAffordance(svg_html: RwSignal<Option<String>>) -> impl IntoView {
     let open = RwSignal::new(false);
     view! {
         {move || svg_html.get().map(|_| view! {
             <button
-                class="diagram__zoom"
+                class="diagram__zoom modal-btn"
                 aria-label="Enlarge diagram"
                 on:click=move |_| open.set(true)
             >
-                "⤢ Enlarge"
+                {icon_maximize()}
+                <span>"Enlarge"</span>
             </button>
         })}
         {move || (open.get() && svg_html.get_untracked().is_some()).then(|| {
@@ -260,8 +282,9 @@ fn ZoomOverlay(svg: String, open: RwSignal<bool>) -> impl IntoView {
     view! {
         <div class="diagram-zoom-scrim" on:click=move |_| open.set(false)>
             <div class="diagram-zoom diagram-zoom--paper" on:click=|event| event.stop_propagation()>
-                <button class="diagram-zoom__close" aria-label="Close" on:click=move |_| open.set(false)>
-                    "✕ Close"
+                <button class="diagram-zoom__close modal-btn" aria-label="Close" on:click=move |_| open.set(false)>
+                    {icon_close()}
+                    <span>"Close"</span>
                 </button>
                 <div class="diagram-zoom__zoomable">
                     <div

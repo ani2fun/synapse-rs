@@ -279,7 +279,9 @@ fn description_pane(
 }
 
 /// The editorial: solutions reveal directly (this tab IS the answer); Copy-to-editor routes
-/// into the right pane's matching language tab.
+/// into the right pane's matching language tab. The `##` headings become a SECOND row of
+/// section pills (Intuition · Approach · Solution · …) — everything stays mounted (Monaco
+/// state survives; `automaticLayout` re-measures on reveal), switching only toggles CSS.
 fn editorial_pane(
     md: String,
     load_code: RwSignal<(u32, String, String)>,
@@ -290,6 +292,8 @@ fn editorial_pane(
     }
     let node_ref: NodeRef<leptos::html::Div> = NodeRef::new();
     let mounts: StoredValue<Vec<Box<dyn Any>>, LocalStorage> = StoredValue::new_local(Vec::new());
+    let section_labels: RwSignal<Vec<String>> = RwSignal::new(Vec::new());
+    let active_section = RwSignal::new(0_usize);
     Effect::new(move |ran: Option<bool>| {
         if ran == Some(true) {
             return true;
@@ -308,6 +312,7 @@ fn editorial_pane(
                             }
                         }
                     }
+                    section_labels.set(sectionize_editorial(&node));
                     mounts.update_value(|m| {
                         m.extend(crate::execution::view::mount_solutions(&node, load_code, theme));
                     });
@@ -317,8 +322,108 @@ fn editorial_pane(
         });
         true
     });
+    // Switching pills toggles `.hidden` on the section wrappers directly — they are raw DOM,
+    // not Leptos views, so the signal drives them by hand.
+    Effect::new(move |_| {
+        let active = active_section.get();
+        let Some(node) = node_ref.get_untracked() else {
+            return;
+        };
+        let Ok(sections) = node.query_selector_all(".pwb-esec") else {
+            return;
+        };
+        for i in 0..sections.length() {
+            if let Some(section) = sections
+                .get(i)
+                .and_then(|n| n.dyn_into::<web_sys::Element>().ok())
+            {
+                let list = section.class_list();
+                let _ = if (i as usize) == active {
+                    list.remove_1("hidden")
+                } else {
+                    list.add_1("hidden")
+                };
+            }
+        }
+    });
     on_cleanup(move || mounts.set_value(Vec::new()));
-    view! { <div class="pwb-editorial" node_ref=node_ref></div> }.into_any()
+    view! {
+        {move || {
+            let labels = section_labels.get();
+            (labels.len() > 1).then(|| view! {
+                <div class="pwb-esec-tabs">
+                    {labels
+                        .into_iter()
+                        .enumerate()
+                        .map(|(i, label)| {
+                            view! {
+                                <button
+                                    class="pwb-esec-tab"
+                                    class:pwb-esec-tab--active=move || active_section.get() == i
+                                    on:click=move |_| active_section.set(i)
+                                >
+                                    {label}
+                                </button>
+                            }
+                        })
+                        .collect_view()}
+                </div>
+            })
+        }}
+        <div class="pwb-editorial" node_ref=node_ref></div>
+    }
+    .into_any()
+}
+
+/// Group the rendered editorial's DOM into `.pwb-esec` wrappers, one per `h2` (falling back
+/// to `h1` when the author used top-level headings): the heading plus everything until the
+/// next one. Prose BEFORE the first heading stays put — always visible above the sections.
+/// Returns the section labels (empty/one section → no pills, nothing wrapped is hidden).
+fn sectionize_editorial(node: &web_sys::HtmlElement) -> Vec<String> {
+    let heading_tag = match node.query_selector("h2") {
+        Ok(Some(_)) => "H2",
+        _ => "H1",
+    };
+    let children = node.children();
+    let snapshot: Vec<web_sys::Element> = (0..children.length()).filter_map(|i| children.item(i)).collect();
+    let mut labels: Vec<String> = Vec::new();
+    let mut current: Option<web_sys::Element> = None;
+    let Some(document) = node.owner_document() else {
+        return labels;
+    };
+    for child in snapshot {
+        if child.tag_name() == heading_tag {
+            let label = child.text_content().unwrap_or_default().trim().to_owned();
+            let Ok(wrapper) = document.create_element("div") else {
+                continue;
+            };
+            wrapper.set_class_name("pwb-esec");
+            let _ = node.append_child(&wrapper);
+            labels.push(if label.is_empty() {
+                format!("Section {}", labels.len() + 1)
+            } else {
+                label
+            });
+            current = Some(wrapper);
+        }
+        if let Some(wrapper) = &current {
+            let _ = wrapper.append_child(&child);
+        }
+    }
+    if labels.len() > 1 {
+        // Show the first section; hide the rest (the effect keeps this in sync afterwards).
+        if let Ok(sections) = node.query_selector_all(".pwb-esec") {
+            for i in 1..sections.length() {
+                if let Some(section) = sections
+                    .get(i)
+                    .and_then(|n| n.dyn_into::<web_sys::Element>().ok())
+                {
+                    let _ = section.class_list().add_1("hidden");
+                }
+            }
+        }
+    }
+    labels
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1,8 +1,9 @@
 //! The Visualise modal (oracle: `VisualiseModal` + `SourcePane` + `FramesPanel`, ADR-S031):
 //! a near-fullscreen player over the SAME `WidgetHost` the inline widgets use — the case
-//! strip, the read-only source pane with current/next line highlights, the frames panel, and
-//! the program output. Esc closes; Space toggles play; ←/→ step. (Diff-mode stops, the
-//! timeline drawer, and deep links join with the wrap step.)
+//! strip, the EDITABLE source pane with current/next line highlights, the frames panel, and
+//! the program output. Esc closes; Space toggles play; ←/→ step. The pane's edits and the
+//! stdin box feed one LIVE (source, stdin) pair — every re-trace path (the bar's ↻, the `r`
+//! key, the stdin panel's button) re-traces exactly what is on screen.
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -17,6 +18,32 @@ use crate::viz::session::{self, Session, TraceState};
 #[derive(Clone)]
 pub struct ModalSession {
     pub session: Session,
+}
+
+/// The modal's LIVE inputs: the source pane's buffer + the stdin box. Seeded from the
+/// session's key on open; every re-trace path reads THESE, so edits in the popup are what
+/// gets traced.
+#[derive(Clone, Copy)]
+struct LiveInput {
+    source: RwSignal<String>,
+    stdin: RwSignal<String>,
+}
+
+impl LiveInput {
+    fn seeded(key: &session::Key) -> Self {
+        Self {
+            source: RwSignal::new(key.source.clone()),
+            stdin: RwSignal::new(key.stdin.clone()),
+        }
+    }
+
+    /// The session key with the live buffer + stdin swapped in.
+    fn fresh_key(self, key: &session::Key) -> session::Key {
+        let mut fresh = key.clone();
+        fresh.source = self.source.get_untracked();
+        fresh.stdin = self.stdin.get_untracked();
+        fresh
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -57,13 +84,14 @@ pub fn VisualiseModal() -> impl IntoView {
     view! {
         {move || {
             store.current.get().map(|modal| {
+                let live = LiveInput::seeded(&modal.session.key);
                 view! {
                     <div class="viz-modal">
                         <div class="viz-modal__scrim" on:click=move |_| store.close()></div>
                         <div class="viz-modal__frame">
-                            <ModalBar modal=modal.clone() store=store />
+                            <ModalBar modal=modal.clone() store=store live=live />
                             <div class="viz-modal__body">
-                                <ModalBody modal=modal.clone() store=store />
+                                <ModalBody modal=modal.clone() store=store live=live />
                             </div>
                         </div>
                     </div>
@@ -74,8 +102,8 @@ pub fn VisualiseModal() -> impl IntoView {
 }
 
 #[component]
-fn ModalBar(modal: ModalSession, store: VizModalStore) -> impl IntoView {
-    let retrace = modal.session.clone();
+fn ModalBar(modal: ModalSession, store: VizModalStore, live: LiveInput) -> impl IntoView {
+    let retrace_key = modal.session.key.clone();
     let title = modal.session.key.structure.token();
     let guide_open = RwSignal::new(false);
     view! {
@@ -84,7 +112,13 @@ fn ModalBar(modal: ModalSession, store: VizModalStore) -> impl IntoView {
             <span class="viz-modal__title">{title}</span>
             <span class="viz-modal__bar-spacer"></span>
             {guide_button(guide_open)}
-            <button class="viz-modal__retrace" on:click=move |_| session::force(&retrace)>
+            <button
+                class="viz-modal__retrace"
+                title="Run the trace again — with your edits and the stdin below"
+                on:click=move |_| {
+                    store.open(session::obtain_fresh(live.fresh_key(&retrace_key)));
+                }
+            >
                 "↻ Re-trace"
             </button>
             <button class="viz-modal__close" aria-label="Close" on:click=move |_| store.close()>
@@ -95,7 +129,7 @@ fn ModalBar(modal: ModalSession, store: VizModalStore) -> impl IntoView {
 }
 
 #[component]
-fn ModalBody(modal: ModalSession, store: VizModalStore) -> impl IntoView {
+fn ModalBody(modal: ModalSession, store: VizModalStore, live: LiveInput) -> impl IntoView {
     let state = modal.session.state;
     view! {
         {move || match state.get() {
@@ -110,13 +144,40 @@ fn ModalBody(modal: ModalSession, store: VizModalStore) -> impl IntoView {
                 <div class="viz-modal__failed">
                     <p class="viz-modal__failed-title">"Couldn't visualise this run"</p>
                     <pre class="viz-modal__failed-msg">{message}</pre>
+                    {retry_bar(&modal, store, live)}
                 </div>
             }
             .into_any(),
             TraceState::Ready(cases, program_out) => {
-                ready(&modal, &cases, &program_out, store).into_any()
+                ready(&modal, &cases, &program_out, store, live).into_any()
             }
         }}
+    }
+}
+
+/// A failed trace must never dead-end: the stdin box + re-trace ride along on the Failed
+/// card too, so a bad input (or a mid-edit syntax error) is fixable in place.
+fn retry_bar(modal: &ModalSession, modal_store: VizModalStore, live: LiveInput) -> impl IntoView + use<> {
+    let key = StoredValue::new(modal.session.key.clone());
+    view! {
+        <div class="viz-stdin viz-stdin--retry">
+            <label class="viz-stdin__label">"stdin"</label>
+            <textarea
+                class="viz-stdin__input"
+                rows="2"
+                prop:value=move || live.stdin.get()
+                on:input=move |event| live.stdin.set(event_target_value(&event))
+            ></textarea>
+            <button
+                class="viz-stdin__retrace"
+                title="Trace again with the input above (your code edits are kept)"
+                on:click=move |_| {
+                    modal_store.open(session::obtain_fresh(live.fresh_key(&key.read_value())));
+                }
+            >
+                "↻ Re-trace"
+            </button>
+        </div>
     }
 }
 
@@ -126,6 +187,7 @@ fn ready(
     cases: &VizCases,
     program_out: &str,
     modal_store: VizModalStore,
+    live: LiveInput,
 ) -> impl IntoView + use<> {
     let case_idx = RwSignal::new(0usize);
     let zoom = RwSignal::new(1.0_f64);
@@ -170,8 +232,7 @@ fn ready(
             "f" | "F" => zoom.set(1.0),
             "d" | "D" => diff_mode.update(|d| *d = !*d),
             "r" | "R" => {
-                let key = keys_key.clone();
-                modal_store.open(crate::viz::session::obtain_fresh(key));
+                modal_store.open(session::obtain_fresh(live.fresh_key(&keys_key)));
             }
             _ => {}
         }
@@ -287,17 +348,20 @@ fn ready(
                         cases=pane_cases
                         case_idx=case_idx
                         step_state=step_state
+                        live=live
                     />
                     <FramesPanel cases=cases.clone() case_idx=case_idx step_state=step_state />
                 </div>
             </div>
-            {output_panel(&program_out, modal.session.key.clone(), modal_store)}
+            {output_panel(&program_out, modal.session.key.clone(), modal_store, live)}
         </div>
     }
 }
 
-/// Read-only Monaco over the RAW pre-wrap source (line numbers align with the captions),
-/// with current/next line highlights following the stepper.
+/// EDITABLE Monaco over the RAW pre-wrap source (line numbers align with the captions),
+/// with current/next line highlights following the stepper. Edits land in the live buffer —
+/// re-trace (↻ / `r` / the stdin panel) runs exactly what's on screen; until then the
+/// highlights keep narrating the LAST traced run.
 #[component]
 fn SourcePane(
     source: String,
@@ -305,6 +369,7 @@ fn SourcePane(
     cases: VizCases,
     case_idx: RwSignal<usize>,
     step_state: RwSignal<State>,
+    live: LiveInput,
 ) -> impl IntoView {
     let node_ref: NodeRef<leptos::html::Div> = NodeRef::new();
     let mounted: StoredValue<Option<MountedEditor>, LocalStorage> = StoredValue::new_local(None);
@@ -318,13 +383,13 @@ fn SourcePane(
         let lang = language.clone();
         spawn_local(async move {
             let callbacks = EditorCallbacks {
-                on_change: Box::new(|_| {}),
+                on_change: Box::new(move |code: String| live.source.set(code)),
                 on_run: Box::new(|| {}),
                 on_toggle_edit: Box::new(|| {}),
                 on_submit: None,
             };
             let dark = crate::shell::theme::html_is_dark();
-            match editor::mount(&node, &value, &lang, true, dark, callbacks).await {
+            match editor::mount(&node, &value, &lang, false, dark, callbacks).await {
                 Ok(handle) => mounted.set_value(Some(handle)),
                 Err(error) => leptos::logging::error!("source pane monaco failed: {error:?}"),
             }
@@ -457,14 +522,14 @@ fn timeline(graph: &VizGraph, step_state: RwSignal<State>) -> AnyView {
     view! { <div class="viz-timeline not-prose">{ticks}</div> }.into_any()
 }
 
-/// Program output (collapsed) + the EDITABLE stdin: its Re-trace runs a FRESH trace keyed
-/// on the new stdin (distinct from the top bar's plain Re-trace).
+/// Program output (collapsed) + the EDITABLE stdin (the shared live pair): its Re-trace
+/// runs a FRESH trace over the pane's current code and the input typed here.
 fn output_panel(
     program_out: &str,
     key: crate::viz::session::Key,
     modal_store: VizModalStore,
+    live: LiveInput,
 ) -> impl IntoView + use<> {
-    let stdin = RwSignal::new(key.stdin.clone());
     let out = if program_out.trim().is_empty() {
         "(no output)".to_owned()
     } else {
@@ -482,16 +547,14 @@ fn output_panel(
                 <textarea
                     class="viz-stdin__input"
                     rows="2"
-                    prop:value=move || stdin.get()
-                    on:input=move |event| stdin.set(event_target_value(&event))
+                    prop:value=move || live.stdin.get()
+                    on:input=move |event| live.stdin.set(event_target_value(&event))
                 ></textarea>
                 <button
                     class="viz-stdin__retrace"
-                    title="Trace this run again with the input above"
+                    title="Trace again with the code above and this input"
                     on:click=move |_| {
-                        let mut fresh = key.read_value().clone();
-                        fresh.stdin = stdin.get_untracked();
-                        modal_store.open(crate::viz::session::obtain_fresh(fresh));
+                        modal_store.open(session::obtain_fresh(live.fresh_key(&key.read_value())));
                     }
                 >
                     "↻ Re-trace with this input"

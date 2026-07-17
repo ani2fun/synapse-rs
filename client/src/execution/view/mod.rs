@@ -7,4 +7,5 @@ mod workbench;
 
 pub use hydrate::hydrate_workbenches;
 pub use practice::hydrate_practices;
+pub(crate) use practice::mount_solutions;
 pub use runnable::RunnableBlock;

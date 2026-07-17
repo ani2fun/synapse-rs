@@ -66,6 +66,11 @@ pub async fn submit(request: &SubmitRequestDto) -> Result<SubmissionAcceptedDto,
 }
 
 /// One poll tick.
+/// The caller's OWN submissions for a lesson, newest first (anonymous → []).
+pub async fn submissions_for(path: &[String]) -> Result<Vec<SubmissionDto>, String> {
+    fetch_json(&format!("/api/submissions?path={}", path.join("/"))).await
+}
+
 pub async fn submission(id: &str) -> Result<SubmissionDto, String> {
     fetch_json(&format!("/api/submissions/{id}")).await
 }

@@ -150,3 +150,14 @@ fn spread_de_overlaps_and_clamps_fractions() {
     assert!(edges[0] >= 0.05 - 1e-9 && edges[1] <= 0.95 + 1e-9);
     assert!(spread_fractions(&[]).is_empty());
 }
+
+#[test]
+fn problem_split_divides_at_the_first_top_level_details() {
+    let raw = "The problem.\n\n```txt\n<details inside a fence>\n```\n\n<details>\n<summary>Editorial</summary>\nanswer\n</details>";
+    let (desc, editorial) = problem_content_split(raw);
+    assert!(desc.ends_with("```"));
+    assert!(editorial.starts_with("<details>"));
+    let (all, none) = problem_content_split("No editorial here.");
+    assert_eq!(all, "No editorial here.");
+    assert!(none.is_empty());
+}

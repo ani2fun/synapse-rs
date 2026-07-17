@@ -302,7 +302,7 @@ fn markdown_pane(
 
 /// Every `.solution-block` in an editorial becomes a revealed read-only viewer with the
 /// complexity chips and the Copy-to-editor seam.
-fn mount_solutions(
+pub(crate) fn mount_solutions(
     root: &web_sys::HtmlElement,
     load_code: RwSignal<(u32, String, String)>,
     theme: crate::shell::theme::ThemeStore,

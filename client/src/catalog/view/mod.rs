@@ -7,6 +7,7 @@ pub mod chrome;
 mod diagrams;
 mod library;
 mod prefs;
+mod problem;
 mod reader;
 pub mod sidebar;
 mod tour;

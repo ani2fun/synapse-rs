@@ -100,6 +100,33 @@ pub fn resolve_c4_node(path: &[C4PathHop]) -> Option<String> {
     None
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PROBLEM CONTENT SPLIT (oracle: ProblemContent) — the first `<details` at line
+// start OUTSIDE a code fence divides description from editorial.
+// ─────────────────────────────────────────────────────────────────────────────
+
+pub fn problem_content_split(raw: &str) -> (String, String) {
+    let lines: Vec<&str> = raw.lines().collect();
+    let mut in_fence = false;
+    let mut boundary: Option<usize> = None;
+    for (i, line) in lines.iter().enumerate() {
+        if line.trim_start().starts_with("```") {
+            in_fence = !in_fence;
+        }
+        if !in_fence && line.starts_with("<details") {
+            boundary = Some(i);
+            break;
+        }
+    }
+    match boundary {
+        Some(at) => (
+            lines[..at].join("\n").trim_end().to_owned(),
+            lines[at..].join("\n"),
+        ),
+        None => (raw.to_owned(), String::new()),
+    }
+}
+
 #[cfg(test)]
 #[path = "logic_tests.rs"]
 mod tests;

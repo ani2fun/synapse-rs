@@ -164,7 +164,7 @@ fn LessonBody(lesson: RwSignal<AsyncResult<LessonPayloadDto>>, segments: Vec<Str
     }
 }
 
-fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> impl IntoView + use<> {
+fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> AnyView {
     // Captured IN-TREE: hydrated blocks mount out-of-tree and cannot reach App's context.
     let auth = crate::identity::state::AuthStore::from_context();
     let theme = crate::shell::theme::ThemeStore::from_context();
@@ -238,12 +238,19 @@ fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> impl IntoVi
     });
     on_cleanup(move || mounts.set_value(Vec::new()));
 
-    // Problem pages go full width (post-33 `a95e3fb`) — the workbench needs the column.
+    // Problem pages render the TWO-PANE workbench instead of the prose column (oracle:
+    // ProblemWorkbench; the parity list's item 2) — full width, no TOC/prefs chrome.
     let is_problem = payload.frontmatter.kind.as_deref() == Some("problem");
-    let problem_path = is_problem.then_some(problem_path_source);
+    let _ = problem_path_source;
     if let Some(chrome) = use_context::<crate::catalog::view::chrome::ChromeState>() {
         chrome.title.set(payload.frontmatter.title.clone());
         chrome.is_problem.set(is_problem);
+    }
+    if is_problem {
+        return view! {
+            <super::problem::ProblemWorkbench payload=payload.clone() segments=segments.to_vec() />
+        }
+        .into_any();
     }
     view! {
         <div class="lesson" class:lesson--problem=is_problem>
@@ -253,9 +260,6 @@ fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> impl IntoVi
                 {payload.frontmatter.summary.clone().map(|s| view! { <p class="reader-prose__lede">{s}</p> })}
             </header>
             <div class="lesson-body synapse-prose" node_ref=body_ref inner_html=move || html.get()></div>
-            {is_problem.then(|| view! {
-                <crate::tutoring::CoachPane problem=problem_path.clone() code_ctx=code_ctx />
-            })}
             <nav class="reader-pager">
                 {pager_card(payload.prev.as_deref(), "Previous", false)}
                 {pager_card(payload.next.as_deref(), "Next", true)}
@@ -264,6 +268,7 @@ fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> impl IntoVi
             <super::ReaderPrefsFab />
         </div>
     }
+    .into_any()
 }
 
 /// A pager card: label eyebrow + the humanized target title (oracle: `.reader-pager__card`).

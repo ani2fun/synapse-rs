@@ -42,6 +42,9 @@ pub fn RunnableBlock(
     /// re-copies of the same code fire; the language picks (and switches to) its tab.
     #[prop(optional)]
     load_code: Option<RwSignal<(u32, String, String)>>,
+    /// Bumped when a submit lifecycle completes — the Submissions tab refetches on it.
+    #[prop(optional)]
+    submitted: Option<RwSignal<u32>>,
 ) -> impl IntoView {
     let stores: Vec<BlockStore> = variants.iter().map(|v| BlockStore::new(&v.source)).collect();
     let active = RwSignal::new(0_usize);
@@ -227,6 +230,15 @@ pub fn RunnableBlock(
         Memo::new(move |_| store_at(active.get()).state.read().run_state == RunState::Running)
     };
     let judging = Memo::new(move |_| matches!(submit.state.get(), SubmitState::Judging(_)));
+    if let Some(submitted) = submitted {
+        Effect::new(move |was: Option<bool>| {
+            let done = matches!(submit.state.get(), SubmitState::Done(_));
+            if done && was != Some(true) {
+                submitted.update(|n| *n += 1);
+            }
+            done
+        });
+    }
     let unlocked = {
         let store_at = store_at.clone();
         Memo::new(move |_| store_at(active.get()).unlocked.get())

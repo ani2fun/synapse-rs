@@ -418,15 +418,23 @@ fn type_label(v: &HeapValue, heap: &BTreeMap<String, HeapObject>) -> String {
 }
 
 // A frame local's display value: scalar inline · instance → its node label · a list/dict → a
-// short preview (first 3 elements, `…` past that) · a dangling ref → `?`.
+// preview (first 12 elements, `…` past that — the frames panel has the row width, and the
+// view CSS ellipsizes whatever still overflows; deliberate divergence from the oracle's
+// 3-element preview, user ask 2026-07-17) · a dangling ref → `?`.
+const ARR_PREVIEW_ITEMS: usize = 12;
+
 fn value_display(v: &HeapValue, heap: &BTreeMap<String, HeapObject>) -> String {
     match v {
         HeapValue::Scalar(s) => scalar_label(s),
         HeapValue::Ref(id) => match heap.get(id) {
             Some(HeapObject::Instance { cls, fields }) => node_view(cls, fields).0,
             Some(HeapObject::Arr { items, .. }) => {
-                let preview: Vec<String> = items.iter().take(3).map(value_label).collect();
-                let ellipsis = if items.len() > 3 { ", …" } else { "" };
+                let preview: Vec<String> = items.iter().take(ARR_PREVIEW_ITEMS).map(value_label).collect();
+                let ellipsis = if items.len() > ARR_PREVIEW_ITEMS {
+                    ", …"
+                } else {
+                    ""
+                };
                 format!("[{}{ellipsis}]", preview.join(", "))
             }
             Some(HeapObject::Dict { entries }) => {

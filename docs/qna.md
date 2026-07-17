@@ -64,9 +64,19 @@ once lessons carry many `run` blocks — measure first, since today's pages hold
 Esc rule is already app-wide (viz modal, diagram zoom, practice enlarge, drawer); the
 codebench simply joins it.
 
-**Outcome (same day).** The user chose **B** — built as `execution/view/lazy.rs` +
+**Outcome (same day).** The user chose **B** first — built as `execution/view/lazy.rs` +
 the `RunnableBlock` lazy wiring (commit `2197117`): shiki placeholder (the island's new
 `highlightCode`) until near-viewport (600px margin) or first interaction; a page-level
 registry caps live instances at 3, evicting the oldest FAR editor losslessly (state in
 `BlockStore`; re-mounts restore the ACTIVE variant + unlock). If `IntersectionObserver`
-is unavailable the block mounts eagerly. Option A (the popup codebench) remains open.
+is unavailable the block mounts eagerly.
+
+Then the user changed their mind and asked for **A too** — built as
+`execution/view/codebench.rs`: one `CodebenchModal` mounted once in the shell holds ONE
+Monaco reused across every open (the frame stays in the DOM `display:none` between opens
+so the instance survives; each open swaps value + tokenizer). Every plain shiki fence in a
+runnable-language (the `Language::aliases` list mirrored client-side) grows a hover "⤢ Open
+editor to try" pill; the modal runs `BlockStore.launch` with an editable stdin box and the
+shared `Output` panel, Esc closes, editing gates on sign-in (read-only + the `wb__edit-bar`
+banner) while Run stays anonymous. A and B now coexist: authored `run` fences get the
+inline lazy workbench, plain fences get the on-demand popup.

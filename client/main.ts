@@ -14,6 +14,7 @@ import "./styles/search.css";
 import "./styles/account.css";
 import "./styles/coach.css";
 import "./styles/viz.css";
+import "./styles/codebench.css";
 import "./styles/practice.css";
 import "./styles/diagrams.css";
 import "./styles/library.css";

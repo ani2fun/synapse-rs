@@ -25,6 +25,7 @@ use crate::islands::{editor, markdown};
 // preceding heading's "Practice: <Topic>" tail (fallbacks: the heading, "Your Turn").
 // ─────────────────────────────────────────────────────────────────────────────
 
+#[allow(clippy::too_many_arguments)] // the out-of-tree store caravan
 pub fn hydrate_practices(
     root: &web_sys::HtmlElement,
     lesson_path: &[String],
@@ -32,6 +33,7 @@ pub fn hydrate_practices(
     code_sink: RwSignal<(String, String)>,
     theme: crate::shell::theme::ThemeStore,
     viz_modal: crate::viz::modal::VizModalStore,
+    codebench: super::CodebenchStore,
 ) -> Vec<Box<dyn Any>> {
     let mut handles: Vec<Box<dyn Any>> = Vec::new();
     let Ok(nodes) = root.query_selector_all("div.practice-problem") else {
@@ -71,6 +73,7 @@ pub fn hydrate_practices(
                     code_sink=code_sink
                     theme=theme
                     viz_modal=viz_modal
+                    codebench=codebench
                 />
             }
         });
@@ -115,6 +118,7 @@ pub fn PracticeProblem(
     code_sink: RwSignal<(String, String)>,
     theme: crate::shell::theme::ThemeStore,
     viz_modal: crate::viz::modal::VizModalStore,
+    codebench: super::CodebenchStore,
 ) -> impl IntoView {
     let expanded = RwSignal::new(false);
     // 0 = Description; 1.. = the editorial approaches.
@@ -204,7 +208,7 @@ pub fn PracticeProblem(
                     </div>
                     <div class="pwb__pane-scroll">
                         <div class="pwb__pane" class:hidden=move || tab.get() != 0>
-                            {markdown_pane(spec.problem_md.clone(), None, theme)}
+                            {markdown_pane(spec.problem_md.clone(), None, theme, codebench)}
                         </div>
                         // Lazy: each editorial approach (and its Monaco solution viewers)
                         // mounts on first open, then only toggles visibility.
@@ -215,7 +219,7 @@ pub fn PracticeProblem(
                                         let md = approaches.read_value()[i].md.clone();
                                         view! {
                                             <div class="pwb__pane" class:hidden=move || tab.get() != i + 1>
-                                                {markdown_pane(md, Some(load_code), theme)}
+                                                {markdown_pane(md, Some(load_code), theme, codebench)}
                                             </div>
                                         }
                                     })}
@@ -271,6 +275,7 @@ fn markdown_pane(
     md: String,
     reveal_solutions: Option<RwSignal<(u32, String, String)>>,
     theme: crate::shell::theme::ThemeStore,
+    codebench: super::CodebenchStore,
 ) -> impl IntoView {
     let node_ref: NodeRef<leptos::html::Div> = NodeRef::new();
     let mounts: StoredValue<Vec<Box<dyn Any>>, LocalStorage> = StoredValue::new_local(Vec::new());
@@ -287,6 +292,9 @@ fn markdown_pane(
                     if let Some(load_code) = reveal_solutions {
                         mounts.update_value(|m| m.extend(mount_solutions(&node, load_code, theme)));
                     }
+                    mounts.update_value(|m| {
+                        m.extend(super::hydrate_codebench_pills(&node, codebench));
+                    });
                 }
                 Err(error) => {
                     leptos::logging::error!("practice markdown failed: {error:?}");

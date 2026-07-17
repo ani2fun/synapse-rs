@@ -54,6 +54,7 @@ pub fn ProblemWorkbench(payload: LessonPayloadDto, segments: Vec<String>) -> imp
     let auth = crate::identity::state::AuthStore::from_context();
     let theme = crate::shell::theme::ThemeStore::from_context();
     let viz_modal = crate::viz::modal::VizModalStore::from_context();
+    let codebench = crate::execution::view::CodebenchStore::from_context();
 
     let tab = RwSignal::new(Tab::Description);
     let subs_seen = RwSignal::new(false);
@@ -149,10 +150,10 @@ pub fn ProblemWorkbench(payload: LessonPayloadDto, segments: Vec<String>) -> imp
                     </div>
                     <div class="pwb__pane-scroll synapse-prose">
                         <div class="pwb__pane" class:hidden=move || tab.get() != Tab::Description>
-                            {description_pane(desc_md, wb_spec, segments.read_value().clone(), auth, code_ctx, theme, viz_modal)}
+                            {description_pane(desc_md, wb_spec, segments.read_value().clone(), auth, code_ctx, theme, viz_modal, codebench)}
                         </div>
                         <div class="pwb__pane" class:hidden=move || tab.get() != Tab::Editorial>
-                            {editorial_pane(editorial_md, load_code, theme)}
+                            {editorial_pane(editorial_md, load_code, theme, codebench)}
                         </div>
                         <div class="pwb__pane" class:hidden=move || tab.get() != Tab::Coach>
                             <crate::tutoring::CoachPane
@@ -214,6 +215,7 @@ pub fn ProblemWorkbench(payload: LessonPayloadDto, segments: Vec<String>) -> imp
 
 /// The description: rendered markdown with the FIRST workbench placeholder EXTRACTED into
 /// the right pane; everything else hydrates in place.
+#[allow(clippy::too_many_arguments)] // the out-of-tree store caravan (same as RunnableBlock)
 fn description_pane(
     md: String,
     wb_spec: RwSignal<Option<(Vec<Variant>, Option<TestSpec>)>>,
@@ -222,6 +224,7 @@ fn description_pane(
     code_ctx: RwSignal<(String, String)>,
     theme: crate::shell::theme::ThemeStore,
     viz_modal: crate::viz::modal::VizModalStore,
+    codebench: crate::execution::view::CodebenchStore,
 ) -> impl IntoView {
     let node_ref: NodeRef<leptos::html::Div> = NodeRef::new();
     let mounts: StoredValue<Vec<Box<dyn Any>>, LocalStorage> = StoredValue::new_local(Vec::new());
@@ -259,6 +262,7 @@ fn description_pane(
                 &node, &segments, auth, code_ctx, theme, viz_modal,
             );
             handles.extend(crate::catalog::view::diagrams::hydrate_diagrams(&node));
+            handles.extend(crate::execution::view::hydrate_codebench_pills(&node, codebench));
             for (element, spec) in crate::viz::blocks::discover(&node) {
                 let handle = leptos::mount::mount_to(element, move || {
                     view! {
@@ -287,6 +291,7 @@ fn editorial_pane(
     md: String,
     load_code: RwSignal<(u32, String, String)>,
     theme: crate::shell::theme::ThemeStore,
+    codebench: crate::execution::view::CodebenchStore,
 ) -> impl IntoView {
     if md.trim().is_empty() {
         return view! { <p class="psub__note">"No editorial yet for this problem."</p> }.into_any();
@@ -316,6 +321,7 @@ fn editorial_pane(
                     section_labels.set(sectionize_editorial(&node));
                     mounts.update_value(|m| {
                         m.extend(crate::execution::view::mount_solutions(&node, load_code, theme));
+                        m.extend(crate::execution::view::hydrate_codebench_pills(&node, codebench));
                     });
                 }
                 Err(_) => node.set_text_content(Some(&md)),

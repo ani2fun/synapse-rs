@@ -164,11 +164,16 @@ fn LessonBody(lesson: RwSignal<AsyncResult<LessonPayloadDto>>, segments: Vec<Str
     }
 }
 
+// The reader's cohesive hydration wiring: capture stores in-tree, render the body, then
+// hand each placeholder family to its hydrator. One unit on purpose (the oracle keeps
+// `MarkdownView.mountBlocks` whole too).
+#[allow(clippy::too_many_lines)]
 fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> AnyView {
     // Captured IN-TREE: hydrated blocks mount out-of-tree and cannot reach App's context.
     let auth = crate::identity::state::AuthStore::from_context();
     let theme = crate::shell::theme::ThemeStore::from_context();
     let viz_modal = crate::viz::modal::VizModalStore::from_context();
+    let codebench = crate::execution::view::CodebenchStore::from_context();
     // The C4 click-to-guide seam: bridges in the embeds set it; the docs panel reads it.
     let c4_selected: RwSignal<Option<String>> = RwSignal::new(None);
     // The Coach's editor snapshot — filled by the hydrated workbench on mount + every edit.
@@ -211,6 +216,7 @@ fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> AnyView {
                 );
                 handles.extend(crate::catalog::view::diagrams::hydrate_diagrams(&body));
                 handles.extend(crate::quiz::hydrate_quizzes(&body));
+                handles.extend(crate::execution::view::hydrate_codebench_pills(&body, codebench));
                 handles.extend(crate::catalog::view::c4::hydrate_c4_embeds(&body, c4_selected));
                 handles.extend(crate::execution::view::hydrate_practices(
                     &body,
@@ -219,6 +225,7 @@ fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> AnyView {
                     code_ctx,
                     theme,
                     viz_modal,
+                    codebench,
                 ));
                 // The viz widgets (step 27): every planted `div.viz-widget` mounts a host.
                 for (element, spec) in crate::viz::blocks::discover(&body) {

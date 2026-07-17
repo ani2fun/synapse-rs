@@ -43,12 +43,14 @@
 .wb__ghost:hover { border-color: hsl(var(--primary)); color: hsl(var(--primary)); }
 .wb__ghost--live { background: hsl(var(--primary) / 0.15); border-color: hsl(var(--primary)); color: hsl(var(--primary)); }
 
-/* Instant tooltip (oracle: native title is too slow + hidden on disabled controls). */
+/* Instant tooltip (oracle: native title is too slow + hidden on disabled controls).
+   It drops BELOW the button: the toolbar is the pane's first row, and an above-tooltip
+   clips against the scroll container's top edge. */
 .wb__tip { position: relative; display: inline-flex; }
 .wb__tip:hover::after {
   content: attr(data-tip);
   position: absolute;
-  bottom: calc(100% + 6px);
+  top: calc(100% + 6px);
   right: 0;
   white-space: nowrap;
   background: hsl(var(--foreground));

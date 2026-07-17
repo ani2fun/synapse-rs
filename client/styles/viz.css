@@ -148,9 +148,11 @@
 .viz-frame__local--changed .viz-frame__local-value { color: hsl(var(--primary)); font-weight: 600; }
 .viz-frame__local-name { color: hsl(var(--foreground)); }
 .viz-frame__local-type { color: hsl(var(--muted-foreground)); font-size: 0.7rem; }
-.viz-frame__local-value { margin-left: auto; color: hsl(var(--muted-foreground));
-                          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-                          max-width: 16rem; }
+/* The value owns ALL remaining row width (the previews got wider — adapt shows up to 12
+   list elements); whatever still overflows ellipsizes. */
+.viz-frame__local-value { flex: 1 1 auto; min-width: 0; text-align: right;
+                          color: hsl(var(--muted-foreground));
+                          overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ── legend (modal only; oracle DomKit.legend — inline colors, circle swatches) ── */
 .viz-legend { display: flex; flex-wrap: wrap; gap: 14px; border-top: 1px solid hsl(var(--border));

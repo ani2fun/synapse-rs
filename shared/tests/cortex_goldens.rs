@@ -33,9 +33,12 @@ fn golden(name: &str) -> VizCases {
     serde_json::from_str(&json).unwrap()
 }
 
-/// The three deliberate deltas, erased on BOTH sides before compare (ADR-S030):
+/// The FOUR deliberate deltas, erased on BOTH sides before compare (ADR-S030 + one of ours):
 /// `structureType` (chrome inference deleted) · `cardCursor` (`ArrowLayer` cut) ·
-/// `unchanged` (gained edges — delta #8).
+/// `unchanged` (gained edges — delta #8) · frame locals' `value` AND `changed` (the list
+/// preview widened from the oracle's 3 elements to 12 — user ask 2026-07-17 — which also
+/// lets `changed` see mutations past index 2 that the narrow preview MASKED; the goldens
+/// stay the oracle's verbatim exports, and the new behavior is pinned by its own test below).
 fn normalize(cases: &VizCases) -> VizCases {
     VizCases {
         cases: cases
@@ -49,6 +52,22 @@ fn normalize(cases: &VizCases) -> VizCases {
                         structure_type: None,
                         card_cursor: Vec::new(),
                         unchanged: false,
+                        frames: s
+                            .frames
+                            .iter()
+                            .map(|f| synapse_shared::viz::graph::VizFrame {
+                                locals: f
+                                    .locals
+                                    .iter()
+                                    .map(|l| synapse_shared::viz::graph::VizLocal {
+                                        value: String::new(),
+                                        changed: false,
+                                        ..l.clone()
+                                    })
+                                    .collect(),
+                                ..f.clone()
+                            })
+                            .collect(),
                         ..s.clone()
                     })
                     .collect(),
@@ -56,6 +75,35 @@ fn normalize(cases: &VizCases) -> VizCases {
             })
             .collect(),
     }
+}
+
+/// The widened preview, pinned: a fixture whose trace holds a long list must render more
+/// than three elements in the frame local (the oracle showed `[0, 0, 0, …]`; we show up to
+/// 12 before the `…`).
+#[test]
+fn frame_local_lists_preview_twelve_elements() {
+    let fixture = fixtures()
+        .into_iter()
+        .find(|f| f.name == "bitset")
+        .expect("the bitset fixture (an 8-element list local)");
+    let cases = adapt::adapt(
+        &fixture.trace,
+        &fixture.source,
+        &fixture.layout_hint,
+        fixture.root_hint.as_deref(),
+        None,
+        &fixture.title,
+    )
+    .unwrap();
+    let value = &cases.cases[0].steps[0].frames[0].locals[0].value;
+    assert_eq!(
+        value, "[0, 0, 0, 0, 0, 0, 0, 0]",
+        "all eight elements shown — no premature ellipsis"
+    );
+    // The knock-on the oracle's narrow preview masked: bits[4] mutates at step 2, past the
+    // old 3-element window — the local must now report `changed`.
+    let local = &cases.cases[0].steps[2].frames[0].locals[0];
+    assert!(local.changed, "a mutation past index 2 marks the local changed");
 }
 
 fn canonical(cases: &VizCases) -> String {

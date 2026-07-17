@@ -682,7 +682,7 @@ fn sync_editor(mounted: StoredValue<Option<MountedEditor>, LocalStorage>, store:
 }
 
 #[component]
-fn Output(
+pub(crate) fn Output(
     state: Signal<ExecutorState>,
     spec: Option<StoredValue<TestSpec>>,
     tests: Option<TestsState>,

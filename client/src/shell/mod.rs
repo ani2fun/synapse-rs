@@ -25,6 +25,7 @@ pub fn App() -> impl IntoView {
     crate::search::state::SearchStore::provide();
     ThemeStore::provide();
     crate::viz::modal::VizModalStore::provide();
+    crate::execution::view::CodebenchStore::provide();
     view! {
         <Router>
             <RouteTrace />
@@ -56,6 +57,7 @@ pub fn App() -> impl IntoView {
             </main>
             <SearchPalette />
             <crate::viz::modal::VisualiseModal />
+            <crate::execution::view::CodebenchModal />
         </Router>
     }
 }

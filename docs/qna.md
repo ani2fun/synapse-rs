@@ -115,3 +115,12 @@ island produces a valid SVG from raw source; re-navigation renders identically. 
 scroll→render trigger couldn't be driven in the headless browser pane (its IntersectionObserver
 is frozen — the same limitation as option B), but the render path + the proven `watch_near`
 wiring cover it in a real browser. 363 rust + 45 vitest; bundle 629/700.
+
+**Fix follow-up (same day).** The first cut showed white boxes — two bugs the headless
+verification missed: (1) the viewport-lazy IntersectionObserver gate left diagrams unrendered
+(the observer's `near` never reliably flipped true for the reader), and (2) the module-level
+reused `D2()` instance DEADLOCKS on concurrent compiles (3 diagrams rendering at once hung it
+— verified). Both fixed: d2 now renders EAGERLY at mount like mermaid (each diagram in its own
+task, concurrent), with a FRESH `new D2()` per render (only the multi-MB WASM import is cached).
+Prose-first is preserved — it comes from d2 being off the PARSE path, not from the laziness.
+Verified: all 3 d2 diagrams render with real viewBoxes (879×391, 192×208, 459×869), no hangs.

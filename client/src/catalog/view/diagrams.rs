@@ -1,11 +1,12 @@
 //! Authored-diagram hydration (oracle: `DiagramBlocks` + `MermaidView`/`D2View` +
 //! `DiagramZoom`): `.mermaid-block` AND `.d2-block`/`.d2-slideshow` placeholders carry their
-//! RAW SOURCE and render through the lazy `@diagram` island on the CLIENT — d2 no longer
-//! renders at parse time (prose-first refactor 2026-07-17), so the multi-MB d2 WASM loads
-//! only when a diagram nears the viewport and prose paints immediately. Every rendered figure
-//! gets the Enlarge affordance → the near-fullscreen zoom overlay (wheel zoom · drag pan ·
-//! − ⟲ + controls). House rule: the diagram chrome — Enlarge on the card AND Close in the
-//! overlay — sits top-LEFT (LikeC4 owns top-right).
+//! RAW SOURCE and render through the lazy `@diagram` island on the CLIENT at mount — d2 no
+//! longer renders at parse time (prose-first refactor 2026-07-17), so the pipeline returns as
+//! soon as prose + shiki finish and the multi-MB d2 WASM loads only on a lesson that has a d2
+//! diagram; each diagram renders in its own task (concurrent). Every rendered figure gets the
+//! Enlarge affordance → the near-fullscreen zoom overlay (wheel zoom · drag pan · − ⟲ +
+//! controls). House rule: the diagram chrome — Enlarge on the card AND Close in the overlay —
+//! sits top-LEFT (LikeC4 owns top-right).
 
 use std::any::Any;
 
@@ -13,7 +14,6 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use wasm_bindgen::JsCast;
 
-use crate::execution::view::lazy::{self, NearWatch};
 use crate::islands::diagram;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -120,33 +120,22 @@ fn MermaidCard(source: String) -> impl IntoView {
 }
 
 /// A single ` ```d2 ` fence: raw source → SVG via the lazy `@diagram` island, rendered on the
-/// CLIENT only when the card nears the viewport (so the multi-MB d2 WASM never blocks prose).
-/// A malformed diagram becomes the loud error card with the raw source — never a blank figure.
+/// CLIENT at mount (each diagram in its own task — concurrent, and OFF the parse-time path, so
+/// the multi-MB d2 WASM never blocks prose). Mirrors `MermaidCard`. A malformed diagram becomes
+/// the loud error card with the raw source — never a blank figure.
 #[component]
 fn D2Card(source: String) -> impl IntoView {
-    let root_ref: NodeRef<leptos::html::Div> = NodeRef::new();
     let figure_ref: NodeRef<leptos::html::Div> = NodeRef::new();
     let svg_html: RwSignal<Option<String>> = RwSignal::new(None);
     let failed: RwSignal<Option<String>> = RwSignal::new(None);
-    let near = RwSignal::new(false);
-    let started = RwSignal::new(false);
-    let watch: StoredValue<Option<NearWatch>, LocalStorage> = StoredValue::new_local(None);
-
-    // Arm the near-viewport observer once the root exists.
-    Effect::new(move |_| {
-        let Some(node) = root_ref.get() else { return };
-        if watch.read_value().is_none() {
-            watch.set_value(lazy::watch_near(&node, near));
-        }
-    });
-    // Render once, the moment the card first nears the viewport (latched by `started`).
     let render_source = source.clone();
-    Effect::new(move |_| {
-        if started.get() || !near.get() {
-            return;
+    Effect::new(move |ran: Option<bool>| {
+        if ran == Some(true) {
+            return true;
         }
-        let Some(node) = figure_ref.get() else { return };
-        started.set(true);
+        let Some(node) = figure_ref.get() else {
+            return false;
+        };
         let src = render_source.clone();
         spawn_local(async move {
             match diagram::render_d2(&src).await {
@@ -157,8 +146,8 @@ fn D2Card(source: String) -> impl IntoView {
                 Err(error) => failed.set(Some(format!("{error:?}"))),
             }
         });
+        true
     });
-    on_cleanup(move || watch.set_value(None));
 
     view! {
         {move || {
@@ -175,7 +164,7 @@ fn D2Card(source: String) -> impl IntoView {
                 }
             })
         }}
-        <div class="diagram not-prose" class:hidden=move || failed.get().is_some() node_ref=root_ref>
+        <div class="diagram not-prose" class:hidden=move || failed.get().is_some()>
             <ZoomAffordance svg_html=svg_html />
             <div class="diagram__figure" node_ref=figure_ref></div>
         </div>
@@ -190,27 +179,16 @@ fn D2Slideshow(slides: Vec<String>) -> impl IntoView {
     let count = slides.len();
     let idx = RwSignal::new(0_usize);
     let sources = StoredValue::new(slides);
-    // Rendered SVGs by slide index — render each once, reuse thereafter.
+    // Rendered SVGs by slide index — render each once (at mount, and on first step to it), reuse
+    // thereafter. Off the parse path, so the card renders after prose paints.
     let rendered: StoredValue<Vec<Option<String>>, LocalStorage> = StoredValue::new_local(vec![None; count]);
     let figure_ref: NodeRef<leptos::html::Div> = NodeRef::new();
-    let root_ref: NodeRef<leptos::html::Div> = NodeRef::new();
     let svg_html: RwSignal<Option<String>> = RwSignal::new(None);
-    let near = RwSignal::new(false);
-    let bump = RwSignal::new(0_u32); // ticks when a lazily-rendered slide lands
-    let watch: StoredValue<Option<NearWatch>, LocalStorage> = StoredValue::new_local(None);
+    let bump = RwSignal::new(0_u32); // ticks when a rendered slide lands
 
-    Effect::new(move |_| {
-        let Some(node) = root_ref.get() else { return };
-        if watch.read_value().is_none() {
-            watch.set_value(lazy::watch_near(&node, near));
-        }
-    });
-    // Show the active slide: paint its cached SVG if we have it, else render it (once near).
+    // Show the active slide: paint its cached SVG if we have it, else render it.
     Effect::new(move |_| {
         bump.track();
-        if !near.get() {
-            return;
-        }
         let i = idx.get().min(count - 1);
         let Some(node) = figure_ref.get() else { return };
         if let Some(svg) = rendered.read_value()[i].clone() {
@@ -226,9 +204,8 @@ fn D2Slideshow(slides: Vec<String>) -> impl IntoView {
             }
         });
     });
-    on_cleanup(move || watch.set_value(None));
     view! {
-        <div class="diagram diagram--slides not-prose" node_ref=root_ref>
+        <div class="diagram diagram--slides not-prose">
             <ZoomAffordance svg_html=svg_html />
             <div class="diagram__figure" node_ref=figure_ref></div>
             <div class="transport">

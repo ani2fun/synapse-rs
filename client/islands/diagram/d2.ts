@@ -9,20 +9,11 @@
 // diagram per spawn_local (concurrent) and only when a diagram nears the
 // viewport — so the multi-MB d2 WASM loads lazily and prose paints first.
 
-import type { D2 as D2Type } from "@terrastruct/d2";
-
-// One D2 instance, reused across every diagram on the page (compile+render are
-// stateless per call — `salt` isolates element ids). The multi-MB WASM is
-// dynamic-imported once; the module cache keeps subsequent diagrams cheap.
-let enginePromise: Promise<D2Type> | null = null;
+// A FRESH D2 instance per render. A single module-level instance CANNOT serve concurrent
+// compiles — several diagrams rendering at once (each its own task) deadlock it (verified:
+// 3 concurrent calls hang). The multi-MB WASM is dynamic-imported once (module-cached); only
+// the cheap `new D2()` is per-call, exactly as the old parse-time path did it.
 let salt = 0;
-
-async function engine(): Promise<D2Type> {
-  if (!enginePromise) {
-    enginePromise = import("@terrastruct/d2").then(({ D2 }) => new D2());
-  }
-  return enginePromise;
-}
 
 /**
  * Compile + render one d2 diagram to an SVG string.
@@ -36,7 +27,8 @@ async function engine(): Promise<D2Type> {
  * show a visible `.diagram-error` card, never a blank figure.
  */
 export async function renderD2Source(source: string): Promise<string> {
-  const d2 = await engine();
+  const { D2 } = await import("@terrastruct/d2");
+  const d2 = new D2();
   salt += 1;
   const result = await d2.compile(source, { layout: "dagre" });
   return d2.render(result.diagram, {

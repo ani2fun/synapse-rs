@@ -63,3 +63,10 @@ chrome), and needs no content migration. B is a contained follow-up that only pa
 once lessons carry many `run` blocks — measure first, since today's pages hold 1–3. The
 Esc rule is already app-wide (viz modal, diagram zoom, practice enlarge, drawer); the
 codebench simply joins it.
+
+**Outcome (same day).** The user chose **B** — built as `execution/view/lazy.rs` +
+the `RunnableBlock` lazy wiring (commit `2197117`): shiki placeholder (the island's new
+`highlightCode`) until near-viewport (600px margin) or first interaction; a page-level
+registry caps live instances at 3, evicting the oldest FAR editor losslessly (state in
+`BlockStore`; re-mounts restore the ACTIVE variant + unlock). If `IntersectionObserver`
+is unavailable the block mounts eagerly. Option A (the popup codebench) remains open.

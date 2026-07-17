@@ -44,8 +44,7 @@
 .badge { font-size: 0.75rem; color: hsl(var(--primary)); }
 
 /* ── reader scaffolding ── */
-.reader { display: grid; grid-template-columns: 16rem 1fr; gap: 1.5rem; }
-.reader-sidebar { border-right: 1px solid hsl(var(--border)); padding-right: 1rem; }
+/* The reader grid moved to reader.css (.reader-layout, step 36). */
 .sidebar-book { font-size: 0.95rem; color: hsl(var(--primary)); }
 .sidebar-lessons { list-style: none; padding: 0; margin: 0; }
 .sidebar-lessons li { padding: 0.2rem 0.4rem; border-radius: var(--radius-sm); }

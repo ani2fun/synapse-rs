@@ -9,7 +9,8 @@
                    margin: 1.25rem 0; display: flex; flex-direction: column; gap: 0.5rem; }
 .viz-widget-host__title { font-weight: 600; font-size: 0.9rem; color: hsl(var(--foreground)); }
 .viz-widget-host__canvas { display: flex; overflow: auto; }
-.viz-widget-host__scale { width: max-content; min-width: 100%; margin: auto; }
+.viz-widget-host__scale { width: max-content; min-width: 100%; margin: auto;
+                          display: flex; flex-direction: column; align-items: center; }
 .viz-widget-host__caption { color: hsl(var(--muted-foreground)); text-align: center;
                             font-size: 0.85rem; min-height: 1.2em; }
 .viz-widget-host--unavailable { color: hsl(var(--muted-foreground)); font-size: 0.875rem; }

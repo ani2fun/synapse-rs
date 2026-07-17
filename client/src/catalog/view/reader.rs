@@ -7,7 +7,7 @@ use leptos_router::hooks::use_params_map;
 use synapse_shared::catalog::LessonPayloadDto;
 
 use crate::api::AsyncResult;
-use crate::catalog::{logic, state};
+use crate::catalog::state;
 use crate::islands;
 use crate::router::page::Page;
 
@@ -18,12 +18,31 @@ pub fn LessonPage() -> impl IntoView {
     // everything below keys off it (fetch-per-navigation, oracle semantics).
     let path = Memo::new(move |_| Page::segments_of(&params.read().get("path").unwrap_or_default()));
 
+    // The shared chrome state (oracle: LessonPage's Vars): one scroll handler feeds the
+    // progress bar, sticky bar, minimap, TOC, and the Compact rail's ring.
+    let chrome = super::chrome::ChromeState::new();
+    provide_context(chrome);
+    let scrolled = window_event_listener(leptos::ev::scroll, move |_| chrome.recompute());
+    on_cleanup(move || scrolled.remove());
+    Effect::new(move |_| {
+        chrome.headings.track();
+        chrome.recompute();
+    });
+
+    let mode = RwSignal::new(super::sidebar::SidebarMode::load());
+
     view! {
-        <div class="reader">
+        <super::chrome::ReadingProgress chrome=chrome />
+        <super::chrome::StickyBar chrome=chrome />
+        <div
+            class="reader-layout"
+            class:reader-layout--problem=move || chrome.is_problem.get()
+            data-sidebar=move || mode.get().token()
+        >
             <aside class="reader-sidebar">
-                <Sidebar path=path />
+                <super::sidebar::ReaderSidebar path=path mode=mode progress=chrome.progress />
             </aside>
-            <article class="reader-main">
+            <article class="reader-layout__main">
                 {move || {
                     let segments = path.get();
                     let lesson = state::load_lesson(segments.clone());
@@ -31,9 +50,34 @@ pub fn LessonPage() -> impl IntoView {
                 }}
             </article>
         </div>
+        <super::chrome::MiniMap chrome=chrome />
+        <super::chrome::TocFab chrome=chrome />
+        <super::chrome::FocusFab />
+        <super::chrome::ScrollTop chrome=chrome />
+        // The floating expand affordance for the Hidden sidebar.
+        <button
+            class=move || {
+                if mode.get() == super::sidebar::SidebarMode::Hidden {
+                    "reader-expand"
+                } else {
+                    "reader-expand reader-expand--hidden"
+                }
+            }
+            aria-label="Show the sidebar"
+            on:click=move |_| {
+                mode.set(super::sidebar::SidebarMode::Expanded);
+                super::sidebar::SidebarMode::Expanded.persist();
+            }
+        >
+            <svg class="reader-expand__ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect width="18" height="18" x="3" y="3" rx="2"></rect>
+                <path d="M9 3v18 M14 9l3 3-3 3"></path>
+            </svg>
+        </button>
         // OUTSIDE the grid on purpose (oracle step-38 prod bug): the drawer's in-flow
         // wrapper would otherwise become a phantom third grid item at desktop width.
-        <ReaderNavDrawer path=path />
+        <ReaderNavDrawer path=path chrome_progress=chrome.progress />
     }
 }
 
@@ -41,8 +85,9 @@ pub fn LessonPage() -> impl IntoView {
 /// (<1024px only — the desktop sidebar hides there) opens an off-canvas drawer reusing the
 /// SAME `Sidebar`, always expanded. Three closes: scrim, Escape, any nav-link tap.
 #[component]
-fn ReaderNavDrawer(path: Memo<Vec<String>>) -> impl IntoView {
+fn ReaderNavDrawer(path: Memo<Vec<String>>, chrome_progress: RwSignal<f64>) -> impl IntoView {
     let open = RwSignal::new(false);
+    let drawer_mode = RwSignal::new(super::sidebar::SidebarMode::Expanded);
     let esc = window_event_listener(leptos::ev::keydown, move |event| {
         if event.key() == "Escape" && open.get_untracked() {
             open.set(false);
@@ -92,82 +137,17 @@ fn ReaderNavDrawer(path: Memo<Vec<String>>) -> impl IntoView {
                                 "✕"
                             </button>
                         </div>
-                        <Sidebar path=path />
+                        <super::sidebar::ReaderSidebar
+                            path=path
+                            mode=drawer_mode
+                            progress=chrome_progress
+                            in_drawer=true
+                        />
                     </aside>
                 </div>
             })}
         </div>
     }
-}
-
-#[component]
-fn Sidebar(path: Memo<Vec<String>>) -> impl IntoView {
-    let index = state::CatalogStore::from_context().index();
-    // The owning book changes only across books — memoized so lesson→lesson navigation inside
-    // one book re-renders nothing but the per-item `current` classes below.
-    let book = Memo::new(move |_| match index.get() {
-        AsyncResult::Loaded(idx) => logic::book_of(&idx, &path.get()).cloned(),
-        AsyncResult::Loading | AsyncResult::Failed(_) => None,
-    });
-    view! {
-        {move || {
-            book.get()
-                .map(|book| {
-                    let prefix = logic::book_prefix(&book);
-                    let items = sidebar_entries(&book.entries, &prefix, path);
-                    view! {
-                        <nav>
-                            <h2 class="sidebar-book">{book.title.clone()}</h2>
-                            <ul class="sidebar-lessons">{items}</ul>
-                        </nav>
-                    }
-                })
-        }}
-    }
-}
-
-/// One book-interior level: lessons link; chapters are COLLAPSIBLE groups (post-33 `a95e3fb`),
-/// open when they contain the current lesson so navigation always lands unfolded.
-fn sidebar_entries(
-    entries: &[synapse_shared::catalog::BookEntryDto],
-    prefix: &[String],
-    path: Memo<Vec<String>>,
-) -> Vec<AnyView> {
-    use synapse_shared::catalog::BookEntryDto;
-    entries
-        .iter()
-        .map(|entry| match entry {
-            BookEntryDto::Lesson(lesson) => {
-                let mut segments = prefix.to_vec();
-                segments.push(lesson.slug.clone());
-                let full = segments.join("/");
-                let href = format!("/synapse/{full}");
-                // Fine-grained: each item tracks the path itself.
-                let is_current = Memo::new(move |_| path.get().join("/") == full);
-                view! {
-                    <li class:current=move || is_current.get()>
-                        <a href=href>{lesson.title.clone()}</a>
-                    </li>
-                }
-                .into_any()
-            }
-            BookEntryDto::Chapter(chapter) => {
-                let mut segments = prefix.to_vec();
-                segments.push(chapter.slug.clone());
-                let contains_current = path.get_untracked().join("/").starts_with(&segments.join("/"));
-                let children = sidebar_entries(&chapter.entries, &segments, path);
-                view! {
-                    <li class="sidebar-chapter">
-                        <details open=contains_current>
-                            <summary class="sidebar-chapter__title">{chapter.title.clone()}</summary>
-                            <ul class="sidebar-lessons">{children}</ul>
-                        </details>
-                    </li>
-                }
-                .into_any()
-            }
-        })
-        .collect()
 }
 
 #[component]
@@ -200,6 +180,7 @@ fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> impl IntoVi
     let html = RwSignal::new(String::from("<p>rendering…</p>"));
     let body_ref: NodeRef<leptos::html::Div> = NodeRef::new();
     let mounts: StoredValue<Vec<Box<dyn std::any::Any>>, LocalStorage> = StoredValue::new_local(Vec::new());
+    let chrome_ctx = use_context::<crate::catalog::view::chrome::ChromeState>();
     let raw = payload.raw.clone();
     let owned_segments = segments.to_vec();
     let panel_segments = segments.to_vec();
@@ -214,6 +195,11 @@ fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> impl IntoVi
                     return;
                 };
                 body.set_inner_html(&rendered);
+                if let Some(chrome) = chrome_ctx {
+                    chrome
+                        .headings
+                        .set(crate::catalog::view::chrome::harvest_headings(&body));
+                }
                 let mut handles = crate::execution::view::hydrate_workbenches(
                     &body,
                     &owned_segments,
@@ -252,31 +238,59 @@ fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> impl IntoVi
     });
     on_cleanup(move || mounts.set_value(Vec::new()));
 
-    let nav_link = |target: &Option<String>, label: &'static str, class: &'static str| {
-        target.clone().map(|path| {
-            view! { <a class=class href=format!("/synapse/{path}")>{label}</a> }
-        })
-    };
     // Problem pages go full width (post-33 `a95e3fb`) — the workbench needs the column.
     let is_problem = payload.frontmatter.kind.as_deref() == Some("problem");
     let problem_path = is_problem.then_some(problem_path_source);
+    if let Some(chrome) = use_context::<crate::catalog::view::chrome::ChromeState>() {
+        chrome.title.set(payload.frontmatter.title.clone());
+        chrome.is_problem.set(is_problem);
+    }
     view! {
         <div class="lesson" class:lesson--problem=is_problem>
             <header class="lesson-header">
-                <p class="lesson-book muted">{payload.book.title.clone()}</p>
-                <h1>{payload.frontmatter.title.clone()}</h1>
-                {payload.frontmatter.summary.clone().map(|s| view! { <p class="lesson-summary">{s}</p> })}
+                <a class="reader-prose__back" href="/">"← Library"</a>
+                <h1 class="reader-prose__title">{payload.frontmatter.title.clone()}</h1>
+                {payload.frontmatter.summary.clone().map(|s| view! { <p class="reader-prose__lede">{s}</p> })}
             </header>
             <div class="lesson-body synapse-prose" node_ref=body_ref inner_html=move || html.get()></div>
             {is_problem.then(|| view! {
                 <crate::tutoring::CoachPane problem=problem_path.clone() code_ctx=code_ctx />
             })}
-            <nav class="lesson-nav">
-                {nav_link(&payload.prev, "← Previous", "nav-prev")}
-                {nav_link(&payload.next, "Next →", "nav-next")}
+            <nav class="reader-pager">
+                {pager_card(payload.prev.as_deref(), "Previous", false)}
+                {pager_card(payload.next.as_deref(), "Next", true)}
             </nav>
             <super::c4_docs::C4DocsPanel selected=c4_selected lesson=panel_segments />
             <super::ReaderPrefsFab />
         </div>
     }
+}
+
+/// A pager card: label eyebrow + the humanized target title (oracle: `.reader-pager__card`).
+fn pager_card(target: Option<&str>, label: &'static str, next: bool) -> Option<impl IntoView + use<>> {
+    let path = target?.to_owned();
+    let title = path
+        .rsplit('/')
+        .next()
+        .unwrap_or(&path)
+        .split('-')
+        .map(|w| {
+            let mut chars = w.chars();
+            chars.next().map_or_else(String::new, |f| {
+                f.to_uppercase().collect::<String>() + chars.as_str()
+            })
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+    let class = if next {
+        "reader-pager__card reader-pager__card--next"
+    } else {
+        "reader-pager__card"
+    };
+    Some(view! {
+        <a class=class href=format!("/synapse/{path}")>
+            <span class="reader-pager__label">{label}</span>
+            <span class="reader-pager__title">{title}</span>
+        </a>
+    })
 }

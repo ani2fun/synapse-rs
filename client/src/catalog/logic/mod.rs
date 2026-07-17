@@ -103,3 +103,79 @@ pub fn resolve_c4_node(path: &[C4PathHop]) -> Option<String> {
 #[cfg(test)]
 #[path = "logic_tests.rs"]
 mod tests;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SIDEBAR FILTER (oracle: SidebarFilter) — case-insensitive substring on titles.
+// A matching chapter keeps ALL its lessons; otherwise it survives only through
+// surviving descendants.
+// ─────────────────────────────────────────────────────────────────────────────
+
+pub fn prune_entries(entries: &[BookEntryDto], query: &str) -> Vec<BookEntryDto> {
+    fn walk(entries: &[BookEntryDto], needle: &str) -> Vec<BookEntryDto> {
+        entries
+            .iter()
+            .filter_map(|entry| match entry {
+                BookEntryDto::Lesson(lesson) => lesson
+                    .title
+                    .to_lowercase()
+                    .contains(needle)
+                    .then(|| entry.clone()),
+                BookEntryDto::Chapter(chapter) => {
+                    if chapter.title.to_lowercase().contains(needle) {
+                        return Some(entry.clone());
+                    }
+                    let kids = walk(&chapter.entries, needle);
+                    (!kids.is_empty()).then(|| {
+                        BookEntryDto::Chapter(synapse_shared::catalog::ChapterDto {
+                            entries: kids,
+                            ..chapter.clone()
+                        })
+                    })
+                }
+            })
+            .collect()
+    }
+    let needle = query.trim().to_lowercase();
+    if needle.is_empty() {
+        return entries.to_vec();
+    }
+    walk(entries, &needle)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MINIMAP SPREAD (oracle: ReaderMiniMap.spread) — de-overlap heading fractions:
+// min gap 0.05 (capped 1/(n+1)); forward pass pushes apart, backward clamps.
+// ─────────────────────────────────────────────────────────────────────────────
+
+pub fn spread_fractions(fractions: &[f64]) -> Vec<f64> {
+    let n = fractions.len();
+    if n == 0 {
+        return Vec::new();
+    }
+    #[allow(clippy::cast_precision_loss)]
+    let gap = f64::min(0.05, 1.0 / (n as f64 + 1.0));
+    let mut out: Vec<f64> = fractions.to_vec();
+    out.sort_by(f64::total_cmp);
+    for i in 1..n {
+        if out[i] < out[i - 1] + gap {
+            out[i] = out[i - 1] + gap;
+        }
+    }
+    for i in (0..n).rev() {
+        let ceiling = 1.0 - gap - {
+            #[allow(clippy::cast_precision_loss)]
+            let above = (n - 1 - i) as f64;
+            above * gap
+        };
+        if out[i] > ceiling {
+            out[i] = ceiling;
+        }
+        if i > 0 && out[i] < out[i - 1] + gap {
+            out[i - 1] = out[i] - gap;
+        }
+    }
+    for value in &mut out {
+        *value = value.clamp(gap, 1.0 - gap);
+    }
+    out
+}

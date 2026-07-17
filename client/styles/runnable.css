@@ -62,14 +62,14 @@
 .runnable__run {
   font-size: 0.8rem;
   font-weight: 600;
-  color: hsl(var(--primary) / 0.08);
+  color: hsl(var(--primary-foreground));
   background: hsl(var(--primary));
   border: none;
   border-radius: 0.4rem;
   padding: 0.25rem 0.75rem;
   cursor: pointer;
 }
-.runnable__run:hover { background: hsl(var(--primary)); }
+.runnable__run:hover { filter: brightness(1.08); }
 .runnable__run:disabled { opacity: 0.6; cursor: default; }
 
 .runnable__editor { position: relative; }

@@ -121,3 +121,32 @@ fn edges_and_token_substrings_never_resolve() {
     let empty_id = vec![hop("DIV", "react-flow__node", Some(""))];
     assert_eq!(resolve_c4_node(&empty_id), None);
 }
+
+#[test]
+fn prune_keeps_matching_lessons_and_whole_matching_chapters() {
+    let entries = book().entries;
+    let hits = prune_entries(&entries, "singly");
+    assert_eq!(hits.len(), 1);
+    match &hits[0] {
+        BookEntryDto::Chapter(c) => assert_eq!(c.entries.len(), 1),
+        BookEntryDto::Lesson(_) => panic!("expected the surviving chapter"),
+    }
+    // A matching CHAPTER title keeps all its lessons.
+    let all = prune_entries(&entries, "lists");
+    match &all[0] {
+        BookEntryDto::Chapter(c) => assert_eq!(c.entries.len(), 1),
+        BookEntryDto::Lesson(_) => panic!("expected the chapter"),
+    }
+    assert!(prune_entries(&entries, "zzz").is_empty());
+    assert_eq!(prune_entries(&entries, "  ").len(), entries.len());
+}
+
+#[test]
+fn spread_de_overlaps_and_clamps_fractions() {
+    let out = spread_fractions(&[0.10, 0.11, 0.12]);
+    assert!(out[1] - out[0] >= 0.05 - 1e-9);
+    assert!(out[2] - out[1] >= 0.05 - 1e-9);
+    let edges = spread_fractions(&[0.0, 1.0]);
+    assert!(edges[0] >= 0.05 - 1e-9 && edges[1] <= 0.95 + 1e-9);
+    assert!(spread_fractions(&[]).is_empty());
+}

@@ -63,3 +63,4 @@ introduced the feature, never as later afterthoughts.
 | 33 | `step-33` | [The mobile drawer + LikeC4 chrome](33-mobile-drawer-and-c4-chrome.md) | 2026-07-17 |
 | 34 | `step-34` | [C4 click-to-guide](34-c4-click-to-guide.md) | 2026-07-17 |
 | 35 | `step-35` | [The production build](35-the-production-build.md) | 2026-07-17 |
+| 36 | `step-36` | [The reader chrome](36-the-reader-chrome.md) | 2026-07-17 |

@@ -67,3 +67,11 @@ introduced the feature, never as later afterthoughts.
 | 37 | `step-37` | [The problem page](37-the-problem-page.md) | 2026-07-17 |
 | 38 | `step-38` | [Toolbar + modal parity](38-toolbar-and-modal-parity.md) | 2026-07-17 |
 | 39 | `step-39` | [The ten-item polish list](39-the-polish-list.md) | 2026-07-17 |
+| 40 | `step-40` | [The page budget](40-the-page-budget.md) | 2026-07-18 |
+
+> **Step 40's shape.** Every step through 39 is one squashed commit. Step 40 is eleven
+> (`c9b302f..HEAD`): its work was interactive — a design question, two answers built and kept,
+> a performance diagnosis, and the fixes that followed — and each commit was pushed to public
+> `main` as it landed. Squashing after the fact would rewrite published history, so the tag
+> simply marks the tip. The invariant that matters is untouched: `step-40` compiles and its
+> tests pass.

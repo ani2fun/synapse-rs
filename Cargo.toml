@@ -16,7 +16,13 @@ utoipa = "5"
 # ── server ──
 axum = "0.8"
 thiserror = "2"
-reqwest = { version = "0.12", default-features = false, features = ["json"] }
+# `rustls-tls` is REQUIRED, not a preference. With `default-features = false` reqwest compiles in
+# NO TLS backend, and every https:// request dies at the connector with "invalid URL, scheme is not
+# http". That shipped to production: in dev every outbound call is plain http (go-judge, Ollama,
+# the local Keycloak), so the only https caller is the PRODUCTION JWKS fetch — sign-in 503'd on the
+# live site while every test stayed green. rustls bundles its own roots, so this holds even in an
+# image with no ca-certificates. Pinned by `outbound_tls_it`.
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 regex = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }
 tracing = "0.1"

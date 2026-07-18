@@ -284,12 +284,14 @@ body:has(.reader-sticky[data-on="true"]) .reader-expand { top: 120px; }
 .reader-sidebar__eyebrow { font-family: var(--font-mono); font-size: 11px;
                            text-transform: uppercase; letter-spacing: 0.14em;
                            color: hsl(var(--muted-foreground)); }
-/* Books are titles, not list items — bold and teal so the browse view reads as a shelf
-   rather than one flat run of links indistinguishable from a book's own lessons. */
+/* Books are titles, not list items — the WEIGHT is what separates them from the lesson rows
+   inside a book. Same --foreground as the category headers above them, not the accent: teal
+   is the reader's "you are here / this is live" signal, and spending it on every book made a
+   shelf of nine look like nine selections. Hover borrows it the way the categories do. */
 .reader-sidebar__book { display: block; padding: 6px 8px; border-radius: 6px; font-size: 14px;
                         line-height: 1.35; text-decoration: none; font-weight: 600;
-                        color: hsl(var(--primary)); }
-.reader-sidebar__book:hover { background: hsl(var(--primary) / 0.1); }
+                        color: hsl(var(--foreground)); }
+.reader-sidebar__book:hover { color: hsl(var(--primary)); background: hsl(var(--secondary) / 0.5); }
 .reader-sidebar__book--active { background: hsl(var(--card));
                                 border-left: 2px solid hsl(var(--primary));
                                 padding-left: calc(0.5rem - 2px); }

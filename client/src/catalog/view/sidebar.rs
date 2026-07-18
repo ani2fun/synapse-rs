@@ -208,6 +208,26 @@ fn book_children(
     }
 }
 
+/// One lesson row, keyed on its full path so the active mark survives re-renders.
+fn lesson_link(segments: &[String], title: &str, path: Memo<Vec<String>>) -> AnyView {
+    let full = segments.join("/");
+    let href = format!("/synapse/{full}");
+    let is_current = Memo::new(move |_| path.get().join("/") == full);
+    let title = title.to_owned();
+    view! {
+        <li>
+            <a
+                class="reader-sidebar__link"
+                class:reader-sidebar__link--active=move || is_current.get()
+                href=href
+            >
+                {title}
+            </a>
+        </li>
+    }
+    .into_any()
+}
+
 fn tree_nodes(
     entries: &[BookEntryDto],
     prefix: &[String],
@@ -220,25 +240,24 @@ fn tree_nodes(
             BookEntryDto::Lesson(lesson) => {
                 let mut segments = prefix.to_vec();
                 segments.push(lesson.slug.clone());
-                let full = segments.join("/");
-                let href = format!("/synapse/{full}");
-                let is_current = Memo::new(move |_| path.get().join("/") == full);
-                view! {
-                    <li>
-                        <a
-                            class="reader-sidebar__link"
-                            class:reader-sidebar__link--active=move || is_current.get()
-                            href=href
-                        >
-                            {lesson.title.clone()}
-                        </a>
-                    </li>
-                }
-                .into_any()
+                lesson_link(&segments, &lesson.title, path)
             }
             BookEntryDto::Chapter(chapter) => {
                 let mut segments = prefix.to_vec();
                 segments.push(chapter.slug.clone());
+                // A chapter that exists ONLY to hold one lesson of its own name is pure
+                // nesting: `pattern-01/pattern-01.md` is a folder because the lesson has
+                // sidecars (`.editorial.md`), not because there is a chapter to browse.
+                // Render the lesson directly — one line, one click, no folder to open to
+                // find its own namesake. A chapter with a DIFFERENT name is saying
+                // something ("Basics" holding `intro`), so it keeps its row.
+                if let [BookEntryDto::Lesson(only)] = chapter.entries.as_slice()
+                    && only.slug == chapter.slug
+                {
+                    let mut leaf = segments.clone();
+                    leaf.push(only.slug.clone());
+                    return lesson_link(&leaf, &only.title, path);
+                }
                 let contains = path.get_untracked().join("/").starts_with(&segments.join("/"));
                 let children = tree_nodes(&chapter.entries, &segments, path, searching);
                 view! {

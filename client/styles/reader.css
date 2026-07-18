@@ -280,14 +280,18 @@ body:has(.reader-sticky[data-on="true"]) .reader-expand { top: 120px; }
 .reader-sidebar__eyebrow { font-family: var(--font-mono); font-size: 11px;
                            text-transform: uppercase; letter-spacing: 0.14em;
                            color: hsl(var(--muted-foreground)); }
+/* Books are titles, not list items — bold and teal so the browse view reads as a shelf
+   rather than one flat run of links indistinguishable from a book's own lessons. */
 .reader-sidebar__book { display: block; padding: 6px 8px; border-radius: 6px; font-size: 14px;
-                        line-height: 1.35; text-decoration: none;
-                        color: hsl(var(--foreground) / 0.75); }
-.reader-sidebar__book:hover { color: hsl(var(--primary)); background: hsl(var(--secondary) / 0.5); }
-.reader-sidebar__book--active { background: hsl(var(--card)); color: hsl(var(--foreground));
-                                font-weight: 500; border-left: 2px solid hsl(var(--primary));
+                        line-height: 1.35; text-decoration: none; font-weight: 600;
+                        color: hsl(var(--primary)); }
+.reader-sidebar__book:hover { background: hsl(var(--primary) / 0.1); }
+.reader-sidebar__book--active { background: hsl(var(--card));
+                                border-left: 2px solid hsl(var(--primary));
                                 padding-left: calc(0.5rem - 2px); }
+/* A book with no lessons yet cannot be opened — it keeps the weight, loses the promise. */
 .reader-sidebar__book--empty { color: hsl(var(--muted-foreground) / 0.6); cursor: default; }
+.reader-sidebar__book--empty:hover { background: none; }
 
 /* ── the compact rail ── */
 .reader-rail { display: flex; flex-direction: column; align-items: center; gap: 8px;

@@ -152,15 +152,15 @@ a.pwb__crumb:hover { color: hsl(var(--primary)); }
    and no page scroll, so the reader's Contents tree and its bottom pager cards have nowhere
    to live — both jobs land up here instead. */
 .pwb__crumb-spacer { flex: 1 1 auto; }
+/* Solid teal, same as the workbench's Run button (.runnable__run) — these are the page's
+   primary way out, and the outlined version read as disabled chrome next to it. */
 .pwb__nav-btn { display: inline-flex; align-items: center; gap: 6px; flex: none;
-                height: 28px; padding: 0 10px; border-radius: 8px;
-                border: 1px solid hsl(var(--border)); background: hsl(var(--card));
+                height: 28px; padding: 0 12px; border-radius: 0.4rem; border: none;
                 font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em;
-                text-transform: uppercase; color: hsl(var(--muted-foreground));
-                text-decoration: none; cursor: pointer;
-                transition: color 0.12s, border-color 0.12s, background 0.12s; }
-.pwb__nav-btn:hover { color: hsl(var(--primary)); border-color: hsl(var(--primary));
-                      background: hsl(var(--primary) / 0.06); }
+                text-transform: uppercase; font-weight: 600;
+                color: hsl(var(--primary-foreground)); background: hsl(var(--primary));
+                text-decoration: none; cursor: pointer; transition: filter 0.12s; }
+.pwb__nav-btn:hover { filter: brightness(1.08); }
 .pwb__nav-btn:focus-visible { outline: 2px solid hsl(var(--primary)); outline-offset: 2px; }
 .pwb__nav-ic { width: 13px; height: 13px; flex: none; }
 

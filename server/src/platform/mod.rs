@@ -13,3 +13,4 @@ pub mod rate_limiter;
 pub mod readiness;
 pub mod security_headers;
 pub mod static_routes;
+pub mod telemetry;

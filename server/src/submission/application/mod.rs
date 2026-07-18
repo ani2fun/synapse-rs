@@ -167,6 +167,12 @@ where
     }
 
     /// Store `Pending`, fire the judge as a detached task, answer immediately (the 202).
+    // skip(source): the submitted solution is the user's, and large.
+    #[tracing::instrument(
+        name = "submission.submit",
+        skip(self, source, submitter),
+        fields(lesson = %lesson_path.join("/"), %language, source_bytes = source.len())
+    )]
     pub async fn submit(
         &self,
         lesson_path: Vec<String>,

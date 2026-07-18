@@ -46,6 +46,15 @@ impl<R: CodeRunner> RunCodeService<R> {
     }
 
     /// Validate → resolve → run. Byte caps are UTF-8 byte counts, INCLUSIVE (`> limit` fails).
+    ///
+    /// `skip(self, request)` then re-adding the size: the request carries the user's SOURCE
+    /// CODE, which is both large and theirs. The byte count is the operationally useful part
+    /// and the only part worth keeping.
+    #[tracing::instrument(
+        name = "execution.run",
+        skip(self, request),
+        fields(language = %request.language, source_bytes = request.source.len())
+    )]
     pub async fn run(&self, request: &RunRequest) -> Result<RunResult, ExecutionError> {
         let language = Language::resolve(&request.language)
             .ok_or_else(|| ExecutionError::UnknownLanguage(request.language.clone()))?;

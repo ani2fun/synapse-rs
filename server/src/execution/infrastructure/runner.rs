@@ -45,6 +45,13 @@ impl GoJudgeRunner {
 }
 
 impl CodeRunner for GoJudgeRunner {
+    // The ADAPTER hop: this is the outbound call to go-judge, where the latency
+    // actually lives. Source stays out; the language and byte count do not.
+    #[tracing::instrument(
+        name = "adapter.go_judge",
+        skip(self, source, stdin),
+        fields(language = language.label(), source_bytes = source.len())
+    )]
     async fn run(
         &self,
         language: Language,

@@ -36,16 +36,23 @@ impl<V: TokenVerifier, A: KeycloakAdmin> IdentityService<V, A> {
         Self { verifier, admin }
     }
 
+    /// `skip_all` is not tidiness here, it is the whole point: `token` is a live bearer
+    /// credential and the default `#[instrument]` behaviour is to record every argument.
+    /// The username is recorded only AFTER verification succeeds, so an attacker's claimed
+    /// identity never reaches the logs.
+    #[tracing::instrument(name = "identity.authenticate", skip_all, fields(username))]
     pub async fn authenticate(&self, token: &str) -> Result<AuthenticatedUser, AuthError> {
         let user = self.verifier.verify(token).await?;
-        tracing::debug!(username = user.username, "bearer verified");
+        tracing::Span::current().record("username", user.username.as_str());
+        tracing::debug!("bearer verified");
         Ok(user)
     }
 
     /// Remove the caller's sign-in. App data is a SEPARATE verb (`DELETE /api/submissions`);
     /// the client orchestrates erase → delete so identity never depends on submissions.
+    #[tracing::instrument(name = "identity.delete_account", skip(self))]
     pub async fn delete_account(&self, sub: &str) -> Result<(), AuthError> {
-        tracing::info!(sub, "account: deleting Keycloak account");
+        tracing::info!("account: deleting Keycloak account");
         self.admin.delete_user(sub).await
     }
 }

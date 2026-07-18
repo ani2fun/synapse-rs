@@ -105,7 +105,7 @@ pub fn app(deps: AppDeps) -> Router {
     // and error responses alike. Compression sits outside even that (orthogonal to the
     // header layers, oracle parity): gzip/deflate at the ORIGIN — a CDN edge-compressing
     // still pulls fat bytes across the tunnel — with sub-KiB responses left alone.
-    router
+    let stamped = router
         .layer(axum::middleware::from_fn_with_state(
             security,
             platform::security_headers::stamp,
@@ -115,7 +115,11 @@ pub fn app(deps: AppDeps) -> Router {
                 .gzip(true)
                 .deflate(true)
                 .compress_when(tower_http::compression::predicate::SizeAbove::new(1024)),
-        )
+        );
+    // Tracing wraps everything (step 45), outside even compression: a span that starts
+    // inside the header layers cannot report on them, and a request rejected at the edge is
+    // exactly the one worth having a trace for.
+    platform::telemetry::apply(stamped)
 }
 
 /// The code-first OpenAPI document (utoipa). The contract-lock test diffs this rendered

@@ -42,6 +42,7 @@ impl<R: ContentRepository> CatalogService<R> {
 
     /// A lesson by its full slug path — the body is RE-READ every request (live edits show;
     /// only the index build is cached).
+    #[tracing::instrument(name = "catalog.lesson", skip(self), fields(path = %path.join("/")))]
     pub async fn lesson(&self, path: &[String]) -> Result<LessonContent, ContentError> {
         if path.is_empty() || !path.iter().all(|s| walker::slug_like(s)) {
             return Err(ContentError::NotFound(format!(

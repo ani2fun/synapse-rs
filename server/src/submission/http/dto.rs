@@ -82,51 +82,57 @@ pub fn to_dto(submission: &Submission) -> SubmissionDto {
 /// `NotAllowlisted`→403 · `InvalidSuite`/`StoreFailed`→500. The allowlist copy is the
 /// oracle's exact wording — the workbench renders `error — detail` verbatim.
 pub fn to_error(error: &SubmissionError) -> (StatusCode, Json<ApiError>) {
-    if let SubmissionError::SubmitRequiresSignIn = error {
-        return (
+    // The common shape: a headline, with the variant's own Display as the detail.
+    let plain = |status: StatusCode, headline: &str| {
+        (
+            status,
+            ApiError {
+                error: headline.to_owned(),
+                detail: Some(error.to_string()),
+                hint: None,
+            },
+        )
+    };
+
+    // TOTAL, and deliberately so: every variant decides its status AND its body in exactly one
+    // arm. Answering a variant before the match would leave a second, unreachable arm here —
+    // and then dropping that early return would silently downgrade a refusal to a 500 with the
+    // exhaustiveness check none the wiser.
+    let (status, body) = match error {
+        SubmissionError::NotAProblem(_) => plain(StatusCode::NOT_FOUND, "Not a problem"),
+        SubmissionError::UnknownSubmission(_) => plain(StatusCode::NOT_FOUND, "Unknown submission"),
+        SubmissionError::NotYours(_) => plain(StatusCode::FORBIDDEN, "Not your submission"),
+        SubmissionError::InvalidSuite { .. } => {
+            plain(StatusCode::INTERNAL_SERVER_ERROR, "The authored suite is invalid")
+        }
+        SubmissionError::StoreFailed(_) => {
+            plain(StatusCode::INTERNAL_SERVER_ERROR, "Submission store failed")
+        }
+
+        // The two refusals answer "why not?" rather than "what broke?", so they carry copy the
+        // workbench renders verbatim — the oracle's exact wording — instead of the Display string.
+        SubmissionError::SubmitRequiresSignIn => (
             StatusCode::UNAUTHORIZED,
-            Json(ApiError {
+            ApiError {
                 error: "Sign in to submit".to_owned(),
                 detail: Some(
                     "Submitting runs your code against every hidden case and saves the attempt".to_owned(),
                 ),
                 hint: None,
-            }),
-        );
-    }
-    if let SubmissionError::NotAllowlisted(username) = error {
-        return (
+            },
+        ),
+        SubmissionError::NotAllowlisted(username) => (
             StatusCode::FORBIDDEN,
-            Json(ApiError {
+            ApiError {
                 error: "Submitting is allow-listed on this deployment".to_owned(),
                 detail: Some(format!(
                     "'{username}' isn't on the allowlist yet — saving uses shared compute + storage"
                 )),
                 hint: Some("Request access from the operator, or self-host your own instance".to_owned()),
-            }),
-        );
-    }
-    let (status, message) = match error {
-        SubmissionError::NotAProblem(_) => (StatusCode::NOT_FOUND, "Not a problem"),
-        SubmissionError::UnknownSubmission(_) => (StatusCode::NOT_FOUND, "Unknown submission"),
-        SubmissionError::NotYours(_) => (StatusCode::FORBIDDEN, "Not your submission"),
-        SubmissionError::InvalidSuite { .. } => {
-            (StatusCode::INTERNAL_SERVER_ERROR, "The authored suite is invalid")
-        }
-        SubmissionError::StoreFailed(_)
-        | SubmissionError::SubmitRequiresSignIn
-        | SubmissionError::NotAllowlisted(_) => {
-            (StatusCode::INTERNAL_SERVER_ERROR, "Submission store failed")
-        }
+            },
+        ),
     };
-    (
-        status,
-        Json(ApiError {
-            error: message.to_owned(),
-            detail: Some(error.to_string()),
-            hint: None,
-        }),
-    )
+    (status, Json(body))
 }
 
 pub fn bad_id(raw: &str) -> (StatusCode, Json<ApiError>) {
@@ -139,3 +145,7 @@ pub fn bad_id(raw: &str) -> (StatusCode, Json<ApiError>) {
         }),
     )
 }
+
+#[cfg(test)]
+#[path = "dto_tests.rs"]
+mod tests;

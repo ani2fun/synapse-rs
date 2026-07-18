@@ -36,6 +36,9 @@ export default defineConfig({
     target: "esnext",
   },
   test: {
-    include: ["islands/**/*.test.ts"],
+    // The island suites, plus the stylesheet-sanity gate (styles/) — a CSS file
+    // that fails to parse drops rules silently in the browser, so it is checked
+    // in CI rather than discovered by a reader.
+    include: ["islands/**/*.test.ts", "styles/**/*.test.ts"],
   },
 });

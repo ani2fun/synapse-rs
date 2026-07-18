@@ -133,3 +133,20 @@ Verified live at :5373 — prose and headings present while diagrams are still f
 five d2 diagrams rendering with real viewBoxes and no hangs, the codebench opening from a plain
 fence and running, re-navigation served from the HTML cache, and the palette centered over a
 dimmed scrim.
+
+## Postscript — the stylesheet gate (same day)
+
+The ⌘K bug is worth a gate, not just a fix. Broken CSS is uniquely quiet: the browser discards
+the damaged region *and the rule after it*, logs nothing, and the page merely looks wrong — this
+one survived fifteen steps that way. So `client/styles/stylesheets.test.ts` now parses every
+stylesheet with postcss and fails on the two shapes the damage takes: a **parse error** (a stray
+`}` or an unclosed block — what actually happened) and **declarations orphaned at file scope**
+(the same wound when the braces happen to balance).
+
+It lives in vitest rather than `check-conventions.sh` on purpose: the convention gate is
+deliberately dependency-free (grep/find/wc, so CI can run it before the toolchain), and CSS is
+not a thing to parse with grep. The suite carries fixtures for both shapes so it cannot pass
+vacuously, plus a count assertion so an empty glob can't silently disarm it — and it was checked
+against the real damaged file from history, which it rejects at `search.css:8:110`. postcss
+becomes an explicit devDependency (it was already present transitively, via vite). 45 → 63
+vitest.

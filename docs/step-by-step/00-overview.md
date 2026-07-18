@@ -70,6 +70,7 @@ introduced the feature, never as later afterthoughts.
 | 40 | `step-40` | [The page budget](40-the-page-budget.md) | 2026-07-18 |
 | 41 | `step-41` | [Code blocks: tab groups](41-code-block-tab-groups.md) | 2026-07-18 |
 | 42 | `step-42` | [Getting out of a problem page](42-problem-page-navigation.md) | 2026-07-18 |
+| 43 | `step-43` | [Floating problem-page navigation](43-floating-problem-navigation.md) | 2026-07-18 |
 
 > **Step 40's shape.** Every step through 39 is one squashed commit. Step 40 is eleven
 > (`c9b302f..HEAD`): its work was interactive — a design question, two answers built and kept,

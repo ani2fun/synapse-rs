@@ -1,0 +1,42 @@
+name: Build, Push, and Promote go-judge
+
+# Synapse's own sandbox image: the stock criyle/go-judge plus every toolchain the execution
+# context's `Language` enum runs. Rebuilds only when the runner definition changes — the
+# sandbox evolves independently of the app image.
+#
+# MOVED HERE 2026-07-18, and it had to be. This lived in the Scala repo, which is being
+# archived — and archiving disables Actions, so the sandbox that production uses to run every
+# submission could never have been rebuilt again (a toolchain bump, a CVE, anything). The
+# sandbox belongs with the app that depends on it.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'runner/go-judge/**'
+      - '.github/workflows/go-judge-build-push-promote.yml'
+      - '.github/workflows/_build-push-promote.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: synapse-go-judge-main
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  call:
+    uses: ./.github/workflows/_build-push-promote.yml
+    with:
+      image_repo: ghcr.io/ani2fun/synapse-go-judge
+      dockerfile: runner/go-judge/Dockerfile
+      # Self-contained apt-install image — narrow the context so the whole repo
+      # isn't shipped to buildx for a toolchain build.
+      context: runner/go-judge
+      buildx_cache_scope: synapse-go-judge
+      infra_kustomization_file: deploy/apps/synapse-go-judge/overlays/prod/kustomization.yaml
+      commit_message: "chore(synapse-go-judge): promote image to"
+    secrets: inherit

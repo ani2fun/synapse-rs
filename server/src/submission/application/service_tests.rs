@@ -41,6 +41,18 @@ impl SubmissionRepository for FakeRepo {
     async fn get(&self, id: SubmissionId) -> Result<Option<Submission>, SubmissionError> {
         Ok(self.rows.lock().unwrap().get(&id.0).cloned())
     }
+    async fn unfinished_before(&self, cutoff: DateTime<Utc>) -> Result<Vec<Submission>, SubmissionError> {
+        let mut rows: Vec<Submission> = self
+            .rows
+            .lock()
+            .unwrap()
+            .values()
+            .filter(|s| !s.state.is_completed() && s.created_at < cutoff)
+            .cloned()
+            .collect();
+        rows.sort_by_key(|s| s.created_at);
+        Ok(rows)
+    }
     async fn list_for(
         &self,
         lesson_path: &[String],
@@ -386,4 +398,76 @@ async fn get_unknown_is_unknown_submission() {
     let (svc, _) = service(Some(spec(&[Some("0")])), vec![]);
     let err = svc.get(SubmissionId(Uuid::new_v4())).await.unwrap_err();
     assert!(matches!(err, SubmissionError::UnknownSubmission(_)));
+}
+
+// ── boot-time reconciliation ──────────────────────────────────────────────────
+
+fn unfinished_row(state: SubmissionState, age: Duration) -> Submission {
+    Submission {
+        id: SubmissionId(Uuid::new_v4()),
+        lesson_path: path(),
+        language: "python".into(),
+        source: "src".into(),
+        user_id: None,
+        created_at: Utc::now() - age,
+        state,
+    }
+}
+
+#[tokio::test]
+async fn reconcile_completes_rows_a_dead_process_left_judging() {
+    let (svc, _) = service(Some(spec(&[Some("0"), Some("1")])), vec![]);
+    let orphan = unfinished_row(SubmissionState::Judging, Duration::minutes(30));
+    svc.repo.save(&orphan).await.unwrap();
+
+    let healed = svc.reconcile_unfinished(Duration::minutes(10)).await.unwrap();
+
+    assert_eq!(healed, 1);
+    let row = svc.get(orphan.id).await.unwrap();
+    // Terminal, and honest about why — the client's poll can stop.
+    match row.state {
+        SubmissionState::Completed {
+            outcome:
+                SuiteOutcome::JudgeFailed {
+                    passed,
+                    total,
+                    detail,
+                },
+            ..
+        } => {
+            assert_eq!(
+                (passed, total),
+                (0, 2),
+                "the suite size rides along for the 0/N verdict"
+            );
+            assert!(detail.contains("restart"), "detail explains itself: {detail}");
+        }
+        other => panic!("expected a JudgeFailed completion, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn reconcile_spares_a_run_that_may_still_be_in_flight() {
+    let (svc, _) = service(Some(spec(&[Some("0")])), vec![]);
+    // Younger than the grace window: another replica could legitimately still be judging it.
+    let fresh = unfinished_row(SubmissionState::Judging, Duration::seconds(5));
+    svc.repo.save(&fresh).await.unwrap();
+
+    let healed = svc.reconcile_unfinished(Duration::minutes(10)).await.unwrap();
+
+    assert_eq!(healed, 0);
+    assert_eq!(svc.get(fresh.id).await.unwrap().state, SubmissionState::Judging);
+}
+
+#[tokio::test]
+async fn reconcile_leaves_completed_rows_alone() {
+    let (svc, _) = service(Some(spec(&[Some("0")])), vec![]);
+    let done = unfinished_row(SubmissionState::Judging, Duration::minutes(30))
+        .completed(SuiteOutcome::Accepted { total: 1 }, Utc::now());
+    svc.repo.save(&done).await.unwrap();
+
+    let healed = svc.reconcile_unfinished(Duration::minutes(10)).await.unwrap();
+
+    assert_eq!(healed, 0);
+    assert!(svc.get(done.id).await.unwrap().state.is_completed());
 }

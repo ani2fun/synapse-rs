@@ -11,8 +11,8 @@
 
 Each step is a gate: do not start the next until the previous is green.
 
-1. **Fix the two blockers below** (graceful shutdown + the health endpoint). They are the only
-   findings that change code; everything else is configuration or infrastructure.
+1. ~~Fix the two blockers below~~ — **done**, see the two findings marked RESOLVED. They were the
+   only findings that changed code; everything remaining is configuration or infrastructure.
 2. **Rehearse the DB baseline** on a scratch restore of the prod dump — the full procedure is
    in `cutover-plan.md`. sqlx must consider `0001`/`0002` already applied over the
    Liquibase-created schema, or boot will try to re-create live tables.
@@ -36,7 +36,7 @@ Each step is a gate: do not start the next until the previous is green.
 
 ## Part 2 — the audit
 
-### Blocker 1 — no graceful shutdown, and it orphans submissions
+### Blocker 1 — no graceful shutdown, and it orphans submissions · **RESOLVED**
 
 `server/src/main.rs` ends with a bare `axum::serve(listener, app).await?` — there is no
 `.with_graceful_shutdown(…)` and no SIGTERM handler anywhere in the server. On any pod
@@ -65,7 +65,19 @@ Fix — two parts, both small:
 Ship the reconciler even if the shutdown hook lands: the hook reduces the window, the
 reconciler closes it.
 
-### Blocker 2 — the health endpoint is still the walking-skeleton stub
+**Resolved.** Both landed. `main` now serves `.with_graceful_shutdown(shutdown_signal())`,
+resolving on SIGTERM or Ctrl-C, and calls `SubmitSolution::reconcile_unfinished(JUDGE_GRACE)`
+before binding — completing anything left `Pending`/`Judging` for more than **15 minutes** as
+`JudgeFailed` with a detail that tells the reader to submit again. The grace window sits well
+above the judge's worst case (go-judge caps a run at 100s) so a restart can never fail a run
+another replica is legitimately still executing. Three tests pin it: an orphan is healed with
+the suite size attached, a 5-second-old row is spared, and completed rows are untouched.
+
+Two operational follow-ups for the overlay: set `terminationGracePeriodSeconds` above the drain
+you want to allow, and note that the reconciler assumes a **single** writer per row — if
+replicas ever exceed 1, the 15-minute window is what keeps it safe.
+
+### Blocker 2 — the health endpoint is still the walking-skeleton stub · **RESOLVED**
 
 `server/src/platform/health.rs` returns a constant:
 
@@ -90,6 +102,21 @@ Fix — split the two probes, because they want opposite things:
 Note the interaction with boot: the server fail-fasts if Postgres is absent at startup, so the
 overlay also needs a `startupProbe` with enough failure budget, or a DB blip during rollout
 turns into a crash loop.
+
+**Resolved.** `/api/health` now returns a plain `{"status":"ok"}` and stays shallow by design,
+and a new **`GET /api/ready`** pings the pool: 200 `{"status":"ready"}`, or **503**
+`{"status":"not ready"}` when the store is silent. The failure reason is logged and never
+returned — store errors name hosts and usernames, and a test asserts neither leaks into the
+body. Readiness deliberately checks Postgres *only*: go-judge, Keycloak and Ollama all degrade
+to honest errors, so a judge outage must not pull the whole site out of the load balancer.
+
+The probe is the `ReadinessProbe` port the health module's header always anticipated, with
+`PgReadiness` as its adapter. It is the one place a hand-boxed future is used instead of native
+AFIT, because the router edge needs `dyn` — noted so the RS001 anti-pattern list is not read as
+having been broken by accident.
+
+Overlay wiring: `livenessProbe → /api/health`, `readinessProbe → /api/ready`, plus a
+`startupProbe` on `/api/health` with enough failure budget to cover boot migrations.
 
 ### Medium 1 — the rate limiter is per-process
 

@@ -50,6 +50,9 @@ pub struct AppDeps {
     /// The content checkout — `/media` serves its `_media/` tree (one shared cache hour).
     pub content_root: String,
     pub likec4_url: String,
+    /// Answers `/api/ready`: Postgres in the binary, the same lazy pool in ITs (which then
+    /// report 503 — the honest answer for a store that is not there).
+    pub readiness: Arc<dyn platform::health::ReadinessProbe>,
     /// The coach (step 22): when disabled the chat route is never mounted — a structural 404.
     pub tutor: tutoring::http::TutorRoutesState<tutoring::infrastructure::OllamaTutorClient>,
 }
@@ -79,7 +82,7 @@ pub fn app(deps: AppDeps) -> Router {
         admin_users: Arc::clone(&deps.ident.admin_users),
     };
     let mut router = Router::new()
-        .merge(platform::http::routes())
+        .merge(platform::http::routes(deps.readiness))
         .merge(catalog::http::routes(deps.catalog))
         .merge(execution::http::routes(execution))
         .merge(submission::http::routes(submissions))
@@ -124,6 +127,7 @@ pub fn app(deps: AppDeps) -> Router {
     info(title = "Synapse API", version = "0.1.0"),
     paths(
         platform::http::get_health,
+        platform::http::get_ready,
         catalog::http::routes::get_synapse_index,
         catalog::http::routes::get_component_doc,
         catalog::http::routes::get_synapse_lesson,

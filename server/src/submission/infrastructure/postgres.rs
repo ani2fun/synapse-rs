@@ -102,6 +102,18 @@ impl SubmissionRepository for PostgresSubmissionRepository {
         rows.iter().map(read).collect()
     }
 
+    async fn unfinished_before(&self, cutoff: DateTime<Utc>) -> Result<Vec<Submission>, SubmissionError> {
+        let rows = sqlx::query(
+            "select * from submissions where status in ('pending', 'judging') and created_at < $1 \
+             order by created_at",
+        )
+        .bind(cutoff)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(store_failed)?;
+        rows.iter().map(read).collect()
+    }
+
     async fn delete(&self, id: SubmissionId) -> Result<(), SubmissionError> {
         sqlx::query("delete from submissions where id = $1")
             .bind(id.0)

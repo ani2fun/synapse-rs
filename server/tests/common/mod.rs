@@ -58,6 +58,9 @@ pub fn deps_with(
     let repo = FileSystemContentRepository::new(content_root, true);
     let runner = Arc::new(RunCodeService::new(GoJudgeRunner::new(executor_url)));
     let allowlist = Arc::new(PostgresSubmissionAllowlist::new(pool.clone()));
+    let readiness = Arc::new(synapse_server::platform::readiness::PgReadiness::new(
+        pool.clone(),
+    ));
     // Gate OFF (the dev default) — the gate tests exercise it over in-memory fakes.
     let submit = Arc::new(SubmitSolution::new(
         Arc::new(PostgresSubmissionRepository::new(pool)),
@@ -102,6 +105,7 @@ pub fn deps_with(
         static_root: content_root.join("__no_dist__").to_string_lossy().into_owned(),
         content_root: content_root.to_string_lossy().into_owned(),
         likec4_url: "http://127.0.0.1:9".to_owned(),
+        readiness,
     }
 }
 

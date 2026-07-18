@@ -10,5 +10,6 @@ pub mod http;
 pub mod likec4_proxy;
 pub mod media_routes;
 pub mod rate_limiter;
+pub mod readiness;
 pub mod security_headers;
 pub mod static_routes;

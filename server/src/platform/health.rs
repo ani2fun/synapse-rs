@@ -1,17 +1,33 @@
-//! The `platform` context's one use case — a liveness check (oracle: `Health.scala`).
+//! The `platform` context's health use cases (oracle: `Health.scala`), split the way
+//! orchestrators actually consume them: a shallow **liveness** answer and a dependency-checking
+//! **readiness** answer. Conflating the two is the classic operational footgun — see `status`.
 //!
-//! A free function, not a trait: there is no output dependency to invert (nothing backs the
-//! check yet), and a single-impl trait would be ceremony without a seam (the Rust anti-pattern
-//! list bans `dyn` where nothing varies). The port arrives with the first real backing-store
-//! ping, exactly as it did in the oracle.
+//! Liveness stays a free function (nothing to invert). Readiness declares the port the module
+//! header always anticipated: it needs a real backing-store ping, so the seam finally exists.
+
+use std::future::Future;
+use std::pin::Pin;
 
 use synapse_shared::api::HealthStatus;
 
-/// Walking-skeleton stub: reports ok. (No backing stores are wired yet — they join
-/// `HealthStatus` later.)
+/// Liveness: the process is up and serving. DELIBERATELY shallow — it must not consult Postgres
+/// or any other dependency. A liveness probe that fails on a dependency blip makes the
+/// orchestrator restart a perfectly healthy process, turning someone else's outage into a crash
+/// loop. Dependency health is `ReadinessProbe`'s job.
 pub fn status() -> HealthStatus {
-    tracing::debug!("health check → ok (walking skeleton)");
+    tracing::debug!("health check → ok");
     HealthStatus {
-        status: "ok (walking skeleton)".to_owned(),
+        status: "ok".to_owned(),
     }
+}
+
+/// Readiness: should this instance receive traffic right now?
+///
+/// Unlike liveness this consults a real dependency, which means dynamic dispatch at the router
+/// edge — and `async fn` in traits is not dyn-safe. The hand-boxed future is the deliberate
+/// exception to RS001's "no boxed futures where native AFIT works": here it does not.
+pub trait ReadinessProbe: Send + Sync {
+    /// `Ok(())` = ready. `Err(detail)` carries an OPERATOR-facing reason for the log only — it
+    /// is never sent to the caller, since connection errors name hosts and usernames.
+    fn ping(&self) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + '_>>;
 }

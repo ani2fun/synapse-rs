@@ -31,9 +31,18 @@
       "_type": "request",
       "parentId": "fld_platform",
       "name": "GET /api/health",
-      "description": "Liveness check \u2014 200 with {\"status\": \"ok (walking skeleton)\"} while the server is up. (step 01)",
+      "description": "Liveness check \u2014 200 with {\"status\": \"ok\"} while the server is up. Deliberately shallow: it must NOT check Postgres, or a store blip becomes a restart loop. Wire livenessProbe here. (step 01, split in 41)",
       "method": "GET",
       "url": "{{ _.base_url }}/api/health"
+    },
+    {
+      "_id": "req_ready",
+      "_type": "request",
+      "parentId": "fld_platform",
+      "name": "GET /api/ready",
+      "description": "Readiness check \u2014 200 {\"status\":\"ready\"} when Postgres answers, 503 {\"status\":\"not ready\"} when it does not, so the orchestrator stops routing traffic here. The failure reason is logged, never returned (store errors name hosts and users). Wire readinessProbe here. (step 41)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/ready"
     },
     {
       "_id": "fld_catalog",

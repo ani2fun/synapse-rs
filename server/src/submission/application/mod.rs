@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use chrono::Utc;
+use chrono::{DateTime, Duration, Utc};
 use synapse_shared::execution::{RunRequest, TestSpec, Verdict, judge, stdin_for};
 use uuid::Uuid;
 
@@ -84,6 +84,15 @@ pub trait SubmissionRepository: Send + Sync {
     fn delete(&self, id: SubmissionId) -> impl Future<Output = Result<(), SubmissionError>> + Send;
     /// "Reset my data" — returns the row count.
     fn delete_all_for(&self, user_id: &str) -> impl Future<Output = Result<usize, SubmissionError>> + Send;
+    /// Rows still unfinished (`Pending`/`Judging`) that were created before `cutoff`.
+    ///
+    /// A judging task lives inside the process that spawned it, so a pod killed mid-judge takes
+    /// the in-task `JudgeFailed` backstop with it and the row stays unfinished forever. These
+    /// are the survivors — see `SubmitSolution::reconcile_unfinished`.
+    fn unfinished_before(
+        &self,
+        cutoff: DateTime<Utc>,
+    ) -> impl Future<Output = Result<Vec<Submission>, SubmissionError>> + Send;
 }
 
 /// Where a problem's hidden suite comes from (oracle: `ProblemTests`) — `None` = not a problem.
@@ -215,6 +224,47 @@ where
 
     pub async fn erase_all_for(&self, user_id: &str) -> Result<usize, SubmissionError> {
         self.repo.delete_all_for(user_id).await
+    }
+
+    /// Boot-time reconciliation: complete every row left unfinished by a process that died.
+    ///
+    /// `judge_and_complete`'s backstop covers judging *failures*, but it runs inside the
+    /// detached task — kill the process (a rolling update, an eviction, an OOM) and the task
+    /// vanishes mid-flight, leaving the row `Judging` with nothing left to finish it. Nothing
+    /// else sweeps them, so the client polls a row that will never terminate.
+    ///
+    /// Called once at startup. `older_than` must exceed the slowest realistic judge run, or a
+    /// restart would fail a suite that a *different* replica is still legitimately running.
+    /// Returns how many rows were healed.
+    pub async fn reconcile_unfinished(&self, older_than: Duration) -> Result<usize, SubmissionError> {
+        let stale = self.repo.unfinished_before(Utc::now() - older_than).await?;
+        let mut healed = 0;
+        for submission in stale {
+            // The suite size makes the verdict read "0/11" rather than a bare "0/0"; it is
+            // presentation only, so a lookup failure must not stop the sweep.
+            let total = self
+                .tests
+                .suite_for(&submission.lesson_path)
+                .await
+                .ok()
+                .flatten()
+                .map_or(0, |spec| spec.cases.len());
+            let outcome = SuiteOutcome::JudgeFailed {
+                passed: 0,
+                total,
+                detail: "judging stopped when the server restarted — submit again".to_owned(),
+            };
+            match self.repo.update(&submission.completed(outcome, Utc::now())).await {
+                Ok(()) => healed += 1,
+                Err(error) => {
+                    tracing::warn!(id = %submission.id, %error, "could not reconcile an unfinished submission");
+                }
+            }
+        }
+        if healed > 0 {
+            tracing::info!(healed, "reconciled submissions left unfinished by a previous run");
+        }
+        Ok(healed)
     }
 
     /// Judging → outcome → completed. INFALLIBLE with a backstop: any pipeline failure records

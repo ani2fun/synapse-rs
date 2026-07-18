@@ -153,6 +153,10 @@ html[data-reader-width] .lesson.lesson--problem,
     .reader-nav--pinned .reader-nav-scrim { display: block; }
     .reader-nav--pinned .reader-nav-drawer { display: flex; }
 }
+/* Problem pages carry their own Contents pill at every width (.pwb-fab--contents), and it
+   opens this same drawer — so the reader's FAB stands down there rather than stacking a
+   second control into the corner the Prev pill now occupies. */
+.reader-nav--pinned .reader-nav-fab { display: none; }
 @media (max-width: 1023.9px) {
     .reader { grid-template-columns: 1fr; }
     .reader-sidebar { display: none; }

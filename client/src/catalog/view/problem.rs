@@ -60,11 +60,11 @@ fn contents_button() -> Option<impl IntoView> {
     let chrome = use_context::<super::chrome::ChromeState>()?;
     Some(view! {
         <button
-            class="pwb__nav-btn pwb__nav-btn--contents"
+            class="pwb-fab pwb-fab--contents"
             aria-label="Contents — the book's lessons and problems"
             on:click=move |_| chrome.nav_open.set(true)
         >
-            <svg class="pwb__nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            <svg class="pwb-fab__ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <rect width="18" height="18" x="3" y="3" rx="2"></rect>
                 <path d="M9 3v18 M14 9l3 3-3 3"></path>
@@ -82,8 +82,9 @@ fn step_link(target: Option<&str>, step: Step) -> Option<impl IntoView + use<>> 
     let arrow = if step == Step::Next { "›" } else { "‹" };
     Some(view! {
         <a
-            class="pwb__nav-btn"
-            class:pwb__nav-btn--next=step == Step::Next
+            class="pwb-fab"
+            class:pwb-fab--prev=step == Step::Prev
+            class:pwb-fab--next=step == Step::Next
             href=format!("/synapse/{path}")
             title=title
         >
@@ -197,13 +198,14 @@ pub fn ProblemWorkbench(payload: LessonPayloadDto, segments: Vec<String>) -> imp
                 <span class="pwb__crumb">{book_name}</span>
                 <span class="pwb__crumb-sep">"›"</span>
                 <span class="pwb__crumb pwb__crumb--current">{lesson_title}</span>
-                // The two-pane layout has no sidebar and no page scroll, so the reader's
-                // sidebar and pager cards have nowhere to live. Their jobs move here.
-                <span class="pwb__crumb-spacer"></span>
-                {contents_button()}
-                {step_link(prev_path.as_deref(), Step::Prev)}
-                {step_link(next_path.as_deref(), Step::Next)}
             </nav>
+            // Navigation floats in the bottom corners rather than riding the crumb row: on a
+            // page you work top-to-bottom in, the top-right is the furthest point from both
+            // the reader's eye and the mouse. Contents + Prev stack bottom-left, Next sits
+            // bottom-right — the corners the prose reader's own FABs vacate here.
+            {contents_button()}
+            {step_link(prev_path.as_deref(), Step::Prev)}
+            {step_link(next_path.as_deref(), Step::Next)}
             <div class="pwb__panes" node_ref=panes_ref>
                 <div class="pwb__left" style=move || format!("width: {:.2}%", left_pct.get())>
                     <div class="pwb__head">

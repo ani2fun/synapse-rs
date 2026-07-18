@@ -148,29 +148,42 @@ a.pwb__crumb:hover { color: hsl(var(--primary)); }
                        font-family: var(--font-sans, inherit); }
 .pwb__crumb-sep { opacity: 0.5; }
 
-/* The crumb row's right-hand nav cluster (step 42). A problem page has no sidebar column
-   and no page scroll, so the reader's Contents tree and its bottom pager cards have nowhere
-   to live — both jobs land up here instead. */
-.pwb__crumb-spacer { flex: 1 1 auto; }
-/* Solid teal, same as the workbench's Run button (.runnable__run) — these are the page's
-   primary way out, and the outlined version read as disabled chrome next to it. */
-.pwb__nav-btn { display: inline-flex; align-items: center; gap: 6px; flex: none;
-                height: 28px; padding: 0 12px; border-radius: 0.4rem; border: none;
-                font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em;
-                text-transform: uppercase; font-weight: 600;
-                color: hsl(var(--primary-foreground)); background: hsl(var(--primary));
-                text-decoration: none; cursor: pointer; transition: filter 0.12s; }
-.pwb__nav-btn:hover { filter: brightness(1.08); }
-.pwb__nav-btn:focus-visible { outline: 2px solid hsl(var(--primary)); outline-offset: 2px; }
-.pwb__nav-ic { width: 13px; height: 13px; flex: none; }
+/* ── the floating navigation (step 43) ────────────────────────────────────────
+   A problem page has no sidebar column and no page scroll, so the reader's Contents
+   tree and its bottom pager cards have nowhere to live. These carry both jobs.
 
-/* Below the reader's one breakpoint the drawer FAB is already on screen, so the Contents
-   button stands down rather than fighting the crumbs for room; prev/next stay, and the row
-   wraps instead of clipping them off the right edge. */
-@media (max-width: 1023.9px) {
-    .pwb__crumbs { flex-wrap: wrap; row-gap: 6px; }
-    .pwb__nav-btn--contents { display: none; }
-    .pwb__crumb-spacer { flex-basis: 100%; height: 0; }
+   In the BOTTOM CORNERS rather than the crumb row they started in: you work this page
+   top-to-bottom, and the top-right is the furthest point from both the reader's eye and
+   the mouse. The prose reader's own FABs are suppressed on problem pages (reader.rs), so
+   these corners are free — nothing to collide with.
+
+   Solid teal like the workbench Run button: they are the page's primary way out, and an
+   outlined version reads as disabled chrome beside a live Run button. */
+.pwb-fab { position: fixed; bottom: 20px; z-index: 40;
+           display: inline-flex; align-items: center; gap: 6px;
+           height: 40px; padding: 0 16px; border-radius: 9999px; border: none;
+           font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em;
+           text-transform: uppercase; font-weight: 600;
+           color: hsl(var(--primary-foreground)); background: hsl(var(--primary));
+           text-decoration: none; cursor: pointer;
+           box-shadow: 0 6px 18px -4px rgb(0 0 0 / 0.25), 0 2px 4px -1px rgb(0 0 0 / 0.1);
+           transition: filter 0.12s, transform 180ms ease; }
+.pwb-fab:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.pwb-fab:focus-visible { outline: 2px solid hsl(var(--primary)); outline-offset: 3px; }
+.pwb-fab__ic { width: 15px; height: 15px; flex: none; }
+
+/* Contents stacks ABOVE Prev on the left; Next takes the right corner. 56px apart — the
+   same rhythm the prose reader's right-edge FAB stack uses. */
+.pwb-fab--contents { left: 20px; bottom: 76px; }
+.pwb-fab--prev { left: 20px; }
+.pwb-fab--next { right: 20px; }
+
+/* On a phone three pills would cover the panes they exist to help you leave, so the step
+   labels drop to their arrows. Contents keeps its word — a lone icon there reads as a
+   menu of unknown contents. */
+@media (max-width: 640px) {
+    .pwb-fab { height: 36px; padding: 0 13px; }
+    .pwb-fab--prev span, .pwb-fab--next span { display: none; }
 }
 
 .pwb__lede { font-size: 13.5px; color: hsl(var(--muted-foreground)); margin: 4px 0 0; }

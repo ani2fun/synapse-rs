@@ -50,31 +50,38 @@ pub fn LessonPage() -> impl IntoView {
                 }}
             </article>
         </div>
-        <super::chrome::MiniMap chrome=chrome />
-        <super::chrome::TocFab chrome=chrome />
-        <super::chrome::FocusFab />
-        <super::chrome::ScrollTop chrome=chrome />
-        // The floating expand affordance for the Hidden sidebar.
-        <button
-            class=move || {
-                if mode.get() == super::sidebar::SidebarMode::Hidden {
-                    "reader-expand"
-                } else {
-                    "reader-expand reader-expand--hidden"
+        // The prose reader's chrome, ALL of it gated on kind != problem. A problem page has
+        // no window scroll (the panes scroll internally) and no sidebar column, so the
+        // minimap, scroll-to-top and sidebar-restore controls are inert there, and focus
+        // mode has nothing to hide. The TOC FAB already gated itself. They own the bottom
+        // corners the problem page now puts its own navigation in.
+        {move || (!chrome.is_problem.get()).then(|| view! {
+            <super::chrome::MiniMap chrome=chrome />
+            <super::chrome::FocusFab />
+            <super::chrome::ScrollTop chrome=chrome />
+            // The floating expand affordance for the Hidden sidebar.
+            <button
+                class=move || {
+                    if mode.get() == super::sidebar::SidebarMode::Hidden {
+                        "reader-expand"
+                    } else {
+                        "reader-expand reader-expand--hidden"
+                    }
                 }
-            }
-            aria-label="Show the sidebar"
-            on:click=move |_| {
-                mode.set(super::sidebar::SidebarMode::Expanded);
-                super::sidebar::SidebarMode::Expanded.persist();
-            }
-        >
-            <svg class="reader-expand__ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect width="18" height="18" x="3" y="3" rx="2"></rect>
-                <path d="M9 3v18 M14 9l3 3-3 3"></path>
-            </svg>
-        </button>
+                aria-label="Show the sidebar"
+                on:click=move |_| {
+                    mode.set(super::sidebar::SidebarMode::Expanded);
+                    super::sidebar::SidebarMode::Expanded.persist();
+                }
+            >
+                <svg class="reader-expand__ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect width="18" height="18" x="3" y="3" rx="2"></rect>
+                    <path d="M9 3v18 M14 9l3 3-3 3"></path>
+                </svg>
+            </button>
+        })}
+        <super::chrome::TocFab chrome=chrome />
         // OUTSIDE the grid on purpose (oracle step-38 prod bug): the drawer's in-flow
         // wrapper would otherwise become a phantom third grid item at desktop width.
         <ReaderNavDrawer path=path chrome=chrome />

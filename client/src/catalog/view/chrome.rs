@@ -27,6 +27,10 @@ pub struct ChromeState {
     pub past_title: RwSignal<bool>,
     pub toc_open: RwSignal<bool>,
     pub is_problem: RwSignal<bool>,
+    /// The nav drawer, opened from two places: the mobile FAB, and the problem page's
+    /// Contents button (problem pages hide the sidebar column at every width, so the
+    /// drawer is their ONLY route to the book's reading order).
+    pub nav_open: RwSignal<bool>,
 }
 
 impl Default for ChromeState {
@@ -46,6 +50,7 @@ impl ChromeState {
             past_title: RwSignal::new(false),
             toc_open: RwSignal::new(false),
             is_problem: RwSignal::new(false),
+            nav_open: RwSignal::new(false),
         }
     }
 

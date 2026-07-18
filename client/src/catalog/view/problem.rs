@@ -34,6 +34,66 @@ fn humanize(slug: &str) -> String {
         .join(" ")
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CRUMB-ROW NAVIGATION
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Step {
+    Prev,
+    Next,
+}
+
+impl Step {
+    const fn label(self) -> &'static str {
+        match self {
+            Self::Prev => "Prev",
+            Self::Next => "Next",
+        }
+    }
+}
+
+/// Opens the reader's nav drawer — the SAME one the mobile FAB drives, so the book's reading
+/// order stays a single component. Absent outside the reader shell (nothing else provides
+/// `ChromeState`), which keeps the button from lying about what it can do.
+fn contents_button() -> Option<impl IntoView> {
+    let chrome = use_context::<super::chrome::ChromeState>()?;
+    Some(view! {
+        <button
+            class="pwb__nav-btn pwb__nav-btn--contents"
+            aria-label="Contents — the book's lessons and problems"
+            on:click=move |_| chrome.nav_open.set(true)
+        >
+            <svg class="pwb__nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect width="18" height="18" x="3" y="3" rx="2"></rect>
+                <path d="M9 3v18 M14 9l3 3-3 3"></path>
+            </svg>
+            <span>"Contents"</span>
+        </button>
+    })
+}
+
+/// One step through the book's reading order. `prev`/`next` already ride on the payload — the
+/// prose reader spends them on its pager cards, and a problem page has no room for those.
+fn step_link(target: Option<&str>, step: Step) -> Option<impl IntoView + use<>> {
+    let path = target?.to_owned();
+    let title = humanize(path.rsplit('/').next().unwrap_or(&path));
+    let arrow = if step == Step::Next { "›" } else { "‹" };
+    Some(view! {
+        <a
+            class="pwb__nav-btn"
+            class:pwb__nav-btn--next=step == Step::Next
+            href=format!("/synapse/{path}")
+            title=title
+        >
+            {(step == Step::Prev).then_some(arrow)}
+            <span>{step.label()}</span>
+            {(step == Step::Next).then_some(arrow)}
+        </a>
+    })
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Tab {
     Description,
@@ -104,6 +164,8 @@ pub fn ProblemWorkbench(payload: LessonPayloadDto, segments: Vec<String>) -> imp
     let difficulty = payload.frontmatter.difficulty.clone();
     let book_name = humanize(&payload.book.slug);
     let lesson_title = payload.frontmatter.title.clone();
+    let prev_path = payload.prev.clone();
+    let next_path = payload.next.clone();
     let segments = StoredValue::new(segments);
 
     let tab_buttons: Vec<_> = TABS
@@ -135,6 +197,12 @@ pub fn ProblemWorkbench(payload: LessonPayloadDto, segments: Vec<String>) -> imp
                 <span class="pwb__crumb">{book_name}</span>
                 <span class="pwb__crumb-sep">"›"</span>
                 <span class="pwb__crumb pwb__crumb--current">{lesson_title}</span>
+                // The two-pane layout has no sidebar and no page scroll, so the reader's
+                // sidebar and pager cards have nowhere to live. Their jobs move here.
+                <span class="pwb__crumb-spacer"></span>
+                {contents_button()}
+                {step_link(prev_path.as_deref(), Step::Prev)}
+                {step_link(next_path.as_deref(), Step::Next)}
             </nav>
             <div class="pwb__panes" node_ref=panes_ref>
                 <div class="pwb__left" style=move || format!("width: {:.2}%", left_pct.get())>

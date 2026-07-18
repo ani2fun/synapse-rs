@@ -147,6 +147,32 @@ a.pwb__crumb:hover { color: hsl(var(--primary)); }
                        font-size: 13px; letter-spacing: normal; text-transform: none;
                        font-family: var(--font-sans, inherit); }
 .pwb__crumb-sep { opacity: 0.5; }
+
+/* The crumb row's right-hand nav cluster (step 42). A problem page has no sidebar column
+   and no page scroll, so the reader's Contents tree and its bottom pager cards have nowhere
+   to live — both jobs land up here instead. */
+.pwb__crumb-spacer { flex: 1 1 auto; }
+.pwb__nav-btn { display: inline-flex; align-items: center; gap: 6px; flex: none;
+                height: 28px; padding: 0 10px; border-radius: 8px;
+                border: 1px solid hsl(var(--border)); background: hsl(var(--card));
+                font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em;
+                text-transform: uppercase; color: hsl(var(--muted-foreground));
+                text-decoration: none; cursor: pointer;
+                transition: color 0.12s, border-color 0.12s, background 0.12s; }
+.pwb__nav-btn:hover { color: hsl(var(--primary)); border-color: hsl(var(--primary));
+                      background: hsl(var(--primary) / 0.06); }
+.pwb__nav-btn:focus-visible { outline: 2px solid hsl(var(--primary)); outline-offset: 2px; }
+.pwb__nav-ic { width: 13px; height: 13px; flex: none; }
+
+/* Below the reader's one breakpoint the drawer FAB is already on screen, so the Contents
+   button stands down rather than fighting the crumbs for room; prev/next stay, and the row
+   wraps instead of clipping them off the right edge. */
+@media (max-width: 1023.9px) {
+    .pwb__crumbs { flex-wrap: wrap; row-gap: 6px; }
+    .pwb__nav-btn--contents { display: none; }
+    .pwb__crumb-spacer { flex-basis: 100%; height: 0; }
+}
+
 .pwb__lede { font-size: 13.5px; color: hsl(var(--muted-foreground)); margin: 4px 0 0; }
 .pwb__nowb { padding: 24px; font-size: 13.5px; color: hsl(var(--muted-foreground)); }
 .pwb__left .problem-tabs { padding: 8px 18px 0; flex: 0 0 auto; }

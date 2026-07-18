@@ -117,9 +117,15 @@ html[data-reader-width] .lesson.lesson--problem,
 .reader-nav-fab:focus-visible { outline: 2px solid hsl(var(--primary)); outline-offset: 3px; }
 .reader-nav-fab__ic { width: 20px; height: 20px; }
 
-.reader-nav-scrim { position: fixed; inset: 0; z-index: 44;
+/* ABOVE the header (z-index 50), not below it. The drawer used to sit at z-index 45, so the
+   fixed header covered its head and put the ✕ out of reach — unreachable since step 33, with
+   only scrim/Esc/link-tap closing it. Offsetting by the header's height is the wrong fix:
+   the header wraps to ~93px on a phone, exactly where the drawer matters most. Taking over
+   the viewport is what an off-canvas drawer is supposed to do anyway. Stays under the
+   diagram scrim (70) and ⌘K (300). */
+.reader-nav-scrim { position: fixed; inset: 0; z-index: 55;
                     background: hsl(var(--foreground) / 0.25); backdrop-filter: blur(2px); }
-.reader-nav-drawer { position: fixed; top: 0; left: 0; bottom: 0; z-index: 45;
+.reader-nav-drawer { position: fixed; top: 0; left: 0; bottom: 0; z-index: 56;
                      width: min(320px, 88vw); display: flex; flex-direction: column;
                      overflow-y: auto; background: hsl(var(--card));
                      border-right: 1px solid hsl(var(--border));
@@ -138,9 +144,14 @@ html[data-reader-width] .lesson.lesson--problem,
                             cursor: pointer; }
 .reader-nav-drawer__close:hover { background: hsl(var(--muted)); color: hsl(var(--foreground)); }
 
-/* One breakpoint: ≥1024px = desktop sidebar, no mobile chrome. */
+/* One breakpoint: ≥1024px = desktop sidebar, no mobile chrome. Problem pages are the
+   exception both ways: they hide the sidebar column at EVERY width, so the drawer stays
+   reachable above the breakpoint — but driven from the crumb row's Contents button, not
+   the FAB, which would float over the left pane's content. */
 @media (min-width: 1024px) {
     .reader-nav-fab, .reader-nav-scrim, .reader-nav-drawer { display: none; }
+    .reader-nav--pinned .reader-nav-scrim { display: block; }
+    .reader-nav--pinned .reader-nav-drawer { display: flex; }
 }
 @media (max-width: 1023.9px) {
     .reader { grid-template-columns: 1fr; }

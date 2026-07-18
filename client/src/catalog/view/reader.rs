@@ -77,16 +77,21 @@ pub fn LessonPage() -> impl IntoView {
         </button>
         // OUTSIDE the grid on purpose (oracle step-38 prod bug): the drawer's in-flow
         // wrapper would otherwise become a phantom third grid item at desktop width.
-        <ReaderNavDrawer path=path chrome_progress=chrome.progress />
+        <ReaderNavDrawer path=path chrome=chrome />
     }
 }
 
 /// The mobile navigation drawer (oracle: `ReaderNavDrawer`, step 38): a bottom-LEFT FAB
 /// (<1024px only — the desktop sidebar hides there) opens an off-canvas drawer reusing the
 /// SAME `Sidebar`, always expanded. Three closes: scrim, Escape, any nav-link tap.
+///
+/// The open state lives in `ChromeState` because the drawer has a SECOND caller: problem
+/// pages hide the sidebar column at every width, so their Contents button drives this same
+/// singleton. `--pinned` keeps it reachable above the 1024px breakpoint for them.
 #[component]
-fn ReaderNavDrawer(path: Memo<Vec<String>>, chrome_progress: RwSignal<f64>) -> impl IntoView {
-    let open = RwSignal::new(false);
+fn ReaderNavDrawer(path: Memo<Vec<String>>, chrome: super::chrome::ChromeState) -> impl IntoView {
+    let open = chrome.nav_open;
+    let chrome_progress = chrome.progress;
     let drawer_mode = RwSignal::new(super::sidebar::SidebarMode::Expanded);
     let esc = window_event_listener(leptos::ev::keydown, move |event| {
         if event.key() == "Escape" && open.get_untracked() {
@@ -95,7 +100,7 @@ fn ReaderNavDrawer(path: Memo<Vec<String>>, chrome_progress: RwSignal<f64>) -> i
     });
     on_cleanup(move || esc.remove());
     view! {
-        <div>
+        <div class="reader-nav" class:reader-nav--pinned=move || chrome.is_problem.get()>
             <button
                 class="reader-nav-fab"
                 aria-label="Contents"

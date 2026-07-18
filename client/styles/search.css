@@ -1,14 +1,13 @@
 /* ─────────────────────────────────────────────────────────────────────────────
-   ⌘K SEARCH (step 18) — the header trigger and the palette (oracle: SearchPalette
-   classes kept verbatim: cmdk-scrim / cmdk / cmdk__input / cmdk__results).
+   ⌘K SEARCH (step 18) — the palette (oracle: SearchPalette classes kept verbatim:
+   cmdk-scrim / cmdk / cmdk__input / cmdk__results). The header TRIGGER
+   (.header__search*) lives in shell.css with the rest of the header chrome.
    ───────────────────────────────────────────────────────────────────────────── */
 
-                  margin-left: 1rem; padding: 0.25rem 0.75rem; font-size: 0.8rem;
-                  border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 0.45rem;
-                  background: rgba(255, 255, 255, 0.12); color: hsl(var(--primary) / 0.08); cursor: pointer; }
-                      background: rgba(255, 255, 255, 0.18); font-family: inherit; }
-
-.cmdk-scrim { position: fixed; inset: 0; z-index: 60; background: hsl(var(--foreground) / 0.35);
+/* The scrim centers the palette as a fixed overlay. It sits ABOVE the reader chrome
+   (progress bar 60, sticky bar 45) — a stray unparseable rule above this one once
+   swallowed it, dropping the palette into normal flow at the page's bottom-left. */
+.cmdk-scrim { position: fixed; inset: 0; z-index: 300; background: hsl(var(--foreground) / 0.35);
               display: flex; justify-content: center; align-items: flex-start;
               padding-top: 12vh; }
 .cmdk { width: min(34rem, 92vw); background: hsl(var(--card)); border-radius: 0.75rem;

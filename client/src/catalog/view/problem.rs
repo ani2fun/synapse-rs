@@ -267,7 +267,7 @@ fn description_pane(
                 &node, &segments, auth, code_ctx, theme, viz_modal,
             );
             handles.extend(crate::catalog::view::diagrams::hydrate_diagrams(&node));
-            handles.extend(crate::execution::view::hydrate_codebench_pills(&node, codebench));
+            handles.extend(crate::execution::view::hydrate_fence_groups(&node, codebench));
             handles.extend(crate::viz::blocks::mount_widgets(&node));
             mounts.set_value(handles);
         });
@@ -315,7 +315,7 @@ fn editorial_pane(
                     section_labels.set(sectionize_editorial(&node));
                     mounts.update_value(|m| {
                         m.extend(crate::execution::view::mount_solutions(&node, load_code, theme));
-                        m.extend(crate::execution::view::hydrate_codebench_pills(&node, codebench));
+                        m.extend(crate::execution::view::hydrate_fence_groups(&node, codebench));
                         // An editorial is authored markdown like any lesson: its diagrams and
                         // widgets need the same hydration the reader and description panes do.
                         m.extend(crate::catalog::view::diagrams::hydrate_diagrams(&node));

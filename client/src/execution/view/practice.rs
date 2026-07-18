@@ -293,7 +293,7 @@ fn markdown_pane(
                         mounts.update_value(|m| m.extend(mount_solutions(&node, load_code, theme)));
                     }
                     mounts.update_value(|m| {
-                        m.extend(super::hydrate_codebench_pills(&node, codebench));
+                        m.extend(super::hydrate_fence_groups(&node, codebench));
                     });
                 }
                 Err(error) => {

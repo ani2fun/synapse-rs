@@ -1,15 +1,14 @@
-//! The popup codebench (qna Q1, option A): every PLAIN fenced code block in a runnable
-//! language grows a hover "⤢ Open editor to try" pill — clicking opens ONE near-fullscreen
-//! modal with ONE Monaco created on first open and reused forever after (value + tokenizer
-//! swap, the step-30 seam). Run + editable stdin + the runnable output panel ride along;
-//! Esc closes like every other popup; editing gates on sign-in while Run stays open to
-//! everyone. Authors write bare fences — no `run` attribute, no markdown changes.
-
-use std::any::Any;
+//! The popup codebench (qna Q1, option A): ONE near-fullscreen modal with ONE Monaco created
+//! on first open and reused forever after (value + tokenizer swap, the step-30 seam). Run +
+//! editable stdin + the runnable output panel ride along; Esc closes like every other popup;
+//! editing gates on sign-in while Run stays open to everyone. Authors write bare fences — no
+//! `run` attribute, no markdown changes.
+//!
+//! The button that opens it moved into the fence group's header bar in step 41 (`fence_group`);
+//! this module keeps the store, the modal, and the alias list that decides which fences get one.
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use wasm_bindgen::JsCast;
 
 use crate::execution::state::BlockStore;
 use crate::execution::view::icons::icon_play;
@@ -84,55 +83,9 @@ const RUNNABLE_FENCES: [&str; 21] = [
     "sql",
 ];
 
-fn runnable_fence(lang: &str) -> bool {
+pub(crate) fn runnable_fence(lang: &str) -> bool {
     let needle = lang.trim().to_lowercase();
     RUNNABLE_FENCES.contains(&needle.as_str())
-}
-
-/// Every plain shiki figure in a runnable language gets the pill. Blocks inside interactive
-/// hosts (workbench, solutions, quiz) never render as plain figures, so no exclusion dance
-/// is needed — the pipeline already made them placeholders.
-pub fn hydrate_codebench_pills(root: &web_sys::HtmlElement, store: CodebenchStore) -> Vec<Box<dyn Any>> {
-    let mut handles: Vec<Box<dyn Any>> = Vec::new();
-    let Ok(nodes) = root.query_selector_all("figure[data-rehype-pretty-code-figure]") else {
-        return handles;
-    };
-    for index in 0..nodes.length() {
-        let Some(node) = nodes.get(index) else { continue };
-        let Ok(figure) = node.dyn_into::<web_sys::HtmlElement>() else {
-            continue;
-        };
-        let Ok(Some(pre)) = figure.query_selector("pre[data-language]") else {
-            continue;
-        };
-        let Some(language) = pre.get_attribute("data-language") else {
-            continue;
-        };
-        if !runnable_fence(&language) {
-            continue;
-        }
-        let code = pre.text_content().unwrap_or_default();
-        if code.trim().is_empty() {
-            continue;
-        }
-        let _ = figure.class_list().add_1("codebench-host");
-        let handle = leptos::mount::mount_to(figure, move || {
-            let request = CodebenchRequest { code, language };
-            view! {
-                <button
-                    class="codebench-open"
-                    title="Open this code in the editor — run it, feed it input, make it yours"
-                    on:click=move |_| store.open(request.clone())
-                >
-                    {icon_play("codebench-open__ic")}
-                    <span>"Try in Editor"</span>
-                </button>
-            }
-            .into_any()
-        });
-        handles.push(Box::new(handle));
-    }
-    handles
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

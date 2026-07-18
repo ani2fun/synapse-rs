@@ -59,6 +59,155 @@
   padding: 0;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   THE CODE-BLOCK TAB GROUP (step 41) — every display-language fence is framed by
+   a card whose header bar carries language tabs (adjacent fences, one per tab) or
+   a lone ▶ pill, with copy + "Try in Editor" on the far right. Before this the
+   action floated over the first line of code and adjacent languages read as two
+   unrelated examples.
+
+   Deliberately NOT `.not-prose`, unlike every other hydrated widget: the panes ARE
+   `<pre>` elements and we want `.synapse-prose pre:not(.not-prose *)` above to keep
+   painting the slab and the shiki token variables. The bar is chrome around real
+   prose output, not a widget that owns its own rendering.
+
+   The slab is fixed-dark in both themes (standing rule since step 25), so the bar
+   is too — and the accent is pinned to the DARK --primary rather than following
+   the page, or it would go invisible on a light page's dark bar.
+   ───────────────────────────────────────────────────────────────────────────── */
+.synapse-prose .fence-group {
+  --fence-accent: hsl(166 63% 48%);
+  --fence-bar: #262626;
+  --fence-slab: #2d2d2d;
+  --fence-ink: #d6d3cc;
+  --fence-ink-dim: #8a857c;
+  margin: 1.5rem 0;
+  border: 1px solid hsl(0 0% 0% / 0.28);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 28px -14px hsl(0 0% 0% / 0.45);
+}
+
+.synapse-prose .fence-group__bar {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 8px;
+  background: var(--fence-bar);
+  border-bottom: 1px solid hsl(0 0% 100% / 0.06);
+}
+.synapse-prose .fence-group__lead { display: flex; align-items: stretch; min-width: 0; overflow-x: auto; }
+.synapse-prose .fence-group__actions { display: flex; align-items: center; gap: 5px; padding: 7px 0; }
+
+/* ── tabs (two or more languages) ── */
+.synapse-prose .fence-group__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 46px;
+  padding: 0 15px;
+  border: 0;
+  border-top: 2px solid transparent;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: var(--fence-ink-dim);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.synapse-prose .fence-group__tab:hover { background: hsl(0 0% 100% / 0.04); }
+.synapse-prose .fence-group__tab--active {
+  color: #e8e5de;
+  background: var(--fence-slab);
+  border-top-color: var(--fence-accent);
+  font-weight: 600;
+}
+.synapse-prose .fence-group__tab-ic {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  opacity: 0.6;
+  transition: transform 0.15s ease, color 0.15s, opacity 0.15s;
+}
+.synapse-prose .fence-group__tab--active .fence-group__tab-ic {
+  transform: rotate(90deg);
+  color: var(--fence-accent);
+  opacity: 1;
+}
+
+/* ── the lone-block pill (one language, nothing to switch between) ── */
+.synapse-prose .fence-group__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 5px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  color: var(--fence-ink);
+}
+.synapse-prose .fence-group__pill-ic { width: 12px; height: 12px; flex: none; color: var(--fence-accent); }
+
+/* ── actions ── */
+.synapse-prose .fence-group__copy {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fence-ink-dim);
+  cursor: pointer;
+}
+.synapse-prose .fence-group__copy:hover { background: hsl(0 0% 100% / 0.07); color: var(--fence-ink); }
+.synapse-prose .fence-group__copy--done { color: var(--fence-accent); }
+.synapse-prose .fence-group__copy-ic { width: 15px; height: 15px; }
+
+.synapse-prose .fence-group__try {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 8px;
+  padding: 7px 12px 7px 11px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  color: #06231f;
+  background: var(--fence-accent);
+  box-shadow: 0 2px 8px -2px hsl(0 0% 0% / 0.45);
+  cursor: pointer;
+  transition: filter 0.12s;
+}
+.synapse-prose .fence-group__try:hover { filter: brightness(1.07); }
+.synapse-prose .fence-group__try-ic { width: 13px; height: 13px; flex: none; }
+
+/* ── the panes ── */
+/* Mount-once, one visible: switching tabs only flips this class (the practice
+   widget's pattern), so no pane is ever re-rendered or re-highlighted. */
+.synapse-prose .fence-group__pane--hidden { display: none; }
+/* The card owns the corners and the rhythm now — the slab's own radius would
+   otherwise cut a lighter arc inside the frame. */
+.synapse-prose .fence-group figure { margin: 0; }
+.synapse-prose .fence-group pre { border-radius: 0; margin: 0; }
+
+/* A visible scrollbar on a dark slab: the browser default is a pale ghost that
+   reads as damage against #2d2d2d. */
+.synapse-prose .fence-group pre::-webkit-scrollbar { height: 11px; }
+.synapse-prose .fence-group pre::-webkit-scrollbar-track { background: var(--fence-slab); }
+.synapse-prose .fence-group pre::-webkit-scrollbar-thumb {
+  background: #575757;
+  border: 3px solid var(--fence-slab);
+  border-radius: 6px;
+}
+
 /* Inline code stays a muted chip (shiki bypasses inline nodes). */
 .synapse-prose :not(pre) > code {
   background: hsl(var(--muted));

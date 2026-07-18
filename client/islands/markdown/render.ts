@@ -56,6 +56,28 @@ function isSolution(node: Code): boolean {
   return node.lang != null && node.meta != null && solutionMeta.test(node.meta);
 }
 
+// A *plain* fence is one no other transform claims: a real display language, no `run` or
+// `solution` marker, and not one of the widget vocabularies below. These become tab-group
+// cards (step 41) — see the fall-through at the end of the `code` handler.
+//
+// The predicate gates the group HEAD as well as its siblings, so a fence either always gets
+// the card or never does. Reserved vocabularies keep their existing behaviour: claimed ones
+// returned earlier in the handler, orphans (a ```testcases with no group above it, a ```viz
+// with no widget=) still render as bare highlighted code.
+const RESERVED_FENCE_LANGS = new Set(["mermaid", "d2", "viz", "quiz", "problem", "testcases", "editorial"]);
+
+function fenceLang(node: Code): string {
+  return (node.lang ?? "").trim().toLowerCase();
+}
+
+function isPlainFence(node: RootContent): node is Code {
+  if (node.type !== "code") return false;
+  if ((node as unknown as Record<string, boolean>)[CONSUMED]) return false;
+  if (node.lang == null) return false; // bare ``` fences stay untouched — no language, nothing to run
+  if (isRunnable(node) || isSolution(node)) return false;
+  return !RESERVED_FENCE_LANGS.has(fenceLang(node));
+}
+
 // ── Workbench blocks (step 13) ──────────────────────────────────────
 // Adjacent run fences group into ONE workbench placeholder (its language
 // variants); a ```testcases JSON fence directly after the group is parsed
@@ -390,7 +412,51 @@ export async function renderLesson(raw: string): Promise<string> {
             return pExtras.length > 0 ? [pDiv, ...pExtras] : pDiv;
           }
 
-          if (!isRunnable(node)) return defaultHandlers.code(state, node);
+          // Plain fences → ONE tab-group card per adjacent run (step 41). Every display-language
+          // fence gets the framed card: a header bar carrying language TABS when adjacent fences
+          // offer the same idea in another language, a ▶ pill when it stands alone, and the
+          // actions (copy · Try in Editor) on the far right where they never cover the code.
+          //
+          // UNLIKE every grouper above, this one KEEPS its fences' rendered output instead of
+          // swallowing it into a data-* payload: `defaultHandlers.code` still runs per member, so
+          // rehypePrettyCode highlights each pane in place (nested `pre` and all) and the client
+          // mounts only chrome around them.
+          if (!isRunnable(node)) {
+            if (!isPlainFence(node)) return defaultHandlers.code(state, node);
+
+            const panes: Code[] = [node];
+            const langs: string[] = [fenceLang(node)];
+            const siblings = parent && "children" in parent ? parent.children : [];
+            const head = siblings.indexOf(node);
+            if (head >= 0) {
+              let i = head + 1;
+              while (i < siblings.length && isPlainFence(siblings[i])) {
+                const sib = siblings[i] as Code;
+                // A repeat language would collide in the tab bar — it starts a new group instead.
+                if (langs.includes(fenceLang(sib))) break;
+                panes.push(sib);
+                langs.push(fenceLang(sib));
+                (sib as unknown as Record<string, boolean>)[CONSUMED] = true;
+                i += 1;
+              }
+            }
+            return {
+              type: "element",
+              tagName: "div",
+              properties: { className: ["fence-group"], "data-langs": langs.join(",") },
+              children: [
+                // Emitted FIRST and left empty: Leptos' `mount_to` appends, so the client's
+                // header bar lands ABOVE the panes without a CSS reordering hack.
+                {
+                  type: "element",
+                  tagName: "div",
+                  properties: { className: ["fence-group__bar"] },
+                  children: [],
+                },
+                ...panes.map((pane) => defaultHandlers.code(state, pane)),
+              ],
+            };
+          }
 
           // This fence is a group head: collect it + every directly-following run fence as variants.
           const variants: FenceVariant[] = [{ lang: node.lang!, source: node.value, viz: vizOf(node.meta) }];

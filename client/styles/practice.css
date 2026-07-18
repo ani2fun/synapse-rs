@@ -112,14 +112,9 @@
 .pwb__enlarge:hover { border-color: hsl(var(--primary)); color: hsl(var(--primary)); }
 .pwb--embedded .pwb__head { padding-left: 110px; } /* room for the top-left Enlarge pill */
 
-/* ── language tabs on the workbench toolbar (multi-variant, step 30) ── */
-.wb__lang-tabs { display: inline-flex; gap: 2px; border: 1px solid hsl(var(--border));
-                 border-radius: 8px; padding: 2px; background: hsl(var(--muted) / 0.4); }
-.wb__lang-tab { border: 0; border-radius: 6px; background: transparent; cursor: pointer;
-                font-size: 12px; padding: 2px 9px; color: hsl(var(--muted-foreground)); }
-.wb__lang-tab:hover { color: hsl(var(--foreground)); }
-.wb__lang-tab--active { background: hsl(var(--background)); color: hsl(var(--primary));
-                        box-shadow: 0 1px 2px hsl(var(--foreground) / 0.12); }
+/* (Step 30's `.wb__lang-tab*` segmented control lived here until step 41. Step 38
+   replaced it with the ▶ pill + dropdown in viz.css and it has been dead since; it
+   was deleted rather than left as a third tab style beside the live one.) */
 
 /* ── the revealed solution viewer (editorial pane) ── */
 .solution { margin: 1rem 0; }

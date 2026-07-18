@@ -216,7 +216,7 @@ fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> AnyView {
                 );
                 handles.extend(crate::catalog::view::diagrams::hydrate_diagrams(&body));
                 handles.extend(crate::quiz::hydrate_quizzes(&body));
-                handles.extend(crate::execution::view::hydrate_codebench_pills(&body, codebench));
+                handles.extend(crate::execution::view::hydrate_fence_groups(&body, codebench));
                 handles.extend(crate::catalog::view::c4::hydrate_c4_embeds(&body, c4_selected));
                 handles.extend(crate::execution::view::hydrate_practices(
                     &body,

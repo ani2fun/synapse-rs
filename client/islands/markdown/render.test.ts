@@ -108,6 +108,95 @@ describe("fenced code (shiki highlighting)", () => {
   });
 });
 
+// Every display-language fence is wrapped in ONE `.fence-group` card the client mounts a
+// header bar into — language TABS when adjacent fences offer the same idea in another
+// language, a lone ▶ pill otherwise (step 41). Unlike every other grouper, the fences keep
+// their rendered output: the panes are still shiki figures, nested inside the wrapper.
+function countOf(html: string, needle: RegExp): number {
+  return (html.match(needle) ?? []).length;
+}
+
+const GROUPS = /class="fence-group"/g;
+const FIGURES = /data-rehype-pretty-code-figure/g;
+
+describe("plain fences → tab-group cards (step 41)", () => {
+  it("groups ADJACENT fences in different languages into ONE card, in order", async () => {
+    const html = await renderLesson("```java\nint x = 1;\n```\n\n```python\nx = 1\n```");
+    expect(countOf(html, GROUPS)).toBe(1);
+    expect(html).toContain('data-langs="java,python"');
+    expect(countOf(html, FIGURES)).toBe(2); // both panes survive as real shiki figures
+    expect(html).toContain('data-language="java"');
+    expect(html).toContain('data-language="python"');
+    expect(html).toContain("--shiki-"); // …and both are still highlighted
+  });
+
+  it("emits the header-bar host FIRST and empty (mount_to appends — the bar must precede the panes)", async () => {
+    const html = await renderLesson("```java\nint x = 1;\n```");
+    expect(html).toContain('<div class="fence-group" data-langs="java"><div class="fence-group__bar"></div><figure');
+  });
+
+  it("wraps a LONE tagged fence in the same card with one pane (the ▶ pill case)", async () => {
+    const html = await renderLesson("Prose.\n\n```java\nint x = 1;\n```\n\nMore prose.");
+    expect(countOf(html, GROUPS)).toBe(1);
+    expect(html).toContain('data-langs="java"');
+    expect(countOf(html, FIGURES)).toBe(1);
+  });
+
+  it("a paragraph between two fences breaks the group into two cards", async () => {
+    const html = await renderLesson("```java\nint x = 1;\n```\n\nBetween.\n\n```python\nx = 1\n```");
+    expect(countOf(html, GROUPS)).toBe(2);
+    expect(html).toContain('data-langs="java"');
+    expect(html).toContain('data-langs="python"');
+  });
+
+  it("a REPEATED language breaks the run — two fences can't both be the Java tab", async () => {
+    const html = await renderLesson("```java\nint x = 1;\n```\n\n```java\nint y = 2;\n```");
+    expect(countOf(html, GROUPS)).toBe(2);
+    expect(html).not.toContain('data-langs="java,java"');
+  });
+
+  it("leaves an UNTAGGED fence alone — no card, still plain highlighted code", async () => {
+    const html = await renderLesson("```\nHello, world!\n```");
+    expect(html).not.toContain("fence-group");
+    expect(html).toContain("<pre");
+    expect(html).toContain("Hello, world!");
+  });
+
+  it("does not let a bare fence join the card of the tagged fence above it", async () => {
+    // The corpus shape this guards: a `run` block's program output printed directly below it.
+    const html = await renderLesson("```python\nprint(1)\n```\n\n```\n1\n```");
+    expect(countOf(html, GROUPS)).toBe(1);
+    expect(html).toContain('data-langs="python"');
+  });
+
+  it("a ```lang run fence stays a workbench and never joins a card", async () => {
+    const html = await renderLesson("```python run\nprint(1)\n```\n\n```java\nint x = 1;\n```");
+    expect(html).toContain('class="workbench"');
+    expect(countOf(html, GROUPS)).toBe(1);
+    expect(html).toContain('data-langs="java"');
+    expect(workbenchVariants(html).map((v) => v.lang)).toEqual(["python"]);
+  });
+
+  it("a following ```mermaid fence keeps its own placeholder and breaks the run", async () => {
+    const html = await renderLesson("```java\nint x = 1;\n```\n\n```mermaid\nflowchart LR\n  A --> B\n```");
+    expect(html).toContain('class="mermaid-block"');
+    expect(countOf(html, GROUPS)).toBe(1);
+    expect(html).toContain('data-langs="java"');
+  });
+
+  it("reserved vocabularies stay OUTSIDE the card — an orphan ```testcases is bare code", async () => {
+    const html = await renderLesson("```testcases\n{ nonsense }\n```");
+    expect(html).not.toContain("fence-group");
+    expect(html).toContain("<pre");
+  });
+
+  it("a ```viz fence with no widget= attribute is reserved too, so it stays bare", async () => {
+    const html = await renderLesson("```viz\n{}\n```");
+    expect(html).not.toContain("fence-group");
+    expect(html).toContain("<pre");
+  });
+});
+
 // A run-fence group is discovered into ONE interactive workbench placeholder
 // (steps 11 · 24). The other reserved fences stay plain highlighted code until
 // their own discovery hooks land (Phases 4–5).

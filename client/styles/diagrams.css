@@ -17,6 +17,21 @@
    behind the zoom. */
 .diagram__figure svg { max-width: 100%; max-height: min(70vh, 32rem); height: auto; }
 
+/* The card is FIXED-LIGHT, so the text on it must be fixed-dark — but the diagram TITLE was
+   the one thing still following the page theme, and it was invisible because of it.
+   Both renderers put their title in an SVG <foreignObject>, i.e. real HTML, which the prose
+   stylesheet then styles: `.synapse-prose h1 { color: hsl(var(--foreground)) }`. In dark mode
+   that resolves to near-white — white ink on a white card.
+   Shape labels are unaffected either way: d2 and mermaid draw those as SVG <text> carrying
+   their own `fill` (measured: rgb(10,15,37) and rgb(103,108,126)), and `fill` does not
+   inherit from `color`. That is what makes this rule safe to state broadly — it can only
+   reach foreignObject HTML, never the diagram's own palette.
+   The value is the LIGHT theme's --foreground, hardcoded on purpose: a token would track the
+   page theme again, which is the bug. Same reasoning as the code slab's pinned accent. */
+.diagram__figure foreignObject :is(h1, h2, h3, h4, h5, h6, p, span, div, li, td, th, code) {
+  color: hsl(224 14% 16%);
+}
+
 /* The shared modal-chrome pill (oracle: dialog.css .modal-btn) — the teal
    icon+label button both Enlarge (card) and Close (overlay) wear. */
 .modal-btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 6px;

@@ -52,12 +52,11 @@ pub fn LessonPage() -> impl IntoView {
         </div>
         // The prose reader's chrome, ALL of it gated on kind != problem. A problem page has
         // no window scroll (the panes scroll internally) and no sidebar column, so the
-        // minimap, scroll-to-top and sidebar-restore controls are inert there, and focus
-        // mode has nothing to hide. The TOC FAB already gated itself. They own the bottom
-        // corners the problem page now puts its own navigation in.
+        // minimap, scroll-to-top and sidebar-restore controls are inert there. The TOC FAB
+        // already gated itself. They own the bottom corners the problem page now puts its
+        // own navigation in.
         {move || (!chrome.is_problem.get()).then(|| view! {
             <super::chrome::MiniMap chrome=chrome />
-            <super::chrome::FocusFab />
             <super::chrome::ScrollTop chrome=chrome />
             // The floating expand affordance for the Hidden sidebar.
             <button

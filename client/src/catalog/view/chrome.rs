@@ -1,7 +1,7 @@
 //! The reader's fixed chrome (oracle: `ReadingProgress` + `ReaderStickyBar` +
-//! `ReaderMiniMap` + `ReaderToc` + `ReaderFocus` + the scroll-top FAB): everything that
-//! floats over the prose. One scroll handler in `LessonPage` feeds the shared signals;
-//! these components only render them.
+//! `ReaderMiniMap` + `ReaderToc` + the scroll-top FAB): everything that floats over the
+//! prose. One scroll handler in `LessonPage` feeds the shared signals; these components
+//! only render them.
 
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
@@ -310,81 +310,6 @@ pub fn TocFab(chrome: ChromeState) -> impl IntoView {
                         .collect::<Vec<_>>()}
                 </ul>
             </div>
-        })}
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FOCUS MODE — `.syn-focus` on <html>; F toggles, Esc exits; hint pill dims
-// ─────────────────────────────────────────────────────────────────────────────
-
-#[component]
-pub fn FocusFab() -> impl IntoView {
-    let on = RwSignal::new(false);
-    let faded = RwSignal::new(false);
-    let apply = move |state: bool| {
-        if let Some(root) = web_sys::window()
-            .and_then(|w| w.document())
-            .and_then(|d| d.document_element())
-        {
-            let _ = root.class_list().toggle_with_force("syn-focus", state);
-        }
-        on.set(state);
-        if state {
-            faded.set(false);
-            gloo_timers::callback::Timeout::new(2_600, move || faded.set(true)).forget();
-        }
-    };
-    let keys = window_event_listener(leptos::ev::keydown, move |event| {
-        let typing = event
-            .target()
-            .and_then(|t| t.dyn_into::<web_sys::Element>().ok())
-            .is_some_and(|el| {
-                matches!(el.tag_name().as_str(), "INPUT" | "TEXTAREA") || el.class_name().contains("monaco")
-            });
-        if typing || event.meta_key() || event.ctrl_key() || event.alt_key() {
-            return;
-        }
-        match event.key().as_str() {
-            "f" | "F" => apply(!on.get_untracked()),
-            "Escape" if on.get_untracked() => apply(false),
-            _ => {}
-        }
-    });
-    on_cleanup(move || {
-        keys.remove();
-        if let Some(root) = web_sys::window()
-            .and_then(|w| w.document())
-            .and_then(|d| d.document_element())
-        {
-            let _ = root.class_list().remove_1("syn-focus");
-        }
-    });
-    view! {
-        <button
-            class="reader-focus-fab"
-            aria-label="Focus mode (F)"
-            title="Focus mode (F)"
-            aria-pressed=move || on.get().to_string()
-            on:click=move |_| apply(!on.get_untracked())
-        >
-            <svg class="reader-focus-fab__ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="3"></circle>
-                <path d="M3 7V5a2 2 0 0 1 2-2h2 M17 3h2a2 2 0 0 1 2 2v2 M21 17v2a2 2 0 0 1-2 2h-2 M7 21H5a2 2 0 0 1-2-2v-2"></path>
-            </svg>
-        </button>
-        {move || on.get().then(|| view! {
-            <button
-                class="reader-focus-hint"
-                data-faded=move || faded.get().to_string()
-                on:click=move |_| apply(false)
-            >
-                <span class="reader-focus-hint__dot"></span>
-                <span>"Focus mode"</span>
-                <span class="reader-focus-hint__sep">"·"</span>
-                <span>"Press "<kbd>"F"</kbd>" or "<kbd>"Esc"</kbd>" to exit"</span>
-            </button>
         })}
     }
 }

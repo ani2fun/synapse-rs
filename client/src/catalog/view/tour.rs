@@ -124,7 +124,7 @@ fn slide_view(i: usize, index: Signal<Option<SynapseIndexDto>>) -> AnyView {
             [
                 "Sidebar, TOC, breadcrumbs & minimap",
                 "Resume reading lands you back in place",
-                "Focus mode hides all but the page",
+                "Type size, leading and width, your way",
             ],
         ),
         _ => (

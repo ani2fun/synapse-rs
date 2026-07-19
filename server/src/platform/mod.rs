@@ -3,6 +3,7 @@
 //! no `domain/` (results are shared DTOs) and no ports yet — the full hexagonal layering debuts
 //! in `catalog`.
 
+pub mod admin_gate;
 pub mod client_ip;
 pub mod content_cache_control;
 pub mod health;

@@ -57,6 +57,7 @@ async fn main() -> anyhow::Result<()> {
     let catalog = Arc::new(CatalogService::new(repo));
     let runner = Arc::new(RunCodeService::new(GoJudgeRunner::new(&cfg.executor_url)));
     let allowlist = Arc::new(PostgresSubmissionAllowlist::new(pool.clone()));
+    let views = Arc::new(synapse_server::insights::PostgresLessonViews::new(pool.clone()));
     let readiness = Arc::new(PgReadiness::new(pool.clone()));
     let submit = Arc::new(SubmitSolution::new(
         Arc::new(PostgresSubmissionRepository::new(pool)),
@@ -134,6 +135,7 @@ async fn main() -> anyhow::Result<()> {
         blog,
         limiter,
         allowlist,
+        views,
         tutor,
         static_root: cfg.static_root.clone(),
         content_root: cfg.content_root.clone(),

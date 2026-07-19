@@ -58,6 +58,7 @@ pub fn deps_with(
     let repo = FileSystemContentRepository::new(content_root, true);
     let runner = Arc::new(RunCodeService::new(GoJudgeRunner::new(executor_url)));
     let allowlist = Arc::new(PostgresSubmissionAllowlist::new(pool.clone()));
+    let views = Arc::new(synapse_server::insights::PostgresLessonViews::new(pool.clone()));
     let readiness = Arc::new(synapse_server::platform::readiness::PgReadiness::new(
         pool.clone(),
     ));
@@ -88,6 +89,7 @@ pub fn deps_with(
         submit,
         ident,
         allowlist,
+        views,
         // The dev default: coach OFF — chat is a structural 404 (the tutor ITs build their own).
         tutor: TutorRoutesState {
             service: Arc::new(TutoringService::new(OllamaTutorClient::new(

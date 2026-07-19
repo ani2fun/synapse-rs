@@ -282,6 +282,24 @@
       "body": {}
     },
     {
+      "_id": "req_admin_lesson_views",
+      "_type": "request",
+      "parentId": "fld_admin",
+      "name": "GET /api/admin/lesson-views",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/admin/lesson-views",
+      "description": "Readership (step 49): most-read lessons first. limit defaults to 50, clamps to 1..500. Anonymous \u2192 401; verified non-admin \u2192 403 'Admin only'. Counts only \u2014 no reader, no session, no IP is ever recorded.",
+      "headers": [],
+      "parameters": [
+        {
+          "name": "limit",
+          "value": "50",
+          "disabled": true
+        }
+      ],
+      "body": {}
+    },
+    {
       "_id": "req_admin_grant",
       "_type": "request",
       "parentId": "fld_admin",

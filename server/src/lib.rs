@@ -8,6 +8,7 @@ pub mod catalog;
 pub mod config;
 pub mod execution;
 pub mod identity;
+pub mod insights;
 pub mod platform;
 pub mod submission;
 pub mod tutoring;
@@ -28,6 +29,7 @@ use synapse_shared::blog::{BlogPostDto, BlogSummaryDto};
 use synapse_shared::catalog::{ComponentDocDto, LessonPayloadDto, SynapseIndexDto};
 use synapse_shared::execution::{RunRequest, RunResult};
 use synapse_shared::identity::{AuthConfigDto, MeDto};
+use synapse_shared::insights::LessonViewDto;
 use synapse_shared::submission::{
     AllowlistEntryDto, DeleteResultDto, GrantRequestDto, SubmissionAcceptedDto, SubmissionDto,
     SubmitRequestDto,
@@ -45,6 +47,8 @@ pub struct AppDeps {
     pub limiter: Arc<RateLimiter>,
     /// The allowlist store the admin panel manages (the submit gate holds its own Arc).
     pub allowlist: Arc<submission::infrastructure::PostgresSubmissionAllowlist>,
+    /// Readership (step 49): the catalog records into it, the admin panel reads it.
+    pub views: Arc<insights::PostgresLessonViews>,
     /// The production dist dir; absent (dev) → no static routes, and `/` answers plain text.
     pub static_root: String,
     /// The content checkout — `/media` serves its `_media/` tree (one shared cache hour).
@@ -81,14 +85,24 @@ pub fn app(deps: AppDeps) -> Router {
         identity: Arc::clone(&deps.ident.identity),
         admin_users: Arc::clone(&deps.ident.admin_users),
     };
+    let readership = insights::http::InsightsRoutesState {
+        views: Arc::clone(&deps.views),
+        identity: Arc::clone(&deps.ident.identity),
+        admin_users: Arc::clone(&deps.ident.admin_users),
+    };
+    let catalog_state = catalog::http::routes::CatalogRoutesState {
+        service: deps.catalog,
+        views: deps.views,
+    };
     let mut router = Router::new()
         .merge(platform::http::routes(deps.readiness))
-        .merge(catalog::http::routes(deps.catalog))
+        .merge(catalog::http::routes(catalog_state))
         .merge(execution::http::routes(execution))
         .merge(submission::http::routes(submissions))
         .merge(identity::http::routes(deps.ident))
         .merge(blog::http::routes(deps.blog))
         .merge(submission::http::admin::routes(admin))
+        .merge(insights::http::routes(readership))
         .merge(tutoring::http::routes(deps.tutor))
         .layer(axum::middleware::from_fn(platform::content_cache_control::stamp))
         .merge(media.routes())
@@ -153,6 +167,7 @@ pub fn app(deps: AppDeps) -> Router {
         submission::http::admin::list_allowlist,
         submission::http::admin::grant_allowlist,
         submission::http::admin::revoke_allowlist,
+        insights::http::list_lesson_views,
         tutoring::http::tutor_config,
         tutoring::http::tutor_chat
     ),
@@ -174,6 +189,7 @@ pub fn app(deps: AppDeps) -> Router {
         BlogPostDto,
         AllowlistEntryDto,
         GrantRequestDto,
+        LessonViewDto,
         synapse_shared::tutor::ChatMessage,
         synapse_shared::tutor::TutorConfigDto,
         synapse_shared::tutor::TutorChatRequestDto,

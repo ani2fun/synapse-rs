@@ -14,7 +14,8 @@ use chrono::SecondsFormat;
 use synapse_shared::api::ApiError;
 use synapse_shared::submission::{AllowlistEntryDto, GrantRequestDto};
 
-use crate::identity::http::{LiveIdentityService, bearer, to_auth_error};
+use crate::identity::http::LiveIdentityService;
+use crate::platform::admin_gate::{Reject, require_admin as gate};
 use crate::submission::application::{AllowlistEntry, SubmissionAllowlist};
 
 pub struct AdminRoutesState<L> {
@@ -35,8 +36,6 @@ impl<L> Clone for AdminRoutesState<L> {
     }
 }
 
-type Reject = (StatusCode, Json<ApiError>);
-
 pub fn routes<L: SubmissionAllowlist + 'static>(state: AdminRoutesState<L>) -> Router {
     Router::new()
         .route(
@@ -47,36 +46,11 @@ pub fn routes<L: SubmissionAllowlist + 'static>(state: AdminRoutesState<L>) -> R
         .with_state(state)
 }
 
-/// Anonymous → 401; a verified non-admin → 403 "Admin only".
+/// The gate itself moved to `platform::admin_gate` in step 49, when the readership read became
+/// the second caller. The invariant it carries is unchanged: ADMIN is config, re-checked here
+/// on every call.
 async fn require_admin<L>(state: &AdminRoutesState<L>, headers: &HeaderMap) -> Result<String, Reject> {
-    let Some(token) = bearer(headers) else {
-        return Err((
-            StatusCode::UNAUTHORIZED,
-            Json(ApiError {
-                error: "Missing bearer token".to_owned(),
-                detail: Some("Admin calls require a signed-in admin".to_owned()),
-                hint: None,
-            }),
-        ));
-    };
-    let user = state
-        .identity
-        .authenticate(&token)
-        .await
-        .map_err(|error| to_auth_error(&error))?;
-    if state.admin_users.contains(&user.username) {
-        tracing::info!(admin = user.username, "admin: allowlist call");
-        Ok(user.username)
-    } else {
-        Err((
-            StatusCode::FORBIDDEN,
-            Json(ApiError {
-                error: "Admin only".to_owned(),
-                detail: Some(format!("'{}' is not an admin on this deployment", user.username)),
-                hint: None,
-            }),
-        ))
-    }
+    gate(&state.identity, &state.admin_users, headers, "allowlist").await
 }
 
 fn to_dto(entry: &AllowlistEntry) -> AllowlistEntryDto {

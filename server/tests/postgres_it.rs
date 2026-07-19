@@ -24,6 +24,7 @@ use axum::routing::post;
 use chrono::Utc;
 use serde_json::{Value, json};
 use sqlx::PgPool;
+use synapse_server::insights::{LessonViewStore, PostgresLessonViews};
 use synapse_server::submission::application::SubmissionRepository;
 use synapse_server::submission::domain::{
     FailedCase, Submission, SubmissionId, SubmissionState, SuiteOutcome,
@@ -282,4 +283,64 @@ async fn allowlist_grant_list_revoke_round_trip() {
         !allowlist.revoke("it-rs-user").await.unwrap(),
         "second revoke finds nothing"
     );
+}
+
+// ── Readership (step 49) ──────────────────────────────────────────────────────
+// `lesson_view` is path-keyed like `submissions`, so it takes the same namespace treatment:
+// clean only this test's own prefix, never a blanket `like 'it-rs%'`.
+
+/// The pool with this test's `lesson_view` rows cleared — the readership twin of `scoped_pool`.
+async fn views_pool(scope: &str) -> Option<(PgPool, String)> {
+    let pool = gated_pool().await?;
+    let namespace = format!("{IT_PREFIX}-{scope}");
+    sqlx::query("delete from lesson_view where lesson_path like $1")
+        .bind(format!("{namespace}/%"))
+        .execute(&pool)
+        .await
+        .unwrap();
+    Some((pool, namespace))
+}
+
+#[tokio::test]
+async fn readership_counts_and_orders_by_views() {
+    let Some((pool, ns)) = views_pool("views").await else {
+        return;
+    };
+    let store = PostgresLessonViews::new(pool);
+
+    let popular = format!("{ns}/popular");
+    let quiet = format!("{ns}/quiet");
+    for _ in 0..3 {
+        store.record(&popular, false).await.unwrap();
+    }
+    store.record(&popular, true).await.unwrap();
+    store.record(&quiet, false).await.unwrap();
+
+    let top = store.top(50).await.unwrap();
+    let mine: Vec<_> = top.iter().filter(|c| c.lesson_path.starts_with(&ns)).collect();
+
+    assert_eq!(mine.len(), 2, "one row per distinct path, not per view");
+    assert_eq!(mine[0].lesson_path, popular, "most-read first");
+    assert_eq!(mine[0].views, 4);
+    assert_eq!(
+        mine[0].authed_views, 1,
+        "only the bearer-carrying request counts as authed"
+    );
+    assert_eq!(mine[1].lesson_path, quiet);
+    assert_eq!(mine[1].views, 1);
+    assert_eq!(mine[1].authed_views, 0);
+}
+
+#[tokio::test]
+async fn readership_limit_is_honoured() {
+    let Some((pool, ns)) = views_pool("views-limit").await else {
+        return;
+    };
+    let store = PostgresLessonViews::new(pool);
+    for i in 0..3 {
+        store.record(&format!("{ns}/lesson-{i}"), false).await.unwrap();
+    }
+    // The limit is applied by SQL over the whole table, so assert on the cap rather than on
+    // this namespace's share of it — other suites' rows are legitimately present.
+    assert!(store.top(2).await.unwrap().len() <= 2);
 }

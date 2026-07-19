@@ -65,3 +65,42 @@ a.lib-card:hover .lib-card__cta-ic { transform: translateX(3px); }
 .lib-card__cta { margin-left: auto; display: inline-flex; align-items: center; gap: 4px;
                  font-size: 13px; font-weight: 600; color: hsl(var(--primary)); }
 .lib-card__cta-ic { transition: transform 140ms; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   THE SITE FOOTER (step 46) — landing page only. Lesson pages own their vertical
+   rhythm (reader chrome, pager cards) and problem pages are a fixed-height two-pane
+   layout with no page scroll, so a footer there would be unreachable or in the way.
+
+   The version tag on the right is the point of it: the commit the reader is actually
+   running, so a bug report can name a build. Mono at 11px — the same register the
+   site already uses for metadata (lib-card__meta, the crumb rows, the eyebrows).
+   ───────────────────────────────────────────────────────────────────────────── */
+.site-footer { margin-top: 4rem; border-top: 1px solid hsl(var(--border));
+               padding: 1.5rem 0 2.5rem; }
+.site-footer__inner { display: flex; align-items: flex-end; justify-content: space-between;
+                      gap: 1.5rem; flex-wrap: wrap; }
+.site-footer__left { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.site-footer__line { margin: 0; font-size: 12.5px; line-height: 1.6;
+                     color: hsl(var(--muted-foreground)); }
+.site-footer__muted { opacity: 0.8; }
+.site-footer__link { color: hsl(var(--muted-foreground)); text-decoration: underline;
+                     text-underline-offset: 2px; transition: color 140ms; }
+.site-footer__link:hover { color: hsl(var(--primary)); }
+
+/* The build tag. A bordered pill rather than bare text: it reads as a value you can
+   copy into an issue, and the border keeps it from looking like a stray word. */
+.site-footer__version { display: inline-flex; align-items: center; gap: 6px; flex: none;
+                        padding: 3px 9px; border: 1px solid hsl(var(--border));
+                        border-radius: 999px; font-family: var(--font-mono); font-size: 11px;
+                        color: hsl(var(--muted-foreground)); text-decoration: none;
+                        transition: border-color 140ms, color 140ms; }
+a.site-footer__version:hover { border-color: hsl(var(--primary)); color: hsl(var(--primary)); }
+.site-footer__version-label { text-transform: uppercase; letter-spacing: 0.1em;
+                              opacity: 0.7; font-size: 10px; }
+.site-footer__sha { color: hsl(var(--foreground) / 0.85); }
+a.site-footer__version:hover .site-footer__sha { color: hsl(var(--primary)); }
+
+/* On a phone the two halves stack and the tag leads — it is the part worth reaching. */
+@media (max-width: 640px) {
+    .site-footer__inner { flex-direction: column-reverse; align-items: flex-start; gap: 1rem; }
+}

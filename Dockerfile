@@ -26,6 +26,13 @@ RUN rustup target add wasm32-unknown-unknown
 # Pinned to Cargo.lock's wasm-bindgen (build-wasm.sh refuses a mismatch).
 RUN cargo install wasm-bindgen-cli --version 0.2.126 --locked
 
+# The shipped version, baked into the wasm bundle so the footer names the build the reader is
+# actually running. `.dockerignore` excludes `.git`, so build.rs's git fallback CANNOT reach
+# this image — the arg is the only path that works here, and the default makes an un-argued
+# build say so rather than lie.
+ARG SYNAPSE_VERSION=unknown
+ENV SYNAPSE_VERSION=$SYNAPSE_VERSION
+
 WORKDIR /build
 COPY . .
 

@@ -40,6 +40,7 @@ pub fn LibraryPage() -> impl IntoView {
                 }
                 AsyncResult::Loaded(idx) => book_grid(&idx).into_any(),
             }}
+            <crate::shell::footer::SiteFooter />
         </div>
     }
 }

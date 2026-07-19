@@ -63,6 +63,7 @@ jobs:
             --push \
             --tag "${{ inputs.image_repo }}:${{ github.sha }}" \
             --tag "${{ inputs.image_repo }}:latest" \
+            --build-arg "SYNAPSE_VERSION=${{ github.sha }}" \
             --cache-from "type=gha${scope_args}" \
             --cache-to "type=gha,mode=max${scope_args}" \
             "${{ inputs.context }}"

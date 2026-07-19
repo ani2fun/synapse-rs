@@ -2,6 +2,7 @@
 //! `Header.scala`). The header is the oracle's polished chrome: brand chip + wordmark, the
 //! centred ⌘K search affordance, then Blog · account chip · the theme toggle (sun/moon).
 
+pub mod footer;
 pub mod theme;
 
 use leptos::prelude::*;

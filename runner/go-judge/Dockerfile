@@ -16,6 +16,10 @@
 # /etc/java-21-openjdk.
 FROM criyle/go-judge:latest
 
+# Declared only so the shared release engine can pass --build-arg SYNAPSE_VERSION to every
+# image it builds without docker warning about an unconsumed arg. The sandbox does not use it.
+ARG SYNAPSE_VERSION=unknown
+
 ENV DEBIAN_FRONTEND=noninteractive
 
 # apt toolchains — all land in /usr (mounted). rustc via apt (NOT rustup, which

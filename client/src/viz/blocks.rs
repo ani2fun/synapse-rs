@@ -5,9 +5,9 @@
 
 use std::any::Any;
 
+use crate::viz::engine::graph::VizCases;
+use crate::viz::engine::vocabulary::VizStructure;
 use leptos::prelude::*;
-use synapse_shared::viz::graph::VizCases;
-use synapse_shared::viz::vocabulary::VizStructure;
 use wasm_bindgen::JsCast;
 
 pub struct WidgetSpec {

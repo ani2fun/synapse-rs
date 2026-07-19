@@ -2,10 +2,10 @@
 //! carets above) and the vertical LIFO stack (↑ TOP marker, cursors to the right). Layout
 //! once over the union; the step signal redraws presence + diff classes only.
 
+use crate::viz::engine::geometry::constants::{CARET_ROW_H, CELL_DX, CELL_H, CELL_W, CURSOR_LINE_H, PAD};
+use crate::viz::engine::geometry::{self, linear};
+use crate::viz::engine::graph::VizGraph;
 use leptos::prelude::*;
-use synapse_shared::viz::geometry::constants::{CARET_ROW_H, CELL_DX, CELL_H, CELL_W, CURSOR_LINE_H, PAD};
-use synapse_shared::viz::geometry::{self, linear};
-use synapse_shared::viz::graph::VizGraph;
 
 use super::{diff_class, fitted_text, themed};
 

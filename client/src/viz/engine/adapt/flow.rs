@@ -4,7 +4,7 @@
 //! previous non-empty graph; (3) `coalesce` drops exact consecutive duplicates on
 //! (line, nodes, edges, cursor) — NOT annotation (captions aren't built yet).
 
-use crate::viz::adapt::projection::ProjectedStep;
+use crate::viz::engine::adapt::projection::ProjectedStep;
 
 /// The general-path composition: `drop_empty_ends` → `carry_forward` → `coalesce`.
 #[must_use]

@@ -4,9 +4,7 @@
 //! stdout cap. Loud, not silent — no markers is simply "no trace", never an error swallowed.
 //! The JSON walk preserves object order (locals + fields ride insertion order on the wire).
 
-use synapse_shared::viz::trace::{
-    ArrKind, HeapFrame, HeapObject, HeapScalar, HeapStep, HeapTrace, HeapValue,
-};
+use crate::viz::engine::trace::{ArrKind, HeapFrame, HeapObject, HeapScalar, HeapStep, HeapTrace, HeapValue};
 
 pub const HEAP_BEGIN: &str = "__SYNAPSE_HEAP_BEGIN__";
 pub const HEAP_END: &str = "__SYNAPSE_HEAP_END__";

@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 
 use super::constants::{CHAIN_DX, NODE_R, PAD};
 use super::{LayoutResult, Point};
-use crate::viz::graph::{NodeId, VizEdge, VizNode};
+use crate::viz::engine::graph::{NodeId, VizEdge, VizNode};
 
 /// A chain layout plus a flag: a cycle or a merge (two nexts into one node) means "prefer the
 /// graph canvas".

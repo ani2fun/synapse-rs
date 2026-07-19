@@ -2,9 +2,9 @@
 //! per-widget diff modifier classes, the stacked cursor badge, and the ∅ / → glyphs. These
 //! widgets size to content and wrap — no SVG canvas, no layout pass.
 
+use crate::viz::engine::graph::{NodeId, VizCursor, VizStep};
 use leptos::prelude::*;
 use std::collections::HashMap;
-use synapse_shared::viz::graph::{NodeId, VizCursor, VizStep};
 
 use super::themed;
 

@@ -4,7 +4,7 @@
 //! GEOMETRIC families lay out nodes on an SVG canvas; the BESPOKE ones (step 33's flow-layout
 //! HTML chrome) are re-derived widgets or composites.
 
-use crate::viz::vocabulary::VizStructure;
+use crate::viz::engine::vocabulary::VizStructure;
 
 /// The renderer family a structure draws with — its geometry, not its chrome.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

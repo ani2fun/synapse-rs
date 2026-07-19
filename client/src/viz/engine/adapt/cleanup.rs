@@ -3,8 +3,8 @@
 //! string problems render as an array; then drop steps whose active frame is a constructor/
 //! builder (setup noise, not algorithm steps).
 
-use crate::viz::adapt::vocab;
-use crate::viz::trace::{ArrKind, HeapObject, HeapScalar, HeapStep, HeapTrace, HeapValue};
+use crate::viz::engine::adapt::vocab;
+use crate::viz::engine::trace::{ArrKind, HeapObject, HeapScalar, HeapStep, HeapTrace, HeapValue};
 
 /// The trace after cleanup.
 #[derive(Debug, Clone, PartialEq)]

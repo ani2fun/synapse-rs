@@ -1,10 +1,10 @@
 //! The Chain family (oracle: `ChainRenderers`): linked-list boxes left-to-right in
 //! next-order, `next` arrows above centre, `prev` dashed below, and the `∅` terminator.
 
+use crate::viz::engine::geometry::constants::{CELL_H, CELL_W, CHAIN_DX};
+use crate::viz::engine::geometry::{self, chain as chain_layout};
+use crate::viz::engine::graph::VizGraph;
 use leptos::prelude::*;
-use synapse_shared::viz::geometry::constants::{CELL_H, CELL_W, CHAIN_DX};
-use synapse_shared::viz::geometry::{self, chain as chain_layout};
-use synapse_shared::viz::graph::VizGraph;
 
 use super::{arrow_defs, cursor_stack, diff_class, fitted_text, top_margin};
 

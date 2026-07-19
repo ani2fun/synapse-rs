@@ -4,10 +4,10 @@
 //! slide rebuilds exactly once per index change (a fresh widget per visit, stable while
 //! shown).
 
+use crate::viz::engine::graph::{Annotation, NodeId, VizCases, VizCursor, VizGraph, VizNode, VizStep};
+use crate::viz::engine::vocabulary::VizStructure;
 use leptos::prelude::*;
 use synapse_shared::catalog::SynapseIndexDto;
-use synapse_shared::viz::graph::{Annotation, NodeId, VizCases, VizCursor, VizGraph, VizNode, VizStep};
-use synapse_shared::viz::vocabulary::VizStructure;
 
 use crate::catalog::logic;
 use crate::viz::host::WidgetHost;

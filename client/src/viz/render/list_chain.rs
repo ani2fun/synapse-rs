@@ -2,9 +2,9 @@
 //! boxed value with NEXT (and PREV when doubly) field compartments, joined by coloured SVG
 //! arrows, closed by the ∅ terminator.
 
+use crate::viz::engine::graph::{VizGraph, VizNode, VizStep};
+use crate::viz::engine::markers;
 use leptos::prelude::*;
-use synapse_shared::viz::graph::{VizGraph, VizNode, VizStep};
-use synapse_shared::viz::markers;
 
 use super::{dom, themed};
 

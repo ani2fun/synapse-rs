@@ -7,12 +7,12 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
+use crate::viz::engine::adapt;
+use crate::viz::engine::graph::VizCases;
+use crate::viz::engine::vocabulary::VizStructure;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use synapse_shared::execution::RunRequest;
-use synapse_shared::viz::adapt;
-use synapse_shared::viz::graph::VizCases;
-use synapse_shared::viz::vocabulary::VizStructure;
 
 use crate::api;
 use crate::islands::tracer;

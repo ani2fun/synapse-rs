@@ -5,10 +5,10 @@
 //! stdin box feed one LIVE (source, stdin) pair — every re-trace path (the bar's ↻, the `r`
 //! key, the stdin panel's button) re-traces exactly what is on screen.
 
+use crate::viz::engine::graph::{VizCases, VizGraph};
+use crate::viz::engine::playback::State;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use synapse_shared::viz::graph::{VizCases, VizGraph};
-use synapse_shared::viz::playback::State;
 
 use crate::islands::editor::{self, EditorCallbacks, MountedEditor};
 use crate::viz::host::WidgetHost;

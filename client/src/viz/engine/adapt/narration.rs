@@ -4,10 +4,10 @@
 //! trace (markers) so a pointer keeps its hue — and LAST, after every diff and caption
 //! comparison (which key on (name, target), never colour). `cardCursor` stays cut.
 
-use crate::viz::adapt::diff::DiffedStep;
-use crate::viz::adapt::vocab;
-use crate::viz::graph::{Annotation, NodeId, VizCursor, VizGraph, VizNode, VizStep};
-use crate::viz::markers;
+use crate::viz::engine::adapt::diff::DiffedStep;
+use crate::viz::engine::adapt::vocab;
+use crate::viz::engine::graph::{Annotation, NodeId, VizCursor, VizGraph, VizNode, VizStep};
+use crate::viz::engine::markers;
 
 #[must_use]
 pub fn finish(

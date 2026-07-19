@@ -5,7 +5,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use crate::viz::trace::{HeapObject, HeapValue};
+use crate::viz::engine::trace::{HeapObject, HeapValue};
 
 fn find(parent: &mut HashMap<String, String>, id: &str) -> String {
     let mut root = id.to_owned();

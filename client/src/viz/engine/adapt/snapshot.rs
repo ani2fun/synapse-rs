@@ -6,8 +6,8 @@
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use crate::viz::adapt::vocab;
-use crate::viz::trace::{HeapObject, HeapScalar, HeapValue};
+use crate::viz::engine::adapt::vocab;
+use crate::viz::engine::trace::{HeapObject, HeapScalar, HeapValue};
 
 pub struct HeapSnapshot<'a> {
     pub heap: &'a BTreeMap<String, HeapObject>,

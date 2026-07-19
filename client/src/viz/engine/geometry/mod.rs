@@ -13,7 +13,7 @@ pub mod tree;
 
 use std::collections::{HashMap, HashSet};
 
-use crate::viz::graph::{NodeId, VizEdge, VizGraph, VizNode};
+use crate::viz::engine::graph::{NodeId, VizEdge, VizGraph, VizNode};
 
 /// A laid-out point.
 #[derive(Debug, Clone, Copy, PartialEq)]

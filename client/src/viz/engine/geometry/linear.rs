@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 use super::constants::{CARET_ROW_H, CELL_DX, CELL_GAP, CELL_H, CELL_W, INDEX_ROW_H, PAD};
 use super::{LayoutResult, Point};
-use crate::viz::graph::{VizEdge, VizNode};
+use crate::viz::engine::graph::{VizEdge, VizNode};
 
 /// An array/cell row: each node sits in its `slot` column (slot-less nodes fall to column 0).
 /// Computed over the union of all steps, so a cell keeps its column whether or not it's

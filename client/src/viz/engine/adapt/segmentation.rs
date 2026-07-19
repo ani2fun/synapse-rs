@@ -4,10 +4,10 @@
 //! above the root, `old→new` covers a recursive descent into a child; neither starts a new
 //! case. `viz-case=N` keeps exactly N−1 split points. No root hint → one case.
 
-use crate::viz::adapt::cleanup::CleanedTrace;
-use crate::viz::adapt::rooting;
-use crate::viz::adapt::snapshot::HeapSnapshot;
-use crate::viz::trace::HeapStep;
+use crate::viz::engine::adapt::cleanup::CleanedTrace;
+use crate::viz::engine::adapt::rooting;
+use crate::viz::engine::adapt::snapshot::HeapSnapshot;
+use crate::viz::engine::trace::HeapStep;
 
 /// One test case's contiguous steps.
 #[derive(Debug, Clone, PartialEq)]

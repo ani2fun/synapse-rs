@@ -2,11 +2,11 @@
 //! becomes a slot node in a growing stack (innermost frame on top), labelled
 //! `fn(firstIntArg)`. No segmentation, no heap projection — the call stack IS the structure.
 
-use crate::viz::adapt::cleanup::CleanedTrace;
-use crate::viz::adapt::projection::{self, ProjectedNode, ProjectedStep};
-use crate::viz::adapt::vocab;
-use crate::viz::graph::{NodeId, VizNode};
-use crate::viz::trace::{HeapFrame, HeapScalar, HeapStep, HeapValue};
+use crate::viz::engine::adapt::cleanup::CleanedTrace;
+use crate::viz::engine::adapt::projection::{self, ProjectedNode, ProjectedStep};
+use crate::viz::engine::adapt::vocab;
+use crate::viz::engine::graph::{NodeId, VizNode};
+use crate::viz::engine::trace::{HeapFrame, HeapScalar, HeapStep, HeapValue};
 
 #[must_use]
 pub fn project(cleaned: &CleanedTrace) -> Vec<ProjectedStep> {

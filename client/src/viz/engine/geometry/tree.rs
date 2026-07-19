@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 
 use super::constants::{NODE_R, PAD, TREE_COL_W, TREE_ROW_H};
 use super::{LayoutResult, Point};
-use crate::viz::graph::{NodeId, VizEdge, VizNode};
+use crate::viz::engine::graph::{NodeId, VizEdge, VizNode};
 
 fn label_order(label: &str) -> u8 {
     match label {

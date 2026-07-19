@@ -8,9 +8,9 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use serde::Deserialize;
-use synapse_shared::viz::adapt;
-use synapse_shared::viz::graph::{VizCases, VizGraph, VizStep};
-use synapse_shared::viz::trace::HeapTrace;
+use synapse_client::viz::engine::adapt;
+use synapse_client::viz::engine::graph::{VizCases, VizGraph, VizStep};
+use synapse_client::viz::engine::trace::HeapTrace;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -55,11 +55,11 @@ fn normalize(cases: &VizCases) -> VizCases {
                         frames: s
                             .frames
                             .iter()
-                            .map(|f| synapse_shared::viz::graph::VizFrame {
+                            .map(|f| synapse_client::viz::engine::graph::VizFrame {
                                 locals: f
                                     .locals
                                     .iter()
-                                    .map(|l| synapse_shared::viz::graph::VizLocal {
+                                    .map(|l| synapse_client::viz::engine::graph::VizLocal {
                                         value: String::new(),
                                         changed: false,
                                         ..l.clone()

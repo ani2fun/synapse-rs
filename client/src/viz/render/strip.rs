@@ -2,9 +2,9 @@
 //! shared-border cell strips with end markers (head/tail · front/back · top) coloured
 //! through the role tokens, and the flow hint row above.
 
+use crate::viz::engine::graph::{VizGraph, VizNode, VizStep};
+use crate::viz::engine::markers;
 use leptos::prelude::*;
-use synapse_shared::viz::graph::{VizGraph, VizNode, VizStep};
-use synapse_shared::viz::markers;
 
 use super::{dom, themed};
 

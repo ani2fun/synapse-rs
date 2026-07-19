@@ -169,7 +169,7 @@ pub fn RunnableBlock(
         move |_| {
             let variant = variant_at(active.get_untracked());
             let Some(hint) = variant.viz else { return };
-            let Some((structure, root)) = synapse_shared::viz::vocabulary::VizStructure::parse(&hint) else {
+            let Some((structure, root)) = crate::viz::engine::vocabulary::VizStructure::parse(&hint) else {
                 return;
             };
             let key = crate::viz::session::Key {

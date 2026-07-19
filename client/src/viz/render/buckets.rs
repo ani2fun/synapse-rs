@@ -1,8 +1,8 @@
 //! The hashmap buckets widget (oracle: `BucketRenderers.hashmap`, step 33): one row per
 //! bucket — the index chip, then the chain of `key: value` pills joined by → connectors.
 
+use crate::viz::engine::graph::{VizGraph, VizStep};
 use leptos::prelude::*;
-use synapse_shared::viz::graph::{VizGraph, VizStep};
 
 use super::dom;
 use crate::viz::shapes::{self, BucketEntry};
@@ -64,7 +64,7 @@ fn frame(step: &VizStep) -> AnyView {
 fn pill(
     e: &BucketEntry,
     step: &VizStep,
-    cursors: &std::collections::HashMap<String, Vec<synapse_shared::viz::graph::VizCursor>>,
+    cursors: &std::collections::HashMap<String, Vec<crate::viz::engine::graph::VizCursor>>,
 ) -> AnyView {
     let on_it = cursors.get(e.id.value());
     let mut class = dom::diff_mods("viz-hashmap__entry", &e.id, step);

@@ -1,10 +1,10 @@
 //! The Tree family (oracle: `TreeRenderers`): circles of radius `NODE_R` on the
 //! subtree-width layout, edges drawn behind, cursor stacks above.
 
+use crate::viz::engine::geometry::constants::NODE_R;
+use crate::viz::engine::geometry::{self, tree as tree_layout};
+use crate::viz::engine::graph::VizGraph;
 use leptos::prelude::*;
-use synapse_shared::viz::geometry::constants::NODE_R;
-use synapse_shared::viz::geometry::{self, tree as tree_layout};
-use synapse_shared::viz::graph::VizGraph;
 
 use super::{cursor_stack, diff_class, fitted_text, top_margin};
 

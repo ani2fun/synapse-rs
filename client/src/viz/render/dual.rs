@@ -2,8 +2,8 @@
 //! backing array below, both driven by the SAME step signal — identical node ids make the
 //! diff cues light up in both panes at once.
 
+use crate::viz::engine::graph::VizGraph;
 use leptos::prelude::*;
-use synapse_shared::viz::graph::VizGraph;
 
 use crate::viz::render::{cells, tree};
 use crate::viz::shapes;

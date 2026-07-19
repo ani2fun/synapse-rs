@@ -13,10 +13,10 @@ pub mod list_chain;
 pub mod strip;
 pub mod tree;
 
+use crate::viz::engine::geometry::constants::{CURSOR_GLYPH_UP, CURSOR_LINE_H};
+use crate::viz::engine::geometry::{LayoutResult, Point};
+use crate::viz::engine::graph::{NodeId, VizCursor, VizGraph, VizStep};
 use leptos::prelude::*;
-use synapse_shared::viz::geometry::constants::{CURSOR_GLYPH_UP, CURSOR_LINE_H};
-use synapse_shared::viz::geometry::{LayoutResult, Point};
-use synapse_shared::viz::graph::{NodeId, VizCursor, VizGraph, VizStep};
 
 /// Gap between the caret glyph and the first stacked name (oracle: `CursorCaretGap`).
 pub const CURSOR_CARET_GAP: f64 = 12.0;

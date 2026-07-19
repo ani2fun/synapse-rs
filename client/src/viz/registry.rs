@@ -4,11 +4,11 @@
 //! callstack keeps the SVG frame boxes (the Stack strip is for data stacks), and deque flips
 //! the queue strip's vocabulary.
 
+use crate::viz::engine::geometry::{self, graph_layout, tree as tree_layout};
+use crate::viz::engine::graph::VizCases;
+use crate::viz::engine::render_family::RenderFamily;
+use crate::viz::engine::vocabulary::VizStructure;
 use leptos::prelude::*;
-use synapse_shared::viz::geometry::{self, graph_layout, tree as tree_layout};
-use synapse_shared::viz::graph::VizCases;
-use synapse_shared::viz::render_family::RenderFamily;
-use synapse_shared::viz::vocabulary::VizStructure;
 
 use crate::viz::render::{buckets, cells, chain, dual, graph_canvas, grid_table, list_chain, strip, tree};
 

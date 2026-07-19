@@ -6,13 +6,13 @@
 
 use std::collections::{BTreeMap, HashSet};
 
-use crate::viz::adapt::cards;
-use crate::viz::adapt::cursors;
-use crate::viz::adapt::rooting::{self, RootedSegment};
-use crate::viz::adapt::snapshot::HeapSnapshot;
-use crate::viz::adapt::vocab;
-use crate::viz::graph::{NodeId, VizCursor, VizEdge, VizField, VizFrame, VizLocal, VizNode};
-use crate::viz::trace::{HeapObject, HeapScalar, HeapStep, HeapValue};
+use crate::viz::engine::adapt::cards;
+use crate::viz::engine::adapt::cursors;
+use crate::viz::engine::adapt::rooting::{self, RootedSegment};
+use crate::viz::engine::adapt::snapshot::HeapSnapshot;
+use crate::viz::engine::adapt::vocab;
+use crate::viz::engine::graph::{NodeId, VizCursor, VizEdge, VizField, VizFrame, VizLocal, VizNode};
+use crate::viz::engine::trace::{HeapObject, HeapScalar, HeapStep, HeapValue};
 
 /// A drawable node before diffing, carrying its owning heap id STRUCTURALLY (no id parsing —
 /// the oracle's `takeWhile(_ != '#')` wart, prevented).

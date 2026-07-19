@@ -5,7 +5,7 @@
 use super::super::constants::{CARET_ROW_H, CELL_DX, CELL_GAP, CELL_H, INDEX_ROW_H, PAD};
 use super::super::{Point, union};
 use super::*;
-use crate::viz::graph::{NodeId, VizGraph, VizStep};
+use crate::viz::engine::graph::{NodeId, VizGraph, VizStep};
 
 fn cell(id: &str, slot: i32) -> VizNode {
     VizNode {

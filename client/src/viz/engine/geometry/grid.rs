@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 use super::constants::{CELL_DX, CELL_GAP, CELL_H, PAD};
 use super::{LayoutResult, Point};
-use crate::viz::graph::{VizEdge, VizNode};
+use crate::viz::engine::graph::{VizEdge, VizNode};
 
 #[must_use]
 pub fn grid(nodes: &[VizNode], _edges: &[VizEdge]) -> LayoutResult {

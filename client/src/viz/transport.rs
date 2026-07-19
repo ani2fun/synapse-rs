@@ -2,8 +2,8 @@
 //! and the step label — over the ONE `Playback` stepper. The single interval timer lives
 //! here: started on play, cleared on pause/unmount; `tick` self-stops at the end.
 
+use crate::viz::engine::playback::State;
 use leptos::prelude::*;
-use synapse_shared::viz::playback::State;
 
 const STEP_DELAY_MS: u32 = 900;
 

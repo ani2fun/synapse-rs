@@ -30,7 +30,7 @@ oracle — no dual maintenance.
 | Outbound HTTP | reqwest |
 | Logging | `tracing` spans route→service→adapter (ADR-S009 parity) |
 | Config | figment, env-first under the `SYNAPSE_` prefix (never the bare `PORT` — the preview-harness gotcha) |
-| Shared kernel | one `synapse-shared` crate (wire DTOs + the viz engine), native **and** `wasm32` |
+| Shared kernel | one `synapse-shared` crate (the wire DTOs), native **and** `wasm32`. The viz engine lived here until step 45 and now sits in `client/src/viz/engine/` — the server never referenced it |
 | Client | Leptos (CSR) — fine-grained signals, the Laminar-shaped choice; three-layer `logic/state/view` per feature |
 | Client build | Vite + wasm-bindgen; the TS islands (render.ts, Monaco, mermaid/d2, tracers, keycloak-js) are reused verbatim |
 

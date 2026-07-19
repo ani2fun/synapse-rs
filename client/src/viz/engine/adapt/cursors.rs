@@ -5,10 +5,10 @@
 
 use std::collections::HashSet;
 
-use crate::viz::adapt::rooting;
-use crate::viz::adapt::vocab;
-use crate::viz::graph::{NodeId, VizCursor};
-use crate::viz::trace::{HeapObject, HeapScalar, HeapStep, HeapValue};
+use crate::viz::engine::adapt::rooting;
+use crate::viz::engine::adapt::vocab;
+use crate::viz::engine::graph::{NodeId, VizCursor};
+use crate::viz::engine::trace::{HeapObject, HeapScalar, HeapStep, HeapValue};
 
 #[must_use]
 #[allow(clippy::implicit_hasher)] // one call site, std hasher

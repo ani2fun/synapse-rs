@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 
 use super::constants::{NODE_R, PAD, RING_R, TREE_ROW_H};
 use super::{LayoutResult, Point, tree};
-use crate::viz::graph::{NodeId, VizEdge, VizNode};
+use crate::viz::engine::graph::{NodeId, VizEdge, VizNode};
 
 // Ported PRNG — seeded so `jiggle` (and therefore the whole sim) is reproducible.
 struct Mulberry32(u32);

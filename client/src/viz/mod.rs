@@ -6,6 +6,10 @@
 
 pub mod blocks;
 pub mod decoder;
+/// The pure viz ENGINE — contract, vocabulary, geometry, adapt pipeline and goldens.
+/// Moved out of `synapse-shared` in step 45: the server referenced it zero times while it
+/// made up 86% of that crate, so "shared" described the folder rather than the fact.
+pub mod engine;
 pub mod host;
 pub mod modal;
 pub mod registry;

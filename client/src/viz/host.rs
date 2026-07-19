@@ -2,10 +2,10 @@
 //! canvas, the transport bar (only when there's more than one step), the reactive caption,
 //! and the honest failure cards (never a blank box).
 
+use crate::viz::engine::graph::VizCases;
+use crate::viz::engine::playback::State;
+use crate::viz::engine::vocabulary::VizStructure;
 use leptos::prelude::*;
-use synapse_shared::viz::graph::VizCases;
-use synapse_shared::viz::playback::State;
-use synapse_shared::viz::vocabulary::VizStructure;
 
 use crate::viz::registry;
 use crate::viz::transport::TransportBar;
@@ -79,8 +79,8 @@ pub fn WidgetHost(
 /// The data-driven legend (oracle: `DomKit.legend`): rows appear only when some step uses
 /// the cue. Diff swatches wear the diff TOKENS (what the renderers tint); cursor/line items
 /// wear the marker palette. A doubly list adds the next/prev arrow lines.
-fn legend_view(graph: &synapse_shared::viz::graph::VizGraph, structure: VizStructure) -> AnyView {
-    use synapse_shared::viz::markers;
+fn legend_view(graph: &crate::viz::engine::graph::VizGraph, structure: VizStructure) -> AnyView {
+    use crate::viz::engine::markers;
 
     use crate::viz::render::themed;
     let steps = &graph.steps;

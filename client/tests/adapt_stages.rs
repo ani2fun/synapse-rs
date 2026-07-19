@@ -6,16 +6,16 @@
 
 use std::collections::BTreeMap;
 
-use synapse_shared::viz::adapt::cleanup;
-use synapse_shared::viz::adapt::diff;
-use synapse_shared::viz::adapt::flow;
-use synapse_shared::viz::adapt::projection::{ProjectedNode, ProjectedStep};
-use synapse_shared::viz::adapt::rooting;
-use synapse_shared::viz::adapt::segmentation;
-use synapse_shared::viz::adapt::snapshot::HeapSnapshot;
-use synapse_shared::viz::adapt::{self, VizError};
-use synapse_shared::viz::graph::{NodeId, VizNode};
-use synapse_shared::viz::trace::{
+use synapse_client::viz::engine::adapt::cleanup;
+use synapse_client::viz::engine::adapt::diff;
+use synapse_client::viz::engine::adapt::flow;
+use synapse_client::viz::engine::adapt::projection::{ProjectedNode, ProjectedStep};
+use synapse_client::viz::engine::adapt::rooting;
+use synapse_client::viz::engine::adapt::segmentation;
+use synapse_client::viz::engine::adapt::snapshot::HeapSnapshot;
+use synapse_client::viz::engine::adapt::{self, VizError};
+use synapse_client::viz::engine::graph::{NodeId, VizNode};
+use synapse_client::viz::engine::trace::{
     ArrKind, HeapFrame, HeapObject, HeapScalar, HeapStep, HeapTrace, HeapValue,
 };
 

@@ -22,8 +22,8 @@ pub mod vocab;
 
 pub use error::VizError;
 
-use crate::viz::graph::{VizCases, VizGraph};
-use crate::viz::trace::HeapTrace;
+use crate::viz::engine::graph::{VizCases, VizGraph};
+use crate::viz::engine::trace::HeapTrace;
 
 /// Adapt a raw heap trace to the render contract. `layout_hint` is the authored `viz=`
 /// structure token (or a legacy layout-kind name); `root_hint` names the root variable;

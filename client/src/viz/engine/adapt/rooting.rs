@@ -7,8 +7,8 @@
 
 use std::collections::BTreeMap;
 
-use crate::viz::adapt::snapshot::HeapSnapshot;
-use crate::viz::trace::{HeapObject, HeapStep, HeapValue};
+use crate::viz::engine::adapt::snapshot::HeapSnapshot;
+use crate::viz::engine::trace::{HeapObject, HeapStep, HeapValue};
 
 /// A segment plus its resolved root id (`None` → the segment draws empty).
 #[derive(Debug, Clone, PartialEq)]

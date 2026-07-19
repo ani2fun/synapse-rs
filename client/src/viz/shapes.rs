@@ -6,7 +6,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use synapse_shared::viz::graph::{NodeId, VizCursor, VizEdge, VizGraph, VizNode, VizStep};
+use crate::viz::engine::graph::{NodeId, VizCursor, VizEdge, VizGraph, VizNode, VizStep};
 
 /// A ref-valued node's label (mirrors `AdaptVocab.RefLabel`).
 const REF_LABEL: &str = "·";
@@ -396,7 +396,7 @@ pub fn heap_tree(graph: &VizGraph) -> VizGraph {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use synapse_shared::viz::graph::VizField;
+    use crate::viz::engine::graph::VizField;
 
     fn cell(id: &str, label: &str, slot: i32) -> VizNode {
         VizNode {

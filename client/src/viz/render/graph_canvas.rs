@@ -2,10 +2,10 @@
 //! deterministic layout) and Trie (tidy tree layout) share it: rim-trimmed arrowed edges
 //! with optional labels, circle nodes with cursor rings + stacks.
 
+use crate::viz::engine::geometry::LayoutResult;
+use crate::viz::engine::geometry::constants::{NODE_R, RING_R};
+use crate::viz::engine::graph::VizGraph;
 use leptos::prelude::*;
-use synapse_shared::viz::geometry::LayoutResult;
-use synapse_shared::viz::geometry::constants::{NODE_R, RING_R};
-use synapse_shared::viz::graph::VizGraph;
 
 use super::{arrow_defs, cursor_stack, diff_class, fitted_text, themed, top_margin};
 

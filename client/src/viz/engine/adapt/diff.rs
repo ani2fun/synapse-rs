@@ -7,9 +7,9 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::viz::adapt::error::VizError;
-use crate::viz::adapt::projection::ProjectedStep;
-use crate::viz::graph::{NodeId, VizCursor, VizEdge, VizFrame, VizNode};
+use crate::viz::engine::adapt::error::VizError;
+use crate::viz::engine::adapt::projection::ProjectedStep;
+use crate::viz::engine::graph::{NodeId, VizCursor, VizEdge, VizFrame, VizNode};
 
 /// One step after diffing — pre-narration (the caption is added next).
 #[derive(Debug, Clone, PartialEq)]
@@ -113,7 +113,7 @@ fn diff_at(steps: &[ProjectedStep], i: usize) -> DiffedStep {
                     let changed = prev_locals
                         .get(&(f.fn_name.as_str(), l.name.as_str()))
                         .is_some_and(|prev_value| *prev_value != l.value);
-                    crate::viz::graph::VizLocal { changed, ..l.clone() }
+                    crate::viz::engine::graph::VizLocal { changed, ..l.clone() }
                 })
                 .collect(),
             is_active: f.is_active,

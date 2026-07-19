@@ -17,6 +17,7 @@ pub mod log;
 pub mod quiz;
 pub mod router;
 pub mod search;
+pub mod seo;
 pub mod shell;
 mod storage;
 pub mod tutoring;

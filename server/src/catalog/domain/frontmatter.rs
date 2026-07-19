@@ -49,6 +49,17 @@ pub fn extract_title(content: &str, fallback: &str) -> String {
         .unwrap_or_else(|| fallback.to_owned())
 }
 
+/// Frontmatter `summary:` — the lesson's own one-line description, used for the `<meta
+/// name="description">` and Open Graph tags the server injects (step 50). Blank is `None`:
+/// an empty description tag is worse than none, because a crawler will show it.
+pub fn extract_summary(content: &str) -> Option<String> {
+    fields_and_body(content)
+        .0
+        .get("summary")
+        .map(|s| s.trim().to_owned())
+        .filter(|s| !s.is_empty())
+}
+
 /// `Some` only when the fence carries a literal `essential: true|false`.
 pub fn extract_essential(content: &str) -> Option<bool> {
     match fields_and_body(content).0.get("essential").map(String::as_str) {

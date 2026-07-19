@@ -61,6 +61,13 @@ pub struct Lesson {
     pub title: String,
     pub order: Option<i32>,
     pub essential: bool,
+    /// Frontmatter `summary:`, carried for the server-rendered meta tags (step 50).
+    ///
+    /// INDEX-ONLY — deliberately absent from `LessonDto`. The client never needs it here: it
+    /// already receives `frontmatter.summary` on the lesson payload it fetches anyway, so
+    /// putting it on the index too would add 442 strings to a document every visitor downloads
+    /// to buy nothing.
+    pub description: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]

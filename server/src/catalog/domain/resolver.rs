@@ -39,6 +39,31 @@ fn lesson_at<'a>(entries: &'a [BookEntry], path: &[String]) -> Option<&'a Lesson
     })
 }
 
+/// Every book in the catalog, depth-first through categories. Books do not nest inside books,
+/// so this bottoms out at the first `Book` on each branch — the same rule `resolve_in_entries`
+/// applies when it stops descending.
+pub fn all_books(catalog: &SynapseContentCatalog) -> Vec<&Book> {
+    fn collect<'a>(entries: &'a [CatalogEntry], out: &mut Vec<&'a Book>) {
+        for entry in entries {
+            match entry {
+                CatalogEntry::Book(book) => out.push(book),
+                CatalogEntry::Category(category) => collect(&category.entries, out),
+            }
+        }
+    }
+    let mut out = Vec::new();
+    collect(&catalog.entries, &mut out);
+    out
+}
+
+/// A book's URL prefix: the categories above it, then its own slug. `Book.category_path`
+/// already carries the former, so this is the one place that spells out the join.
+pub fn book_prefix(book: &Book) -> String {
+    let mut segments = book.category_path.clone();
+    segments.push(book.slug.clone());
+    segments.join("/")
+}
+
 /// Every lesson of a book with its in-book slug-path, pre-order — the reading sequence.
 pub fn lessons_in_reading_order(book: &Book) -> Vec<(String, &Lesson)> {
     fn collect<'a>(entries: &'a [BookEntry], prefix: &[String], out: &mut Vec<(String, &'a Lesson)>) {

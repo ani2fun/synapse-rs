@@ -37,6 +37,11 @@ pub struct AppConfig {
     /// The production SPA dist dir (step 18). Absent (the dev default) → no static routes;
     /// Vite serves the client. Env: `STATIC_ROOT`.
     pub static_root: String,
+    /// The site's public origin, used for `<link rel="canonical">` and the Open Graph URLs the
+    /// server injects (step 50). OG requires ABSOLUTE urls, and the `Host` header is
+    /// caller-controlled — a configured value cannot be poisoned by a request.
+    /// Env: `SYNAPSE_SITE_URL` (or the bare `SITE_URL`).
+    pub site_url: String,
     /// The LikeC4 upstream the `/c4` proxy forwards to (step 18). Prod gotcha: the image
     /// serves UNDER `/c4`, so the value ends in `/c4` and the stripped prefix cancels.
     /// Env: `LIKEC4_URL`.
@@ -78,6 +83,7 @@ impl Default for AppConfig {
             identity_issuer: "http://localhost:8181/realms/synapse".to_owned(),
             identity_audience: "synapse-web".to_owned(),
             static_root: "client/dist".to_owned(),
+            site_url: "https://synapse.kakde.eu".to_owned(),
             likec4_url: "http://localhost:8190".to_owned(),
             rate_limit_anon_window_seconds: 60,
             rate_limit_anon_limit: 10,
@@ -130,7 +136,7 @@ impl AppConfig {
         });
         // The step-18 platform names (the oracle's deploy-manifest spellings, no prefix).
         let platform = Env::raw()
-            .only(&["STATIC_ROOT", "LIKEC4_URL"])
+            .only(&["STATIC_ROOT", "LIKEC4_URL", "SITE_URL"])
             .map(|key| key.as_str().to_lowercase().into());
         let rate = Env::raw()
             .only(&[

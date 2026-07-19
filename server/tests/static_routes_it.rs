@@ -187,3 +187,127 @@ async fn an_unreachable_upstream_is_a_502_never_a_crash() {
     let (status, _, _, _) = get(common::app_over(tmp.path()), "/c4/view/system").await;
     assert_eq!(status, StatusCode::BAD_GATEWAY);
 }
+
+// ── The per-page head, sitemap and robots (step 50) ───────────────────────────
+// Until this step every one of the 442 lessons served `<title>Synapse</title>`, so they were
+// indistinguishable in a search result and every shared link previewed as the same card.
+
+const REAL_INDEX: &str = "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\" />\n<title>Synapse</title>\n</head>\n<body></body>\n</html>\n";
+
+fn write_at(path: &Path, content: &str) {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(path, content).unwrap();
+}
+
+/// Content and dist in SEPARATE trees — a `dist/` inside the content root would be walked as
+/// catalog content.
+fn seo_app(tmp: &Path) -> axum::Router {
+    let content = tmp.join("content");
+    let dist = tmp.join("dist");
+    write_at(&content.join("01-learn/category.json"), r#"{"title": "Learn"}"#);
+    write_at(&content.join("01-learn/02-dsa/book.json"), r#"{"title": "DSA"}"#);
+    write_at(
+        &content.join("01-learn/02-dsa/01-intro.md"),
+        "---\ntitle: Intro\nsummary: How to start with data structures.\n---\nbody",
+    );
+    write_at(
+        &content.join("01-learn/02-dsa/02-lists/01-singly.md"),
+        "---\ntitle: Singly linked lists\n---\nbody",
+    );
+    write_at(&dist.join("index.html"), REAL_INDEX);
+
+    let mut deps = common::deps(&content);
+    deps.static_root = dist.to_string_lossy().into_owned();
+    "https://synapse.test".clone_into(&mut deps.site_url);
+    synapse_server::app(deps)
+}
+
+#[tokio::test]
+async fn two_lessons_serve_two_different_titles() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (_, _, _, intro) = get(seo_app(tmp.path()), "/synapse/learn/dsa/intro").await;
+    let (_, _, _, singly) = get(seo_app(tmp.path()), "/synapse/learn/dsa/lists/singly").await;
+
+    assert!(intro.contains("<title>DSA · Intro — Synapse</title>"), "{intro}");
+    assert!(
+        singly.contains("<title>DSA · Singly linked lists — Synapse</title>"),
+        "{singly}"
+    );
+    assert_ne!(
+        intro, singly,
+        "THE regression this step exists to prevent: 442 lessons, one title"
+    );
+    assert!(
+        !intro.contains("<title>Synapse</title>"),
+        "the placeholder is gone"
+    );
+}
+
+#[tokio::test]
+async fn the_frontmatter_summary_becomes_the_description_and_falls_back_when_absent() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (_, _, _, intro) = get(seo_app(tmp.path()), "/synapse/learn/dsa/intro").await;
+    assert!(
+        intro.contains("name=\"description\" content=\"How to start with data structures.\""),
+        "{intro}"
+    );
+    assert!(intro.contains("property=\"og:description\" content=\"How to start"));
+
+    // No `summary:` — the site-wide description rather than an empty tag, which a crawler shows.
+    let (_, _, _, singly) = get(seo_app(tmp.path()), "/synapse/learn/dsa/lists/singly").await;
+    assert!(singly.contains("Read, run and understand"), "{singly}");
+    assert!(!singly.contains("content=\"\""), "never an empty description");
+}
+
+#[tokio::test]
+async fn the_canonical_url_is_absolute_and_per_page() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (_, _, _, body) = get(seo_app(tmp.path()), "/synapse/learn/dsa/intro").await;
+    assert!(
+        body.contains("rel=\"canonical\" href=\"https://synapse.test/synapse/learn/dsa/intro\""),
+        "{body}"
+    );
+    assert!(body.contains("property=\"og:url\" content=\"https://synapse.test/synapse/learn/dsa/intro\""));
+}
+
+#[tokio::test]
+async fn an_unknown_lesson_still_serves_the_spa_under_the_site_head() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (status, cache, _, body) = get(seo_app(tmp.path()), "/synapse/learn/dsa/ghost").await;
+    // The SPA owns client-side routing and may know a route the catalog does not — a missing
+    // lesson must not 404 the shell.
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(cache.as_deref(), Some("no-cache"));
+    assert!(body.contains("<title>Synapse</title>"), "{body}");
+}
+
+#[tokio::test]
+async fn the_sitemap_lists_every_lesson_absolutely() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (status, cache, content_type, body) = get(seo_app(tmp.path()), "/sitemap.xml").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(content_type.as_deref(), Some("application/xml; charset=utf-8"));
+    assert_eq!(cache.as_deref(), Some("public, max-age=3600"));
+    assert!(
+        body.contains("<loc>https://synapse.test/synapse/learn/dsa/intro</loc>"),
+        "{body}"
+    );
+    assert!(body.contains("<loc>https://synapse.test/synapse/learn/dsa/lists/singly</loc>"));
+    assert!(body.contains("<loc>https://synapse.test/</loc>"));
+    assert_eq!(body.matches("<url>").count(), 4, "2 lessons + root + blog");
+}
+
+#[tokio::test]
+async fn robots_points_at_the_sitemap_and_keeps_crawlers_off_the_api() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (status, _, content_type, body) = get(seo_app(tmp.path()), "/robots.txt").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(content_type.as_deref(), Some("text/plain; charset=utf-8"));
+    assert!(
+        body.contains("Sitemap: https://synapse.test/sitemap.xml"),
+        "{body}"
+    );
+    for disallowed in ["/api/", "/account", "/admin", "/c4/"] {
+        assert!(body.contains(&format!("Disallow: {disallowed}")), "{disallowed}");
+    }
+}

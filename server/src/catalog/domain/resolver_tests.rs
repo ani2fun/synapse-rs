@@ -11,6 +11,7 @@ fn lesson(slug: &str) -> Lesson {
         title: slug.to_owned(),
         order: None,
         essential: true,
+        description: None,
     }
 }
 

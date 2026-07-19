@@ -262,6 +262,24 @@ fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> AnyView {
         chrome.title.set(payload.frontmatter.title.clone());
         chrome.is_problem.set(is_problem);
     }
+    // The document head follows SPA navigation (step 50). The server rendered the head for the
+    // URL the visitor LANDED on; without this it would still describe that page three lessons
+    // later — in the tab, the history entry and any bookmark taken along the way.
+    {
+        let book = match crate::catalog::state::CatalogStore::from_context().index().get() {
+            crate::api::AsyncResult::Loaded(index) => {
+                crate::catalog::logic::book_of(&index, segments).map(|b| b.title.clone())
+            }
+            _ => None,
+        };
+        crate::seo::set_title(&crate::seo::title_for_lesson(
+            book.as_deref(),
+            &payload.frontmatter.title,
+        ));
+        if let Some(summary) = payload.frontmatter.summary.as_deref() {
+            crate::seo::set_description(summary);
+        }
+    }
     if is_problem {
         return view! {
             <super::problem::ProblemWorkbench payload=payload.clone() segments=segments.to_vec() />

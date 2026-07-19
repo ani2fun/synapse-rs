@@ -6,4 +6,4 @@ mod content_repository;
 mod service;
 
 pub use content_repository::{ContentError, ContentRepository};
-pub use service::CatalogService;
+pub use service::{CatalogService, PageMeta};

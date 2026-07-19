@@ -20,6 +20,14 @@ fn element_id_like(id: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'))
 }
 
+/// A page's `<head>`, projected out of the index (step 50).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PageMeta {
+    pub title: String,
+    pub description: Option<String>,
+    pub book_title: String,
+}
+
 pub struct CatalogService<R> {
     repo: R,
     /// `(content version, walk)` — rebuilt only when the version moves. A concurrent double
@@ -38,6 +46,44 @@ impl<R: ContentRepository> CatalogService<R> {
     /// The browsable index (cached per content version).
     pub async fn index(&self) -> Result<SynapseContentCatalog, ContentError> {
         Ok(self.current_walk().await?.catalog.clone())
+    }
+
+    /// What the server needs to render a page's `<head>` — and nothing more (step 50).
+    ///
+    /// Neither existing method is right for this. `index()` CLONES the entire catalog, and
+    /// `lesson()` re-reads the file from disk and probes for an editorial sidecar. A `<title>`
+    /// tag on every SPA request can afford neither, and both would be doing it to answer a
+    /// question the in-memory index already holds.
+    ///
+    /// `None` = no such page; the caller falls back to the site-wide defaults rather than 404ing,
+    /// because the SPA still owns client-side routing and may know about a route the catalog
+    /// does not.
+    pub async fn page_meta(&self, path: &[String]) -> Result<Option<PageMeta>, ContentError> {
+        if path.is_empty() || !path.iter().all(|s| walker::slug_like(s)) {
+            return Ok(None);
+        }
+        let walk = self.current_walk().await?;
+        Ok(
+            resolver::resolve_lesson(&walk.catalog, path).map(|(book, _, lesson)| PageMeta {
+                title: lesson.title.clone(),
+                description: lesson.description.clone(),
+                book_title: book.title.clone(),
+            }),
+        )
+    }
+
+    /// Every lesson URL in the catalog, for the sitemap. Paths only — the sitemap needs no
+    /// titles, and building them here would mean cloning strings the caller throws away.
+    pub async fn all_lesson_paths(&self) -> Result<Vec<String>, ContentError> {
+        let walk = self.current_walk().await?;
+        let mut paths = Vec::new();
+        for book in resolver::all_books(&walk.catalog) {
+            let prefix = resolver::book_prefix(book);
+            for (in_book, _) in resolver::lessons_in_reading_order(book) {
+                paths.push(format!("{prefix}/{in_book}"));
+            }
+        }
+        Ok(paths)
     }
 
     /// A lesson by its full slug path — the body is RE-READ every request (live edits show;

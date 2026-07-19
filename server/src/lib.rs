@@ -51,6 +51,8 @@ pub struct AppDeps {
     pub views: Arc<insights::PostgresLessonViews>,
     /// The production dist dir; absent (dev) → no static routes, and `/` answers plain text.
     pub static_root: String,
+    /// Public origin for canonical + Open Graph URLs (step 50).
+    pub site_url: String,
     /// The content checkout — `/media` serves its `_media/` tree (one shared cache hour).
     pub content_root: String,
     pub likec4_url: String,
@@ -77,7 +79,7 @@ pub fn app(deps: AppDeps) -> Router {
         identity: Arc::clone(&deps.ident.identity),
         limiter: deps.limiter,
     };
-    let statics = StaticRoutes::new(&deps.static_root);
+    let statics = StaticRoutes::new(&deps.static_root, Arc::clone(&deps.catalog), &deps.site_url);
     let media = platform::media_routes::MediaRoutes::new(&deps.content_root);
     let security = platform::security_headers::SecurityHeaders::new(&deps.ident.issuer);
     let admin = submission::http::admin::AdminRoutesState {

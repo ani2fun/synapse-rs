@@ -37,6 +37,9 @@ yanked = "deny"
 # and a gate that is always red is a gate nobody reads. Scoped to `workspace`, it
 # still fails loudly the moment WE take a direct dependency on something
 # abandoned — which is the case we can actually act on.
+# proc-macro-error2 also emits a future-incompat warning (E0365) on every build. Same
+# conclusion, same reasons, recorded at length in rust-toolchain.toml — which is where it
+# becomes a hard error, since the channel is pinned.
 unmaintained = "workspace"
 ignore = []
 

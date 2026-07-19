@@ -7,6 +7,24 @@
 #
 # Bumping is now a deliberate commit: raise this, run the gates, fix whatever the new lints
 # find, and ship that as its own change with the failures visible in one place.
+# KNOWN FUTURE-INCOMPAT, and this file is where it will bite (step 53).
+#
+# `cargo build` warns that proc-macro-error2 v2.0.1 "will be rejected by a future version of
+# Rust": it does `pub use proc_macro;` where E0365 now requires `pub extern crate proc_macro;`
+# (rust-lang/rust#127909). We cannot fix it, and that was checked rather than assumed:
+#
+#   · 2.0.1 IS the latest published version — there is nothing to upgrade to.
+#   · The upstream repo (GnomedDev/proc-macro-error-2) is ARCHIVED, last pushed 2024-09-06,
+#     and its HEAD still carries the offending line. No unreleased fix to `[patch]` to.
+#   · It arrives four ways, all transitive through leptos_macro / leptos_router_macro /
+#     reactive_stores_macro / syn_derive. Leptos 0.8 is the newest stable (0.9 is beta).
+#
+# It is BUILD-TIME only — a proc-macro crate, absent from both the server binary and the wasm
+# bundle (see the matching note in deny.toml, which scopes `unmaintained` for the same reason).
+#
+# Because this channel is PINNED, the build cannot break on its own. It breaks the day someone
+# raises the version below — so if that bump fails with E0365 in proc-macro-error2, the answer
+# is a Leptos upgrade that drops the dependency, not a fix in this repository.
 [toolchain]
 channel = "1.97.0"
 components = ["rustfmt", "clippy"]

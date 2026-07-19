@@ -10,6 +10,7 @@ jobs:
   # ── The convention gate runs FIRST — it needs nothing but grep/find/wc, so a
   # ── purity or file-cap breach fails in seconds, before any toolchain install.
   conventions:
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,6 +34,7 @@ jobs:
   # The inverse — a positive allow-list of code paths — fails CLOSED: one forgotten directory
   # and a real change stops shipping with nothing to say so. Subtraction is the safe direction.
   changes:
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.filter.outputs.code }}
@@ -69,6 +71,7 @@ jobs:
   # It runs in parallel with the toolchain jobs (it needs no rustc) and gates the
   # release, because since step 44 a green push ships to the cluster unattended.
   supply-chain:
+    timeout-minutes: 15
     needs: conventions
     runs-on: ubuntu-latest
     steps:
@@ -82,6 +85,7 @@ jobs:
           command: check
 
   build-test:
+    timeout-minutes: 30
     needs: conventions
     runs-on: ubuntu-latest
     # The Postgres IT was env-gated and therefore ran nowhere: RS001 promised
@@ -151,6 +155,7 @@ jobs:
   # SERVICE containers cannot provide — hence `docker run` in a step rather than a
   # `services:` block like Postgres.
   gojudge-it:
+    timeout-minutes: 30
     needs: conventions
     runs-on: ubuntu-latest
     env:
@@ -187,6 +192,7 @@ jobs:
         run: docker rm -f go-judge || true
 
   client-build:
+    timeout-minutes: 30
     needs: conventions
     runs-on: ubuntu-latest
     steps:
@@ -225,6 +231,7 @@ jobs:
   # checkout, and pinning a smoke suite to another repository means an edit there can turn this
   # one red.
   e2e:
+    timeout-minutes: 30
     needs: conventions
     runs-on: ubuntu-latest
     services:
@@ -290,6 +297,7 @@ jobs:
   # build and nothing more; on main the `release` job below does the same build for real, so
   # this one steps aside rather than building the image twice.
   docker:
+    timeout-minutes: 30
     if: github.event_name != 'push' || github.ref != 'refs/heads/main'
     needs: [conventions, build-test, client-build]
     runs-on: ubuntu-latest

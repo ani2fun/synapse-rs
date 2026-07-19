@@ -21,8 +21,25 @@ if [[ ! -d "$STATIC_ROOT" ]]; then
   (cd client && npm run build)
 fi
 
+# shellcheck source=lib-ports.sh
+source "$(dirname "$0")/lib-ports.sh"
+reclaim "$SYNAPSE_PORT" "synapse-server"
+
+# Compile FIRST, in the foreground. `cargo run` compiles in the BACKGROUND while the health
+# poll counts down — locally the binary is warm so it starts instantly, but on a cold CI cache
+# the build takes minutes against a 60-second poll, and the script gives up on a server that is
+# still being built.
+echo "→ building the server"
+cargo build -p synapse-server --quiet
+
 echo "→ starting the server on :$SYNAPSE_PORT over $STATIC_ROOT"
-cargo run -p synapse-server --quiet &
+# Run the BINARY, and send its output to a file rather than this script's stdout. Two reasons,
+# both learned from the first CI run of this suite, which hung for 39 minutes:
+#   · CI runs `dev-tools/e2e | tee`, and a background process that inherits the pipe keeps its
+#     write end open after this script exits — `tee` never sees EOF and the step never ends.
+#   · `cargo run` spawns children; killing cargo can leave rustc/the server behind holding that
+#     same pipe. Exec'ing the built binary means there is exactly one PID to clean up.
+./target/debug/synapse-server >/tmp/e2e-server.log 2>&1 &
 SERVER_PID=$!
 trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
 
@@ -30,8 +47,11 @@ for _ in $(seq 1 60); do
   curl -sf "http://localhost:$SYNAPSE_PORT/api/health" >/dev/null && break
   sleep 1
 done
-curl -sf "http://localhost:$SYNAPSE_PORT/api/health" >/dev/null \
-  || { echo "✗ the server never became ready"; exit 1; }
+curl -sf "http://localhost:$SYNAPSE_PORT/api/health" >/dev/null || {
+  echo "✗ the server never became ready — its log:"
+  sed 's/^/    /' /tmp/e2e-server.log
+  exit 1
+}
 
 cd e2e
 [[ -d node_modules ]] || npm ci

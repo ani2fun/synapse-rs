@@ -13,8 +13,24 @@ use crate::catalog::domain::frontmatter;
 pub const MAX_CHAPTER_DEPTH: usize = 6;
 pub const DEFAULT_ESSENTIAL: bool = true;
 
-/// Aux dirs a book may carry that are never chapters (checked order-prefix-stripped).
-const RESERVED_AUX_DIRS: [&str; 2] = ["examples", "c4"];
+/// Dirs that are never content (checked order-prefix-stripped).
+///
+/// `examples` and `c4` are aux dirs a book may carry alongside its chapters.
+///
+/// `local-only` is different in kind and is here for a REASON WORTH KNOWING (step 54). The
+/// content tree carries material that must never be served — most of it adapted from a
+/// commercial course, kept for personal study (ADR-RS002). It was excluded solely by a
+/// `.gitignore` rule in the CONTENT repository, which meant the separation lived in a different
+/// repo, a different layer and a different moment (push time) from the thing it protected. The
+/// server indexed those books happily: they appeared in `/api/synapse/index`, in `/sitemap.xml`
+/// once step 50 landed, and in `lesson_view` once step 49 did.
+///
+/// One `git add -f`, one blanket `git add -A` (this project has that scar — see the step-42
+/// note), or one restructure that moves a book out of that folder would have published them,
+/// silently. Naming it here makes it unservable by construction, in the repo that does the
+/// serving. The `_`-prefix rule above is the other half; either alone suffices, and having both
+/// is deliberate.
+const RESERVED_AUX_DIRS: [&str; 3] = ["examples", "c4", "local-only"];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NAMING RULES — the public helpers the whole context leans on
@@ -329,3 +345,7 @@ fn build_book_entries(
 #[cfg(test)]
 #[path = "walker_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "walker_exclusion_tests.rs"]
+mod exclusion_tests;

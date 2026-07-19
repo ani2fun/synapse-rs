@@ -7,3 +7,4 @@ restating it here).
 | # | Title | Status |
 |---|---|---|
 | [RS001](rs001-the-rust-rebuild.md) | The Rust rebuild: scope, stack, and discipline | accepted |
+| [RS002](rs002-derivative-content.md) | Derivative study material never reaches the served catalog | accepted |

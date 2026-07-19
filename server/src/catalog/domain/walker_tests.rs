@@ -315,48 +315,6 @@ fn categories_and_books_interleave_by_order_then_name() {
 // ── filtering ─────────────────────────────────────────────────────────────────
 
 #[test]
-fn hidden_nonslug_dirs_and_root_files_are_skipped() {
-    let result = walk(&[
-        dir(".git", vec![]),
-        dir("_media", vec![]),
-        dir(
-            "not a slug!",
-            vec![book_dir("x", BookMeta::default(), vec![file("a.md", "x")])],
-        ),
-        file("README.md", "top-level file"),
-        book_dir("b", BookMeta::default(), vec![file("a.md", "x")]),
-    ])
-    .unwrap();
-    let slugs: Vec<&str> = result.catalog.entries.iter().map(CatalogEntry::slug).collect();
-    assert_eq!(slugs, vec!["b"]);
-}
-
-#[test]
-fn reserved_aux_dirs_and_hidden_files_are_skipped_inside_books() {
-    let result = walk(&[book_dir(
-        "b",
-        BookMeta::default(),
-        vec![
-            dir("examples", vec![file("snippet.md", "x")]),
-            dir("01-examples", vec![file("snippet.md", "x")]),
-            dir("c4", vec![file("model.md", "x")]),
-            dir("_c4-docs", vec![file("reader.md", "x")]),
-            dir(".hidden", vec![file("h.md", "x")]),
-            file("_draft.md", "x"),
-            file(".notes.md", "x"),
-            file("data.tests.json", "{}"),
-            file("01-real.md", "x"),
-        ],
-    )])
-    .unwrap();
-    let book = the_book(&result);
-    assert_eq!(book.entries.len(), 1);
-    assert_eq!(lesson_slugs(&book.entries), vec!["real"]);
-}
-
-// ── errors & edge rules ───────────────────────────────────────────────────────
-
-#[test]
 fn duplicate_in_book_slug_paths_error_sorted() {
     let err = walk(&[book_dir(
         "b",

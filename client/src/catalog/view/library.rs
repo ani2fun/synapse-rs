@@ -33,6 +33,7 @@ pub fn LibraryPage() -> impl IntoView {
                     <a class="lib-hero__cta lib-hero__cta--ghost" href="/blog">"Read the blog"</a>
                 </div>
             </section>
+            <ContinueCard index=index_opt />
             {move || match index.get() {
                 AsyncResult::Loading => view! { <p class="muted">"Loading the library…"</p> }.into_any(),
                 AsyncResult::Failed(message) => {
@@ -94,6 +95,60 @@ fn entries_view(entries: &[CatalogEntryDto]) -> Vec<AnyView> {
         .collect()
 }
 
+/// "N/M read" — shown only once there is something to report, so an untouched library stays
+/// uncluttered and the chip always means "you have started this".
+fn progress_chip(book: &BookDto) -> AnyView {
+    let progress = crate::catalog::state::ProgressStore::from_context();
+    let book = book.clone();
+    view! {
+        {move || {
+            let done = progress.done().read();
+            let count = logic::progress::completed_count(&book, &done);
+            let total = logic::lesson_count(&book);
+            (count > 0 && total > 0)
+                .then(|| {
+                    view! {
+                        <span
+                            class="lib-card__progress"
+                            class:lib-card__progress--all=count == total
+                        >
+                            {format!("{count}/{total} read")}
+                        </span>
+                    }
+                })
+        }}
+    }
+    .into_any()
+}
+
+/// "Pick up where you left off" — the one thing that makes a second visit different from a
+/// first. Renders nothing until there IS a last lesson, so a new reader never sees an empty
+/// shelf, and nothing when the index has not loaded, because the title would be a raw slug.
+#[component]
+fn ContinueCard(index: Signal<Option<SynapseIndexDto>>) -> impl IntoView {
+    let progress = state::ProgressStore::from_context();
+    move || {
+        let path = progress.last().get()?;
+        let index = index.get()?;
+        let segments: Vec<String> = path.split('/').map(str::to_owned).collect();
+        // The title comes from the index rather than being stored alongside the path: a stored
+        // title would go stale the moment a lesson is renamed, and the path is the only thing
+        // that has to stay true.
+        let book = logic::book_of(&index, &segments)?;
+        let title = logic::reading_order(book)
+            .into_iter()
+            .find(|(p, _)| *p == path)
+            .map(|(_, lesson)| lesson.title)?;
+        Some(view! {
+            <a class="lib-continue" href=format!("/synapse/{path}")>
+                <span class="lib-continue__label">"Pick up where you left off"</span>
+                <span class="lib-continue__title">{title}</span>
+                <span class="lib-continue__book">{book.title.clone()}</span>
+            </a>
+        })
+    }
+}
+
 fn book_card(book: &BookDto) -> AnyView {
     let chapters = logic::chapter_count(book);
     let lessons = logic::lesson_count(book);
@@ -119,6 +174,7 @@ fn book_card(book: &BookDto) -> AnyView {
             .then(|| view! { <p class="lib-card__desc">{book.description.clone()}</p> })}
         <div class="lib-card__footer">
             {tags}
+            {progress_chip(book)}
             <span class="lib-card__cta">"Read" {arrow_icon()}</span>
         </div>
     };

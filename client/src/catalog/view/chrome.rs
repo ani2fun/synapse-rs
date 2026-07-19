@@ -31,6 +31,10 @@ pub struct ChromeState {
     /// Contents button (problem pages hide the sidebar column at every width, so the
     /// drawer is their ONLY route to the book's reading order).
     pub nav_open: RwSignal<bool>,
+    /// Latched (step 51): true once the reader has reached the end of THIS lesson, and it does
+    /// not go back to false on scroll-up — otherwise "finished" would flicker off every time
+    /// someone scrolled back to re-read a paragraph. Reset per lesson by the reader.
+    pub reached_end: RwSignal<bool>,
 }
 
 impl Default for ChromeState {
@@ -51,6 +55,7 @@ impl ChromeState {
             toc_open: RwSignal::new(false),
             is_problem: RwSignal::new(false),
             nav_open: RwSignal::new(false),
+            reached_end: RwSignal::new(false),
         }
     }
 
@@ -68,6 +73,12 @@ impl ChromeState {
         } else {
             0.0
         });
+        // The decision lives in `logic::progress` so it can be tested — this view layer is not
+        // exercisable in a browser (the preview reports `innerHeight: 0`). Note problem pages
+        // have no window scroll at all, so they never reach here; they do not auto-complete.
+        if crate::catalog::logic::progress::is_at_end(scroll, track) {
+            self.reached_end.set(true);
+        }
         self.show_top.set(scroll > 600.0);
         self.past_title.set(scroll > 160.0);
         let mut active: Option<String> = None;

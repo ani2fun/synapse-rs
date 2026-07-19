@@ -21,6 +21,7 @@ pub fn App() -> impl IntoView {
     // PrefsStore also reflects the stored reading prefs onto <html> BEFORE the first paint.
     crate::catalog::state::CatalogStore::provide();
     crate::catalog::state::PrefsStore::provide();
+    crate::catalog::state::ProgressStore::provide();
     crate::identity::state::AuthStore::provide();
     crate::blog::state::BlogStore::provide();
     crate::search::state::SearchStore::provide();

@@ -10,6 +10,7 @@ use leptos::task::spawn_local;
 use synapse_shared::catalog::{LessonPayloadDto, SynapseIndexDto};
 
 use crate::api::{self, AsyncResult};
+use crate::catalog::logic::progress;
 
 /// The app-level catalog store. `Copy` — signal handles, not data.
 #[derive(Clone, Copy)]
@@ -169,4 +170,81 @@ pub fn set_pane_left_pct(left_pct: f64) {
         left_pct,
         ..pane_prefs()
     });
+}
+
+// ── Reading progress (step 51) ────────────────────────────────────────────────
+// Anonymous and device-local, deliberately. Signing in currently buys a bigger run budget,
+// submission history and an admin flag — and production enforces the submit allowlist — so a
+// progress feature behind sign-in would reach almost nobody. This one works for the reader who
+// is actually here.
+
+const PROGRESS_KEY: &str = "reader-progress";
+const LAST_KEY: &str = "reader-last";
+
+/// Two signals, two keys: what has been finished, and where to resume. Kept apart so a key that
+/// fails to read costs only itself — see the note in `logic::progress`.
+#[derive(Clone, Copy)]
+pub struct ProgressStore {
+    done: RwSignal<std::collections::BTreeSet<String>>,
+    last: RwSignal<Option<String>>,
+}
+
+impl ProgressStore {
+    /// Created ONCE in `App`, like every other store here.
+    pub fn provide() {
+        provide_context(Self {
+            done: RwSignal::new(progress::parse(crate::storage::get(PROGRESS_KEY).as_deref())),
+            last: RwSignal::new(crate::storage::get(LAST_KEY).filter(|s| !s.is_empty())),
+        });
+    }
+
+    pub fn from_context() -> Self {
+        expect_context::<Self>()
+    }
+
+    pub fn done(self) -> RwSignal<std::collections::BTreeSet<String>> {
+        self.done
+    }
+
+    pub fn last(self) -> RwSignal<Option<String>> {
+        self.last
+    }
+
+    /// Reactive — reading this inside a view subscribes it to the set.
+    pub fn is_done(self, path: &str) -> bool {
+        self.done.read().contains(path)
+    }
+
+    /// Mark finished or unfinished. Idempotent: re-marking an already-finished lesson writes
+    /// nothing, so scrolling to the bottom twice does not churn storage.
+    pub fn set_done(self, path: &str, done: bool) {
+        let changed = self.done.try_update(|set| {
+            if done {
+                set.insert(path.to_owned())
+            } else {
+                set.remove(path)
+            }
+        });
+        if changed == Some(true) {
+            crate::storage::set(PROGRESS_KEY, &progress::serialize(&self.done.read()));
+        }
+    }
+
+    /// Record where the reader is, for "continue where you left off". Separate from `set_done`
+    /// because opening a lesson is not finishing it.
+    pub fn visit(self, path: &str) {
+        if self.last.get_untracked().as_deref() == Some(path) {
+            return;
+        }
+        crate::storage::set(LAST_KEY, path);
+        self.last.set(Some(path.to_owned()));
+    }
+
+    /// "Erase all my data" — reading progress is personal in a way a font size is not.
+    pub fn clear(self) {
+        crate::storage::remove(PROGRESS_KEY);
+        crate::storage::remove(LAST_KEY);
+        self.done.set(std::collections::BTreeSet::new());
+        self.last.set(None);
+    }
 }

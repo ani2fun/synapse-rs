@@ -212,16 +212,27 @@ fn book_children(
 fn lesson_link(segments: &[String], title: &str, path: Memo<Vec<String>>) -> AnyView {
     let full = segments.join("/");
     let href = format!("/synapse/{full}");
+    // `is_current` MOVES `full`, so progress needs its own copy — the same reason the memo
+    // takes one rather than borrowing.
+    let done_path = full.clone();
     let is_current = Memo::new(move |_| path.get().join("/") == full);
+    let progress = crate::catalog::state::ProgressStore::from_context();
+    let is_done = Memo::new(move |_| progress.is_done(&done_path));
     let title = title.to_owned();
     view! {
         <li>
             <a
                 class="reader-sidebar__link"
                 class:reader-sidebar__link--active=move || is_current.get()
+                class:reader-sidebar__link--done=move || is_done.get()
                 href=href
             >
                 {title}
+                {move || {
+                    is_done
+                        .get()
+                        .then(|| view! { <span class="reader-sidebar__tick" aria-label="Finished">"✓"</span> })
+                }}
             </a>
         </li>
     }

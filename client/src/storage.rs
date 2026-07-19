@@ -10,6 +10,14 @@ pub(crate) fn get(key: &str) -> Option<String> {
     web_sys::window()?.local_storage().ok()??.get_item(key).ok()?
 }
 
+/// Drop a key; a denied removal is silently a no-op. Added in step 51 for the account page's
+/// "erase all my data", which must be able to take reading progress with it.
+pub(crate) fn remove(key: &str) {
+    if let Some(Ok(Some(storage))) = web_sys::window().map(|w| w.local_storage()) {
+        let _ = storage.remove_item(key);
+    }
+}
+
 /// Write a key; a denied write is silently a no-op.
 pub(crate) fn set(key: &str, value: &str) {
     if let Some(Ok(Some(storage))) = web_sys::window().map(|w| w.local_storage()) {

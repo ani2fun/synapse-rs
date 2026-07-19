@@ -497,3 +497,20 @@ body:has(.reader-sticky[data-on="true"]) .reader-expand { top: 120px; }
     /* Two pager cards sharing ~150px each, with an 18px serif title, is not a target. */
     .reader-pager { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ── Reading progress (step 51) ─────────────────────────────────────────────
+   A finished lesson is marked, not hidden: the tick sits after the title and the
+   label dims a little, so the reading order stays scannable and a finished book
+   still reads as a list rather than a wall of grey. */
+.reader-sidebar__link--done {
+  color: hsl(var(--muted-foreground));
+}
+.reader-sidebar__link--done.reader-sidebar__link--active {
+  /* Current beats finished — the active row must never lose its emphasis. */
+  color: hsl(var(--primary));
+}
+.reader-sidebar__tick {
+  margin-left: 0.4em;
+  font-size: 0.85em;
+  color: hsl(var(--status-ok));
+}

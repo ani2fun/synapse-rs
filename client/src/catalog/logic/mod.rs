@@ -3,6 +3,7 @@
 
 pub mod pane;
 pub mod prefs;
+pub mod progress;
 
 use synapse_shared::catalog::{BookDto, BookEntryDto, CatalogEntryDto, LessonDto, SynapseIndexDto};
 

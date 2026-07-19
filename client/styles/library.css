@@ -104,3 +104,55 @@ a.site-footer__version:hover .site-footer__sha { color: hsl(var(--primary)); }
 @media (max-width: 640px) {
     .site-footer__inner { flex-direction: column-reverse; align-items: flex-start; gap: 1rem; }
 }
+
+/* ── Reading progress (step 51) ─────────────────────────────────────────────
+   The chip appears only once a book has been started, so an untouched library is
+   exactly as it was before this step. */
+.lib-card__progress {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 0.15em 0.5em;
+  border-radius: var(--radius-sm);
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+}
+.lib-card__progress--all {
+  background: hsl(var(--status-ok) / 0.14);
+  color: hsl(var(--status-ok));
+}
+
+/* The one thing that makes a second visit different from a first. */
+.lib-continue {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  max-width: 34rem;
+  margin: 0 auto 2rem;
+  padding: 0.9rem 1.15rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--card));
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease;
+}
+.lib-continue:hover {
+  border-color: hsl(var(--primary));
+}
+.lib-continue__label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+.lib-continue__title {
+  font-weight: 600;
+  color: hsl(var(--primary));
+}
+.lib-continue__book {
+  font-size: 0.85rem;
+  color: hsl(var(--muted-foreground));
+}

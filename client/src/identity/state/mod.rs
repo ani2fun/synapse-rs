@@ -147,7 +147,9 @@ pub enum ActionStatus {
 
 /// The browser-side state the account owns (reading preferences; theme is a preference of the
 /// DEVICE, not "my data" — the oracle excluded it too).
-const LOCAL_KEYS: [&str; 1] = ["reader-prefs"];
+/// Reading progress joined this in step 51: a font size is a preference of the DEVICE,
+/// but what someone has read is theirs, and "erase all my data" has to mean it.
+const LOCAL_KEYS: [&str; 3] = ["reader-prefs", "reader-progress", "reader-last"];
 
 fn clear_local() {
     if let Some(Ok(Some(storage))) = web_sys::window().map(|w| w.local_storage()) {

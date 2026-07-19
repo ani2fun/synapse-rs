@@ -280,6 +280,24 @@ fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> AnyView {
             crate::seo::set_description(summary);
         }
     }
+
+    // Reading progress (step 51). `visit` records where to resume; the effect marks the lesson
+    // finished once the chrome latches `reached_end`.
+    {
+        let progress = crate::catalog::state::ProgressStore::from_context();
+        let path = segments.join("/");
+        progress.visit(&path);
+        if let Some(chrome) = use_context::<crate::catalog::view::chrome::ChromeState>() {
+            // Per-lesson reset: the signal is latched, and the chrome outlives the lesson.
+            chrome.reached_end.set(false);
+            let path = path.clone();
+            Effect::new(move |_| {
+                if chrome.reached_end.get() {
+                    progress.set_done(&path, true);
+                }
+            });
+        }
+    }
     if is_problem {
         return view! {
             <super::problem::ProblemWorkbench payload=payload.clone() segments=segments.to_vec() />

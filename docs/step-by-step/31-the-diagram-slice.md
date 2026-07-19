@@ -28,6 +28,23 @@ adjacent d2 fences steps through one figure with the ‹ i / n › transport). E
 on a FIXED-LIGHT card — the authored palettes assume light — capped at `min(70vh, 32rem)` so
 inline diagrams stay glanceable.
 
+**One surface escapes that card, and it is not SVG.** Both engines emit their title into a
+`<foreignObject>`, which contains real HTML — so `.synapse-prose h1 { color: hsl(var(--foreground)) }`
+reaches it and the title alone follows the *page* theme. In dark mode it computed to
+`rgb(231,231,228)`: near-white ink on a permanently white card, invisible. The fix pins
+`.diagram__figure foreignObject :is(h1…h6, p, span, div, li, td, th, code)` to the light
+foreground as a literal, not a token — a token would track the theme again, which is the bug.
+It cannot touch the diagram's own palette: shape labels are SVG `<text>` carrying their own
+`fill`, and `fill` does not inherit from `color` (verified unchanged before and after).
+
+This is the same light-on-light hazard the mermaid island's LIGHT-theme pin already guards
+against, one level up. The guard was written for *fills* and the title is *text* — so a fixed
+card plus a themed page means every text surface must be audited for which of the two it
+inherits from. There is one known remainder: d2 sizes the `foreignObject` for a single line
+(`height="51"`) while the browser wraps a long title to two (needs 90px), so an over-long
+title clips. `overflow: visible` is not the fix — it needs 39px against 20px of headroom and
+would collide with the first shape; growing the `foreignObject` during hydration is.
+
 ## The zoom overlay — chrome on the LEFT
 
 A rendered figure grows the ⤢ Enlarge pill (top-LEFT, hover-revealed); it opens the

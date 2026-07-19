@@ -87,6 +87,56 @@ jobs:
           grep -qE "test result: ok\. [1-9]" /tmp/pg.log \
             || { echo "::error::the Postgres IT ran no tests"; exit 1; }
 
+  # ── The live sandbox (step 45) ────────────────────────────────────────────────
+  # GOJUDGE_IT was env-gated and, like the Postgres suite, therefore ran nowhere: the
+  # adapter that turns our wire format into go-judge calls — recipes, the Java rewriter,
+  # the ns→s and bytes→KiB conversions, "Accepted with a nonzero exit is a RuntimeError" —
+  # was only ever checked against a hand-written stub. A stub agrees with whatever we
+  # believed when we wrote it.
+  #
+  # This runs on every push rather than behind a paths filter, and costs no wall-clock:
+  # it starts alongside build-test, which takes several minutes on its own, so the pull
+  # and the three tests finish well inside that window.
+  #
+  # go-judge needs --privileged (it sandboxes with namespaces and cgroups), which Actions
+  # SERVICE containers cannot provide — hence `docker run` in a step rather than a
+  # `services:` block like Postgres.
+  gojudge-it:
+    needs: conventions
+    runs-on: ubuntu-latest
+    env:
+      GOJUDGE_IT: 1
+      EXECUTOR_URL: http://localhost:5150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: start the real sandbox
+        run: |
+          docker run -d --privileged --name go-judge \
+            -p 5150:5050 ghcr.io/ani2fun/synapse-go-judge:latest
+          # go-judge answers /version once it is listening; poll rather than sleep so a
+          # slow cold start does not turn into a flaky suite.
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:5150/version >/dev/null && break
+            sleep 2
+          done
+          curl -sf http://localhost:5150/version || {
+            echo "::error::go-judge never became ready"; docker logs go-judge; exit 1; }
+      - name: sandbox ITs (the REAL go-judge, not a stub)
+        run: cargo test --test go_judge_it --test java_tracer_it -- --test-threads=1
+      - name: prove they RAN (a skip reports green)
+        # Same trap as the Postgres suite: the gate prints "skipped" and passes. Assert on
+        # the absence of that line, or a broken EXECUTOR_URL silently reverts to no coverage.
+        run: |
+          cargo test --test go_judge_it -- --nocapture 2>&1 | tee /tmp/gj.log
+          if grep -q "skipped (set GOJUDGE_IT" /tmp/gj.log; then
+            echo "::error::the go-judge IT SKIPPED — the sandbox or EXECUTOR_URL is wrong"
+            exit 1
+          fi
+      - if: always()
+        run: docker rm -f go-judge || true
+
   client-build:
     needs: conventions
     runs-on: ubuntu-latest
@@ -141,7 +191,7 @@ jobs:
   # already shipped, and releasing again would rebuild the same tree under a second SHA.
   release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [conventions, supply-chain, build-test, client-build]
+    needs: [conventions, supply-chain, build-test, client-build, gojudge-it]
     permissions:
       contents: read
       packages: write

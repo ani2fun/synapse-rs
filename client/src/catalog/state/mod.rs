@@ -97,7 +97,7 @@ pub struct PrefsStore {
 impl PrefsStore {
     /// Created ONCE in `App`: load → reflect onto `<html>` → provide as context.
     pub fn provide() {
-        let loaded = prefs::parse(storage_get(PREFS_KEY).as_deref());
+        let loaded = prefs::parse(crate::storage::get(PREFS_KEY).as_deref());
         apply_to_html(&loaded);
         provide_context(Self {
             prefs: RwSignal::new(loaded),
@@ -111,7 +111,7 @@ impl PrefsStore {
     /// Commit one change: signal + localStorage + the `<html>` attributes, in one breath.
     pub fn commit(self, next: Prefs) {
         apply_to_html(&next);
-        storage_set(PREFS_KEY, &prefs::serialize(&next));
+        crate::storage::set(PREFS_KEY, &prefs::serialize(&next));
         self.prefs.set(next);
     }
 
@@ -133,12 +133,40 @@ fn apply_to_html(p: &Prefs) {
     let _ = root.set_attribute("data-reader-width", p.width);
 }
 
-fn storage_get(key: &str) -> Option<String> {
-    web_sys::window()?.local_storage().ok()??.get_item(key).ok()?
+// ─────────────────────────────────────────────────────────────────────────────
+// PROBLEM PANES — read at mount, written on click
+// ─────────────────────────────────────────────────────────────────────────────
+// Free functions, not a context store, deliberately: `ProblemWorkbench` is rebuilt from scratch
+// on every navigation, so reading once at creation is all the carry-over needs. Nothing here is
+// reactive, so nothing here needs a signal — the `SidebarMode` precedent, not the `PrefsStore`
+// one.
+
+use crate::catalog::logic::pane::{self, PanePrefs, Tab};
+
+const PANE_KEY: &str = "problem-pane";
+
+pub fn pane_prefs() -> PanePrefs {
+    pane::parse(crate::storage::get(PANE_KEY).as_deref())
 }
 
-fn storage_set(key: &str, value: &str) {
-    if let Some(Ok(Some(storage))) = web_sys::window().map(|w| w.local_storage()) {
-        let _ = storage.set_item(key, value);
-    }
+fn commit_pane(next: &PanePrefs) {
+    crate::storage::set(PANE_KEY, &pane::serialize(next));
+}
+
+pub fn set_pane_tab(tab: Tab) {
+    commit_pane(&PanePrefs { tab, ..pane_prefs() });
+}
+
+pub fn set_pane_section(section: &str) {
+    commit_pane(&PanePrefs {
+        section: section.to_owned(),
+        ..pane_prefs()
+    });
+}
+
+pub fn set_pane_left_pct(left_pct: f64) {
+    commit_pane(&PanePrefs {
+        left_pct,
+        ..pane_prefs()
+    });
 }

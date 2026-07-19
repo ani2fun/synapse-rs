@@ -354,9 +354,11 @@ fn SolutionViewer(
 ) -> impl IntoView {
     let node_ref: NodeRef<leptos::html::Div> = NodeRef::new();
     let mounted: StoredValue<Option<editor::MountedEditor>, LocalStorage> = StoredValue::new_local(None);
-    let active = RwSignal::new(0_usize);
+    // The same remembered language the editor pane opens on — `first` feeds the mount below.
+    let start = crate::execution::state::lang_pref::index_for(&variants);
+    let active = RwSignal::new(start);
     let lang_count = variants.len();
-    let first = variants[0].clone();
+    let first = variants[start].clone();
     let variants = StoredValue::new(variants);
     let variant_at = move |i: usize| variants.read_value()[i.min(lang_count - 1)].clone();
 
@@ -435,6 +437,7 @@ fn SolutionViewer(
                                         class="wb__lang-opt"
                                         class:wb__lang-opt--active=move || active.get() == i
                                         on:click=move |_| {
+                                            crate::execution::state::lang_pref::store(&variant_at(i).language);
                                             switch_to(i);
                                             menu_open.set(false);
                                         }

@@ -57,35 +57,11 @@ impl CodebenchStore {
 // DISCOVERY — the "Open editor to try" pills
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// The engine's fence aliases (mirrors `server/execution/domain/Language::aliases` — the
-/// server stays the authority; an alias added there joins this list in the same step).
-const RUNNABLE_FENCES: [&str; 21] = [
-    "python",
-    "py",
-    "python3",
-    "java",
-    "scala",
-    "c",
-    "cpp",
-    "c++",
-    "cxx",
-    "go",
-    "golang",
-    "rust",
-    "rs",
-    "kotlin",
-    "kt",
-    "typescript",
-    "ts",
-    "javascript",
-    "js",
-    "node",
-    "sql",
-];
-
+/// A fence the engine can actually run. The alias table lives in `execution::logic::language`,
+/// shared with the language preference — one table, so the two cannot drift apart (this
+/// function's own copy had been a `sqlite` behind the server since step 40).
 pub(crate) fn runnable_fence(lang: &str) -> bool {
-    let needle = lang.trim().to_lowercase();
-    RUNNABLE_FENCES.contains(&needle.as_str())
+    crate::execution::logic::canonical_lang(lang).is_some()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -2,6 +2,8 @@
 //! `BlockStore` per runnable block: the FSM in a signal, the page-local edit unlock, and
 //! `launch()` — run the CURRENT buffer, drop stale replies by handle.
 
+pub mod lang_pref;
+
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use synapse_shared::execution::RunRequest;

@@ -18,6 +18,7 @@ pub mod quiz;
 pub mod router;
 pub mod search;
 pub mod shell;
+mod storage;
 pub mod tutoring;
 pub mod viz;
 

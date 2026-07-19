@@ -4,6 +4,9 @@ client/pkg/
 client/dist/
 node_modules/
 
+# derived code index (CodeGraph rebuilds it per machine; the .db is 8 MB of binary)
+.codegraph/
+
 # local-only agent guide (durable design lives in docs/adr/)
 CLAUDE.md
 

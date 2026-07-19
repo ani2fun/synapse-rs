@@ -17,6 +17,8 @@ use wasm_bindgen::JsCast;
 
 use crate::api;
 use crate::catalog::logic;
+use crate::catalog::logic::pane::{self, TABS, Tab};
+use crate::catalog::state;
 use crate::execution::logic::Variant;
 use crate::execution::view::RunnableBlock;
 use crate::islands::editor::RELAYOUT_EVENT;
@@ -135,24 +137,6 @@ fn step_link(target: Option<&str>, step: Step) -> Option<impl IntoView + use<>> 
     })
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Tab {
-    Description,
-    Editorial,
-    Coach,
-    Submissions,
-}
-
-/// `(tab, label, slug)` — the slug keys the `problem-tab--<slug>` modifier, which is what
-/// hands each tab its own `--tab-hue`. The practice widget reuses `.problem-tab` WITHOUT a
-/// modifier, so it keeps the default teal.
-const TABS: [(Tab, &str, &str); 4] = [
-    (Tab::Description, "Description", "description"),
-    (Tab::Editorial, "Editorial", "editorial"),
-    (Tab::Coach, "Coach", "coach"),
-    (Tab::Submissions, "Submissions", "submissions"),
-];
-
 #[allow(clippy::needless_pass_by_value, clippy::too_many_lines)]
 #[component]
 pub fn ProblemWorkbench(payload: LessonPayloadDto, segments: Vec<String>) -> impl IntoView {
@@ -161,9 +145,8 @@ pub fn ProblemWorkbench(payload: LessonPayloadDto, segments: Vec<String>) -> imp
     let viz_modal = crate::viz::modal::VizModalStore::from_context();
     let codebench = crate::execution::view::CodebenchStore::from_context();
 
-    let tab = RwSignal::new(Tab::Description);
-    let subs_seen = RwSignal::new(false);
-    let left_pct = RwSignal::new(46.0_f64);
+    let restored = state::pane_prefs();
+    let left_pct = RwSignal::new(restored.left_pct);
     let panes_ref: NodeRef<leptos::html::Div> = NodeRef::new();
     // The extracted FIRST workbench (variants + suite) — the right pane renders it.
     let wb_spec: RwSignal<Option<(Vec<Variant>, Option<TestSpec>)>> = RwSignal::new(None);
@@ -187,9 +170,16 @@ pub fn ProblemWorkbench(payload: LessonPayloadDto, segments: Vec<String>) -> imp
             return;
         }
         let pct = (f64::from(event.client_x()) - rect.left()) / rect.width() * 100.0;
-        left_pct.set(pct.clamp(28.0, 64.0));
+        left_pct.set(pct.clamp(pane::MIN_LEFT_PCT, pane::MAX_LEFT_PCT));
     });
-    let released = window_event_listener(leptos::ev::pointerup, move |_| dragging.set_value(false));
+    // Persist on RELEASE, not on move — this listener fires for every window pointerup, so it
+    // is gated on `dragging` rather than writing storage at pointer rate.
+    let released = window_event_listener(leptos::ev::pointerup, move |_| {
+        if dragging.get_value() {
+            state::set_pane_left_pct(left_pct.get_untracked());
+        }
+        dragging.set_value(false);
+    });
     on_cleanup(move || {
         moved.remove();
         released.remove();
@@ -203,6 +193,18 @@ pub fn ProblemWorkbench(payload: LessonPayloadDto, segments: Vec<String>) -> imp
     } else {
         inline_editorial
     };
+    // The remembered tab, but never onto a tab this problem can't honour — a restored Editorial
+    // on a problem without one would strand the reader on "No editorial yet".
+    let landing = if restored.tab == Tab::Editorial && editorial_md.trim().is_empty() {
+        Tab::Description
+    } else {
+        restored.tab
+    };
+    let tab = RwSignal::new(landing);
+    // Seeded, not defaulted: the lazily-mounted Submissions pane is gated on this, so restoring
+    // that tab without seeding renders it empty.
+    let subs_seen = RwSignal::new(landing == Tab::Submissions);
+
     let title = payload.frontmatter.title.clone();
     let lede = payload.frontmatter.summary.clone();
     let difficulty = payload.frontmatter.difficulty.clone();
@@ -213,22 +215,22 @@ pub fn ProblemWorkbench(payload: LessonPayloadDto, segments: Vec<String>) -> imp
     let segments = StoredValue::new(segments);
 
     let tab_buttons: Vec<_> = TABS
-        .iter()
-        .map(|(t, label, slug)| {
-            let t = *t;
+        .into_iter()
+        .map(|t| {
             view! {
                 <button
-                    class=format!("problem-tab problem-tab--{slug}")
+                    class=format!("problem-tab problem-tab--{}", t.slug())
                     class:problem-tab--active=move || tab.get() == t
                     on:click=move |_| {
                         tab.set(t);
+                        state::set_pane_tab(t);
                         if t == Tab::Submissions {
                             subs_seen.set(true);
                         }
                     }
                 >
                     {tab_icon(t)}
-                    {*label}
+                    {t.label()}
                 </button>
             }
         })
@@ -426,7 +428,18 @@ fn editorial_pane(
                             }
                         }
                     }
-                    section_labels.set(sectionize_editorial(&node));
+                    // Restore BEFORE the mounts below: effects are queued, so by the time the
+                    // reveal effect runs, `mount_solutions` has registered its RELAYOUT_EVENT
+                    // listeners AND the target section is already visible — so its Monaco
+                    // measures correctly on the first try instead of mounting into 0×0.
+                    let labels = sectionize_editorial(&node);
+                    let start = pane::section_index(&labels, &state::pane_prefs().section);
+                    section_labels.set(labels);
+                    // Guarded: `set` notifies unconditionally, and setting 0 would re-run the
+                    // reveal effect and fire a redundant relayout on EVERY editorial.
+                    if start != 0 {
+                        active_section.set(start);
+                    }
                     mounts.update_value(|m| {
                         m.extend(crate::execution::view::mount_solutions(&node, load_code, theme));
                         m.extend(crate::execution::view::hydrate_fence_groups(&node, codebench));
@@ -481,11 +494,17 @@ fn editorial_pane(
                         .into_iter()
                         .enumerate()
                         .map(|(i, label)| {
+                            // Remembered by LABEL — the next problem's index 1 is a different
+                            // section, but its "Solution" is the same "Solution".
+                            let remembered = label.clone();
                             view! {
                                 <button
                                     class="pwb-esec-tab"
                                     class:pwb-esec-tab--active=move || active_section.get() == i
-                                    on:click=move |_| active_section.set(i)
+                                    on:click=move |_| {
+                                        active_section.set(i);
+                                        state::set_pane_section(&remembered);
+                                    }
                                 >
                                     {label}
                                 </button>

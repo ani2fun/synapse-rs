@@ -12,7 +12,7 @@ use leptos::task::spawn_local;
 use synapse_shared::execution::{RunResult, TestSpec, Verdict, judge, stdin_for};
 
 use crate::execution::logic::{self, ExecutorState, RunHandle, RunState, Variant};
-use crate::execution::state::{BlockStore, SubmitState, SubmitStore};
+use crate::execution::state::{BlockStore, SubmitState, SubmitStore, lang_pref};
 use crate::execution::view::icons::{
     icon_chevron_down, icon_eye, icon_lock, icon_play, icon_reset, icon_rocket,
 };
@@ -55,10 +55,13 @@ pub fn RunnableBlock(
     fill: bool,
 ) -> impl IntoView {
     let stores: Vec<BlockStore> = variants.iter().map(|v| BlockStore::new(&v.source)).collect();
-    let active = RwSignal::new(0_usize);
-    code_sink.set((variants[0].source.clone(), variants[0].language.clone()));
+    // The reader's remembered language, resolved ONCE — `first` then carries it to the shiki
+    // placeholder and the default height, which both used to assume variant 0.
+    let start = lang_pref::index_for(&variants);
+    let active = RwSignal::new(start);
+    code_sink.set((variants[start].source.clone(), variants[start].language.clone()));
     let submit = SubmitStore::new();
-    let first = variants[0].clone();
+    let first = variants[start].clone();
     let variants = StoredValue::new(variants);
     let spec = spec.map(StoredValue::new);
     let tests = spec.map(|s| TestsState::new(&s.read_value()));
@@ -312,10 +315,13 @@ pub fn RunnableBlock(
             if tick == 0 || prev == Some(tick) {
                 return tick;
             }
+            // Canonical, not raw: a `python3` solution must find the `py` tab. Guarded on
+            // `is_some` so two UNKNOWN languages don't both read as `None` and match.
+            let wanted = logic::canonical_lang(&lang);
             let target = variants
                 .read_value()
                 .iter()
-                .position(|v| v.language.eq_ignore_ascii_case(&lang))
+                .position(|v| wanted.is_some() && logic::canonical_lang(&v.language) == wanted)
                 .unwrap_or_else(|| active.get_untracked());
             crate::log::debug(&format!(
                 "solution copied into the {} tab",
@@ -412,6 +418,7 @@ pub fn RunnableBlock(
                                         class="wb__lang-opt"
                                         class:wb__lang-opt--active=move || active.get() == i
                                         on:click=move |_| {
+                                            lang_pref::store(&variants.read_value()[i].language);
                                             menu_switch(i);
                                             menu_open.set(false);
                                         }

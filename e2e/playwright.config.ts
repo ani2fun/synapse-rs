@@ -31,10 +31,27 @@ export default defineConfig({
   // bug report.
   retries: process.env.CI ? 1 : 0,
   forbidOnly: !!process.env.CI,
-  workers: process.env.CI ? 2 : undefined,
+  // ONE worker in CI. A GitHub runner has ~4 GB shared with the Postgres service container,
+  // and two workers across two projects meant several Chromium instances each instantiating a
+  // multi-megabyte wasm module at once. The result was not a slow run but a dead one:
+  //
+  //     pageerror: WebAssembly.Table.grow(): failed to grow table by 4
+  //
+  // ...on every hydration-dependent spec, which then failed with a bare "element(s) not found"
+  // because no component had mounted. Locally there is enough memory for it never to appear.
+  //
+  // Note for anyone tempted to raise this: an earlier version of this file set `workers: 1` for
+  // a DIFFERENT reason (CPU contention) which turned out to be wrong, and it was reverted. This
+  // time the reason is memory and the evidence is the error above.
+  workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? [["list"], ["github"]] : [["list"]],
   use: {
     baseURL,
+    launchOptions: {
+      // `/dev/shm` is 64 MB in most CI containers and Chromium will happily exhaust it;
+      // falling back to /tmp is the standard remedy. Harmless locally.
+      args: ["--disable-dev-shm-usage"],
+    },
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },

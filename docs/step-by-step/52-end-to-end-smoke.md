@@ -137,6 +137,38 @@ nothing covers the close button, which is precisely how the step-42 bug was even
 hand. And the progress spec exercises step 51's scroll-to-complete, which the dev preview could
 not reach at all (it reports `innerHeight: 0`).
 
+### What it took to go green in the runner
+
+Locally the suite passed immediately; in CI it failed every hydration-dependent spec with a
+bare `element(s) not found`, and it took two follow-up fixes to find out why.
+
+The first was that **the gate could not fail at all**. `run: dev-tools/e2e | tee` takes its exit
+status from `tee`, which always succeeds, so Playwright's failure was discarded — the job
+reported success with `4 failed, 3 passed` in its own log, and because the step never failed,
+`if: failure()` never uploaded the traces either. `set -o pipefail`, and a guard that now
+requires *both* "something ran" and "nothing failed"; the original matched `N passed` and was
+perfectly satisfied by `3 passed`. That is step 48's lesson repeating two steps later, in my own
+work.
+
+With the gate honest, the diagnostics named the cause in one line:
+
+```
+pageerror: WebAssembly.Table.grow(): failed to grow table by 4
+```
+
+Memory, not code. A GitHub runner has ~4 GB shared with the Postgres service container, and two
+workers across two projects meant several Chromium instances each instantiating a multi-megabyte
+wasm module simultaneously. The asset table printed alongside it ruled out the theory I would
+otherwise have chased first — every asset served `200` with the right content type, so nothing
+was 404ing; the wasm loaded and then failed to allocate. CI now runs one worker, with
+`--disable-dev-shm-usage`.
+
+There is an uncomfortable coincidence worth recording: `workers: 1` had been set earlier in this
+step and then *reverted*, because the reason given for it — CPU contention — was disproved when
+serialising made things worse. The setting was right and the reasoning was wrong, and reverting
+it was still correct: a config line justified by a false explanation is a trap for whoever reads
+it next. It is back now for a reason that has evidence behind it.
+
 The CI job gates the release: a broken reader now stops a deploy. It carries the same
 prove-it-RAN guard as the Postgres and sandbox gates — an empty run reports green, and that is
 the failure mode these gates exist to prevent — plus a Playwright browser cache and trace upload

@@ -192,8 +192,7 @@ pub fn ProblemWorkbench(payload: LessonPayloadDto, segments: Vec<String>) -> imp
     // Captured IN-TREE — hydrated islands can't reach App context; see `IslandStores`.
     let stores = crate::hydration::IslandStores::capture();
 
-    let restored = state::pane_prefs();
-    let left_pct = RwSignal::new(restored.left_pct);
+    let left_pct = RwSignal::new(state::pane_left_pct());
     let panes_ref: NodeRef<leptos::html::Div> = NodeRef::new();
     // The extracted FIRST workbench (variants + suite) — the right pane renders it.
     let wb_spec: RwSignal<Option<(Vec<Variant>, Option<TestSpec>)>> = RwSignal::new(None);
@@ -243,17 +242,11 @@ pub fn ProblemWorkbench(payload: LessonPayloadDto, segments: Vec<String>) -> imp
     } else {
         inline_editorial
     };
-    // The remembered tab, but never onto a tab this problem can't honour — a restored Editorial
-    // on a problem without one would strand the reader on "No editorial yet".
-    let landing = if restored.tab == Tab::Editorial && editorial_md.trim().is_empty() {
-        Tab::Description
-    } else {
-        restored.tab
-    };
-    let tab = RwSignal::new(landing);
-    // Seeded, not defaulted: the lazily-mounted Submissions pane is gated on this, so restoring
-    // that tab without seeding renders it empty.
-    let subs_seen = RwSignal::new(landing == Tab::Submissions);
+    // Every problem opens on Description. Step 47 carried the last tab across pages and step 65
+    // took it back out: landing on someone else's Editorial is a spoiler you never asked for, and
+    // the reader who does want it is one click away.
+    let tab = RwSignal::new(Tab::Description);
+    let subs_seen = RwSignal::new(false);
 
     let title = payload.frontmatter.title.clone();
     let lede = payload.frontmatter.summary.clone();
@@ -285,7 +278,6 @@ pub fn ProblemWorkbench(payload: LessonPayloadDto, segments: Vec<String>) -> imp
                     class:problem-tab--active=move || tab.get() == t
                     on:click=move |_| {
                         tab.set(t);
-                        state::set_pane_tab(t);
                         if t == Tab::Submissions {
                             subs_seen.set(true);
                         }

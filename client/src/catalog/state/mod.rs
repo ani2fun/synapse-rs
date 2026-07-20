@@ -135,47 +135,31 @@ fn apply_to_html(p: &Prefs) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PROBLEM PANES — read at mount, written on click
+// THE SPLITTER WIDTH — read at mount, written on drag end
 // ─────────────────────────────────────────────────────────────────────────────
-// Free functions, not a context store, deliberately: `ProblemWorkbench` is rebuilt from scratch
-// on every navigation, so reading once at creation is all the carry-over needs. Nothing here is
-// reactive, so nothing here needs a signal — the `SidebarMode` precedent, not the `PrefsStore`
-// one.
+// A free function, not a context store: `ProblemWorkbench` is rebuilt from scratch on every
+// navigation, so reading once at creation is all this needs, and nothing here is reactive — the
+// `SidebarMode` precedent, not the `PrefsStore` one.
+//
+// This key also carried the active TAB and editorial SECTION until step 65. Both are gone: a new
+// problem opening on someone else's last choice is a spoiler nobody asked for. A pane width is
+// different in kind — it is how you arranged the room, not where you were standing in it.
 
-use crate::catalog::logic::pane::{self, PanePrefs, Tab};
+use crate::catalog::logic::pane;
 
 const PANE_KEY: &str = "problem-pane";
 
-pub fn pane_prefs() -> PanePrefs {
-    pane::parse(crate::storage::get(PANE_KEY).as_deref())
-}
-
-fn commit_pane(next: &PanePrefs) {
-    crate::storage::set(PANE_KEY, &pane::serialize(next));
-}
-
-pub fn set_pane_tab(tab: Tab) {
-    commit_pane(&PanePrefs { tab, ..pane_prefs() });
-}
-
-pub fn set_pane_section(section: &str) {
-    commit_pane(&PanePrefs {
-        section: section.to_owned(),
-        ..pane_prefs()
-    });
+pub fn pane_left_pct() -> f64 {
+    pane::parse_left_pct(crate::storage::get(PANE_KEY).as_deref())
 }
 
 pub fn set_pane_left_pct(left_pct: f64) {
-    commit_pane(&PanePrefs {
-        left_pct,
-        ..pane_prefs()
-    });
+    crate::storage::set(PANE_KEY, &pane::serialize_left_pct(left_pct));
 }
 
-// The remembered editorial APPROACH gets its own key rather than a fourth `PanePrefs` field:
-// an approach label is free text like `section`, and the pipe-delimited record can only let
-// ONE field absorb the remainder — a second free-text field would corrupt on pipes (and a
-// format change would reset everyone's stored panes, the step-46 prefs lesson).
+// The remembered editorial APPROACH keeps its own key, and step 65 kept the feature: which of a
+// problem's approaches you were reading is a position in the material rather than a tab, and it
+// is only ever visible once you have chosen the Editorial tab yourself.
 const APPROACH_KEY: &str = "problem-approach";
 
 pub fn editorial_approach() -> String {

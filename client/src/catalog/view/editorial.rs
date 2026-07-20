@@ -40,9 +40,9 @@ pub fn editorial_pane(md: &str, load_code: RwSignal<(u32, String, String)>, stor
         &approach_labels,
         &state::editorial_approach(),
     ));
-    // The remembered SECTION restore applies to the first rendered approach only — switching
-    // approaches afterwards always starts at the top.
-    let restore_section = StoredValue::new(true);
+    // False after the first body renders — it tells an approach switch apart from the initial
+    // render, which is what decides whether the scroll container needs resetting.
+    let first_body = StoredValue::new(true);
     let multi = doc.multi;
     let doc = StoredValue::new(doc);
 
@@ -56,7 +56,7 @@ pub fn editorial_pane(md: &str, load_code: RwSignal<(u32, String, String)>, stor
                     let at = index.min(d.approaches.len() - 1);
                     (d.approaches[at].clone(), d.preamble.clone())
                 });
-                approach_body(approach, preamble, restore_section, load_code, stores)
+                approach_body(approach, preamble, first_body, load_code, stores)
             }}
         </div>
     }
@@ -175,7 +175,7 @@ fn single_approach_bar(doc: StoredValue<EditorialDoc>) -> Option<impl IntoView> 
 fn approach_body(
     approach: ApproachDoc,
     preamble: String,
-    restore_section: StoredValue<bool>,
+    first_body: StoredValue<bool>,
     load_code: RwSignal<(u32, String, String)>,
     stores: IslandStores,
 ) -> AnyView {
@@ -190,26 +190,12 @@ fn approach_body(
         .map(|s| s.label.clone())
         .collect();
 
-    // The FIRST body restores the remembered section; every later body is an approach
-    // switch and starts at the top EXPLICITLY — Leptos reuses the scroll container's DOM
-    // node across the re-render, so its old scrollTop would otherwise survive the switch
-    // (verified live: switching mid-document landed mid-document).
-    if restore_section.get_value() {
-        restore_section.set_value(false);
-        let start = pane::section_index(&labels, &state::pane_prefs().section);
-        if start != 0 {
-            active_section.set(start);
-            Effect::new(move |ran: Option<bool>| {
-                if ran == Some(true) {
-                    return true;
-                }
-                let Some(container) = scroll_ref.get() else {
-                    return false;
-                };
-                scroll_section_into_view(&container, start, false);
-                true
-            });
-        }
+    // The FIRST body needs no reset — its container is fresh at the top. Every later body is an
+    // approach switch and starts at the top EXPLICITLY: Leptos reuses the scroll container's DOM
+    // node across the re-render, so its old scrollTop would otherwise survive the switch (verified
+    // live: switching mid-document landed mid-document).
+    if first_body.get_value() {
+        first_body.set_value(false);
     } else {
         Effect::new(move |ran: Option<bool>| {
             if ran == Some(true) {
@@ -295,8 +281,6 @@ fn jump_bar(
         .into_iter()
         .enumerate()
         .map(|(i, label)| {
-            // Remembered by LABEL — the same carry-over rule the old section pills had.
-            let remembered = label.clone();
             view! {
                 <button
                     class="pwb-ejump__pill"
@@ -306,7 +290,6 @@ fn jump_bar(
                             scroll_section_into_view(&container, i, true);
                         }
                         active_section.set(i);
-                        state::set_pane_section(&remembered);
                     }
                 >
                     {label}

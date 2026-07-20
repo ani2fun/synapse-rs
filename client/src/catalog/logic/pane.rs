@@ -1,10 +1,11 @@
-//! The problem page's remembered panes — which tab, which editorial section, how wide the left
-//! pane. Pure half: the vocabulary, the record format, and the two matchers.
+//! The problem page's tab vocabulary, its splitter width, and the label matcher the editorial
+//! shares.
 //!
-//! The section is remembered by LABEL, never by index. Editorial sections are whatever the
-//! author wrote under `##`, so index 1 on one problem is "Solution" and on the next is
-//! "Optimisation" — but "Solution" means "Solution" everywhere, which is exactly the carry-over
-//! a reader is asking for when they set it.
+//! Step 47 also carried the ACTIVE TAB and the active editorial section across problem pages.
+//! Step 65 removed both: opening a new problem on someone else's last choice — the Editorial tab,
+//! scrolled to Solution — is a spoiler you never asked for, and the reader who wants that can
+//! click twice. A new problem starts on Description, at the top. The splitter width stays, because
+//! dragging a pane is a layout act rather than a place in the material.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tab {
@@ -37,19 +38,10 @@ impl Tab {
             Self::Submissions => "Submissions",
         }
     }
-
-    fn parse(token: &str) -> Self {
-        match token {
-            "editorial" => Self::Editorial,
-            "coach" => Self::Coach,
-            "submissions" => Self::Submissions,
-            _ => Self::Description,
-        }
-    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// THE RECORD — `tab|left_pct|section`, degrading per field
+// THE SPLITTER WIDTH — the only thing the problem page still remembers
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// The splitter's travel, matching the drag clamp in the view.
@@ -57,48 +49,18 @@ pub const MIN_LEFT_PCT: f64 = 28.0;
 pub const MAX_LEFT_PCT: f64 = 64.0;
 pub const DEFAULT_LEFT_PCT: f64 = 46.0;
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct PanePrefs {
-    pub tab: Tab,
-    pub left_pct: f64,
-    pub section: String,
-}
-
-impl Default for PanePrefs {
-    fn default() -> Self {
-        Self {
-            tab: Tab::Description,
-            left_pct: DEFAULT_LEFT_PCT,
-            section: String::new(),
-        }
-    }
-}
-
-/// Parse a stored `tab|left_pct|section` record; anything malformed degrades per field.
-///
-/// `section` is LAST and absorbs the remainder deliberately: a `##` heading may legitimately
-/// contain a pipe, and a heading like `Two pointers | O(n)` must not corrupt the record.
-pub fn parse(stored: Option<&str>) -> PanePrefs {
-    let Some(stored) = stored else {
-        return PanePrefs::default();
-    };
-    let mut parts = stored.splitn(3, '|');
-    let (Some(tab), Some(left), Some(section)) = (parts.next(), parts.next(), parts.next()) else {
-        return PanePrefs::default();
-    };
-    PanePrefs {
-        tab: Tab::parse(tab),
-        left_pct: left
-            .parse::<f64>()
-            .map_or(DEFAULT_LEFT_PCT, |pct| pct.clamp(MIN_LEFT_PCT, MAX_LEFT_PCT)),
-        section: section.to_owned(),
-    }
+/// Parse a stored splitter width. Anything unreadable — including a step-47 `tab|pct|section`
+/// record, which is why an existing reader's width resets exactly once — degrades to the default.
+pub fn parse_left_pct(stored: Option<&str>) -> f64 {
+    stored
+        .and_then(|s| s.parse::<f64>().ok())
+        .map_or(DEFAULT_LEFT_PCT, |pct| pct.clamp(MIN_LEFT_PCT, MAX_LEFT_PCT))
 }
 
 /// Two decimals, matching the precision the view actually renders — a raw drag lands on
 /// `55.67703952901598`, and there is no reason to keep sixteen digits of it.
-pub fn serialize(prefs: &PanePrefs) -> String {
-    format!("{}|{:.2}|{}", prefs.tab.slug(), prefs.left_pct, prefs.section)
+pub fn serialize_left_pct(left_pct: f64) -> String {
+    format!("{left_pct:.2}")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -133,74 +95,31 @@ pub fn section_index(labels: &[String], preferred: &str) -> usize {
 mod tests {
     use super::*;
 
+    fn close(a: f64, b: f64) -> bool {
+        (a - b).abs() < f64::EPSILON
+    }
+
     #[test]
-    fn tab_slugs_round_trip_and_degrade() {
-        for tab in TABS {
-            assert_eq!(Tab::parse(tab.slug()), tab);
+    fn the_width_round_trips_at_the_precision_the_view_renders() {
+        assert_eq!(serialize_left_pct(52.5), "52.50");
+        assert!(close(parse_left_pct(Some(&serialize_left_pct(52.5))), 52.5));
+        // A raw drag lands on sixteen digits; only two of them are kept.
+        assert_eq!(serialize_left_pct(55.677_039_529_015_98), "55.68");
+    }
+
+    #[test]
+    fn the_width_clamps_to_the_splitter_travel() {
+        assert!(close(parse_left_pct(Some("999")), MAX_LEFT_PCT));
+        assert!(close(parse_left_pct(Some("1")), MIN_LEFT_PCT));
+    }
+
+    /// Includes a step-47 `tab|pct|section` record: unreadable now, and deliberately so — the
+    /// width resets once rather than the format growing a legacy branch forever.
+    #[test]
+    fn anything_unreadable_is_the_default_width() {
+        for stored in [None, Some(""), Some("banana"), Some("editorial|52.50|Solution")] {
+            assert!(close(parse_left_pct(stored), DEFAULT_LEFT_PCT), "{stored:?}");
         }
-        assert_eq!(Tab::parse("banana"), Tab::Description);
-        assert_eq!(Tab::parse(""), Tab::Description);
-    }
-
-    #[test]
-    fn record_round_trips() {
-        let prefs = PanePrefs {
-            tab: Tab::Editorial,
-            left_pct: 52.5,
-            section: "Complexity Analysis".to_owned(),
-        };
-        assert_eq!(serialize(&prefs), "editorial|52.50|Complexity Analysis");
-        assert_eq!(parse(Some(&serialize(&prefs))), prefs);
-        // A raw drag value is rounded to the precision the view renders, not kept whole.
-        let dragged = PanePrefs {
-            left_pct: 55.677_039_529_015_98,
-            ..prefs
-        };
-        assert_eq!(serialize(&dragged), "editorial|55.68|Complexity Analysis");
-    }
-
-    #[test]
-    fn one_bad_field_does_not_take_the_others_down() {
-        let mixed = parse(Some("banana|52|Solution"));
-        assert_eq!(mixed.tab, Tab::Description);
-        assert!((mixed.left_pct - 52.0).abs() < f64::EPSILON);
-        assert_eq!(mixed.section, "Solution");
-
-        let bad_width = parse(Some("editorial|banana|Solution"));
-        assert_eq!(bad_width.tab, Tab::Editorial);
-        assert!((bad_width.left_pct - DEFAULT_LEFT_PCT).abs() < f64::EPSILON);
-    }
-
-    /// The reason `section` is the LAST field: a heading is free text and may contain a pipe.
-    #[test]
-    fn a_pipe_in_the_heading_survives_the_round_trip() {
-        assert_eq!(
-            parse(Some("editorial|52.4|Two pointers | O(n)")).section,
-            "Two pointers | O(n)"
-        );
-        let prefs = PanePrefs {
-            tab: Tab::Editorial,
-            left_pct: 46.0,
-            section: "a|b".to_owned(),
-        };
-        assert_eq!(parse(Some(&serialize(&prefs))).section, "a|b");
-    }
-
-    #[test]
-    fn absent_or_short_records_are_the_default() {
-        assert_eq!(parse(None), PanePrefs::default());
-        assert_eq!(parse(Some("")), PanePrefs::default());
-        assert_eq!(parse(Some("editorial")), PanePrefs::default());
-        assert_eq!(parse(Some("editorial|52")), PanePrefs::default());
-        assert_eq!(parse(Some("garbage")), PanePrefs::default());
-    }
-
-    #[test]
-    fn left_pct_clamps_to_the_splitter_travel() {
-        assert!((parse(Some("x|52.5|y")).left_pct - 52.5).abs() < f64::EPSILON);
-        assert!((parse(Some("x|999|y")).left_pct - MAX_LEFT_PCT).abs() < f64::EPSILON);
-        assert!((parse(Some("x|1|y")).left_pct - MIN_LEFT_PCT).abs() < f64::EPSILON);
-        assert!((parse(Some("x|banana|y")).left_pct - DEFAULT_LEFT_PCT).abs() < f64::EPSILON);
     }
 
     #[test]

@@ -92,6 +92,7 @@ introduced the feature, never as later afterthoughts.
 | 62 | `step-62` | [Mechanism and vocabulary part ways](62-frontmatter-mechanism.md) | 2026-07-20 |
 | 63 | `step-63` | [The test-case sink](63-the-test-case-sink.md) | 2026-07-20 |
 | 64 | `step-64` | [The problem navigation, docked](64-the-problem-nav-bar.md) | 2026-07-20 |
+| 65 | `step-65` | [The tabs stop remembering](65-unsticky-problem-tabs.md) | 2026-07-20 |
 
 > **Step 40's shape.** Every step through 39 is one squashed commit. Step 40 is eleven
 > (`c9b302f..HEAD`): its work was interactive — a design question, two answers built and kept,

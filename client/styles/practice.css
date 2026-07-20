@@ -323,12 +323,17 @@ a.pwb__crumb:hover { color: hsl(var(--primary)); }
                   align-items: center; gap: 6px; }
 .pwb__nav-right { flex: 1 1 0; display: flex; justify-content: flex-end; gap: 8px; }
 
+/* Solid primary, the same recipe as Next and the workbench's Run button: `--primary` fill,
+   `--primary-foreground` text, brightness on hover. Contents is a primary action — it is how you
+   leave a problem — and an outlined control beside a solid Next read as the lesser of the two.
+   The border stays as a TRANSPARENT 1px rather than `none` so the box keeps the same 38px it had
+   when the border was visible; dropping it would silently shrink the button by 2px. */
 .pwb__contents { display: inline-flex; align-items: center; gap: 7px;
                  height: 38px; padding: 0 14px; border-radius: 9px;
-                 border: 1px solid hsl(var(--border)); background: hsl(var(--card));
-                 color: hsl(var(--foreground)); font-size: 13px; font-weight: 600;
-                 cursor: pointer; transition: border-color 0.12s, color 0.12s; }
-.pwb__contents:hover { border-color: hsl(var(--primary) / 0.5); color: hsl(var(--primary)); }
+                 border: 1px solid transparent; background: hsl(var(--primary));
+                 color: hsl(var(--primary-foreground)); font-size: 13px; font-weight: 600;
+                 cursor: pointer; transition: filter 0.12s; }
+.pwb__contents:hover { filter: brightness(1.08); }
 .pwb__contents-ic { width: 16px; height: 16px; flex: none; }
 
 .pwb__nav-count { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em;

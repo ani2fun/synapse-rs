@@ -180,11 +180,9 @@ fn LessonBody(lesson: RwSignal<AsyncResult<LessonPayloadDto>>, segments: Vec<Str
 // `MarkdownView.mountBlocks` whole too).
 #[allow(clippy::too_many_lines)]
 fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> AnyView {
-    // Captured IN-TREE: hydrated blocks mount out-of-tree and cannot reach App's context.
-    let auth = crate::identity::state::AuthStore::from_context();
-    let theme = crate::shell::theme::ThemeStore::from_context();
-    let viz_modal = crate::viz::modal::VizModalStore::from_context();
-    let codebench = crate::execution::view::CodebenchStore::from_context();
+    // Captured IN-TREE — hydrated blocks mount out-of-tree and cannot reach App's context;
+    // the bundle carries them (see `crate::hydration::IslandStores`).
+    let stores = crate::hydration::IslandStores::capture();
     // The C4 click-to-guide seam: bridges in the embeds set it; the docs panel reads it.
     let c4_selected: RwSignal<Option<String>> = RwSignal::new(None);
     // The Coach's editor snapshot — filled by the hydrated workbench on mount + every edit.
@@ -227,26 +225,20 @@ fn loaded_lesson(payload: &LessonPayloadDto, segments: &[String]) -> AnyView {
                         .headings
                         .set(crate::catalog::view::chrome::harvest_headings(&body));
                 }
-                let mut handles = crate::execution::view::hydrate_workbenches(
-                    &body,
-                    &owned_segments,
-                    auth,
-                    code_ctx,
-                    theme,
-                    viz_modal,
-                );
+                let mut handles =
+                    crate::execution::view::hydrate_workbenches(&body, &owned_segments, code_ctx, stores);
                 handles.extend(crate::catalog::view::diagrams::hydrate_diagrams(&body));
                 handles.extend(crate::quiz::hydrate_quizzes(&body));
-                handles.extend(crate::execution::view::hydrate_fence_groups(&body, codebench));
+                handles.extend(crate::execution::view::hydrate_fence_groups(
+                    &body,
+                    stores.codebench,
+                ));
                 handles.extend(crate::catalog::view::c4::hydrate_c4_embeds(&body, c4_selected));
                 handles.extend(crate::execution::view::hydrate_practices(
                     &body,
                     &owned_segments,
-                    auth,
                     code_ctx,
-                    theme,
-                    viz_modal,
-                    codebench,
+                    stores,
                 ));
                 // The viz widgets (step 27): every planted `div.viz-widget` mounts a host.
                 handles.extend(crate::viz::blocks::mount_widgets(&body));

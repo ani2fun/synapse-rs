@@ -15,6 +15,7 @@ use wasm_bindgen::JsCast;
 use crate::execution::logic::display_lang;
 use crate::execution::view::codebench::{CodebenchRequest, CodebenchStore, runnable_fence};
 use crate::execution::view::icons::{icon_check, icon_chevron_right, icon_copy, icon_play};
+use crate::hydration;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DISCOVERY
@@ -32,31 +33,21 @@ struct Pane {
 /// hosts (workbench, solutions, quiz, diagrams) never become fence groups — the pipeline already
 /// claimed those fences — so no exclusion dance is needed here.
 pub fn hydrate_fence_groups(root: &web_sys::HtmlElement, store: CodebenchStore) -> Vec<Box<dyn Any>> {
-    let mut handles: Vec<Box<dyn Any>> = Vec::new();
-    let Ok(groups) = root.query_selector_all("div.fence-group") else {
-        return handles;
-    };
-    for index in 0..groups.length() {
-        let Some(node) = groups.get(index) else { continue };
-        let Ok(group) = node.dyn_into::<web_sys::HtmlElement>() else {
-            continue;
-        };
-        let Ok(Some(bar)) = group.query_selector("div.fence-group__bar") else {
-            continue;
-        };
-        let Ok(bar) = bar.dyn_into::<web_sys::HtmlElement>() else {
-            continue;
-        };
+    hydration::mount_each(root, "div.fence-group", |group| {
+        // The mount target is the group's CHILD bar, not the placeholder itself.
+        let bar = group
+            .query_selector("div.fence-group__bar")
+            .ok()
+            .flatten()
+            .and_then(|el| el.dyn_into::<web_sys::HtmlElement>().ok())?;
         let panes = collect_panes(&group);
         if panes.is_empty() {
-            continue;
+            return None;
         }
-        let handle = leptos::mount::mount_to(bar, move || {
-            view! { <FenceBar panes=panes.clone() store=store /> }.into_any()
-        });
-        handles.push(Box::new(handle));
-    }
-    handles
+        Some(hydration::mount(bar, move || {
+            view! { <FenceBar panes=panes.clone() store=store /> }
+        }))
+    })
 }
 
 /// Read the panes straight off the rendered figures — `data-language` for the alias, the `<pre>`

@@ -85,6 +85,7 @@ introduced the feature, never as later afterthoughts.
 | 55 | `step-55` | [The tracer wrap, and a comment in the wrong file](55-tracer-wrap-tests.md) | 2026-07-19 |
 | 56 | `step-56` | [The ADR index](56-the-adr-index.md) | 2026-07-19 |
 | 57 | `step-57` | [The Editorial tab redesign](57-editorial-redesign.md) | 2026-07-20 |
+| 58 | `step-58` | [The hydration seam](58-hydration-seam.md) | 2026-07-20 |
 
 > **Step 40's shape.** Every step through 39 is one squashed commit. Step 40 is eleven
 > (`c9b302f..HEAD`): its work was interactive — a design question, two answers built and kept,

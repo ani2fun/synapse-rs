@@ -5,10 +5,10 @@
 
 use std::any::Any;
 
+use crate::hydration;
 use crate::viz::engine::graph::VizCases;
 use crate::viz::engine::vocabulary::VizStructure;
 use leptos::prelude::*;
-use wasm_bindgen::JsCast;
 
 pub struct WidgetSpec {
     pub name: String,
@@ -18,20 +18,15 @@ pub struct WidgetSpec {
 
 #[must_use]
 pub fn discover(root: &web_sys::HtmlElement) -> Vec<(web_sys::HtmlElement, WidgetSpec)> {
-    let mut out = Vec::new();
-    let Ok(nodes) = root.query_selector_all("div.viz-widget") else {
-        return out;
-    };
-    for index in 0..nodes.length() {
-        let Some(node) = nodes.get(index) else { continue };
-        let Ok(element) = node.dyn_into::<web_sys::HtmlElement>() else {
-            continue;
-        };
-        let name = element.get_attribute("data-widget").unwrap_or_default();
-        let payload = element.get_attribute("data-payload").unwrap_or_default();
-        out.push((element, decode(&name, &payload)));
-    }
-    out
+    hydration::elements(root, "div.viz-widget")
+        .into_iter()
+        .map(|element| {
+            let name = element.get_attribute("data-widget").unwrap_or_default();
+            let payload = element.get_attribute("data-payload").unwrap_or_default();
+            let spec = decode(&name, &payload);
+            (element, spec)
+        })
+        .collect()
 }
 
 /// Discover AND mount every planted widget, returning the mount handles.
@@ -45,7 +40,7 @@ pub fn mount_widgets(root: &web_sys::HtmlElement) -> Vec<Box<dyn Any>> {
     discover(root)
         .into_iter()
         .map(|(element, spec)| {
-            let handle = leptos::mount::mount_to(element, move || {
+            hydration::mount(element, move || {
                 view! {
                     <crate::viz::host::WidgetHost
                         name=spec.name
@@ -53,8 +48,7 @@ pub fn mount_widgets(root: &web_sys::HtmlElement) -> Vec<Box<dyn Any>> {
                         cases=spec.cases
                     />
                 }
-            });
-            Box::new(handle) as Box<dyn Any>
+            })
         })
         .collect()
 }

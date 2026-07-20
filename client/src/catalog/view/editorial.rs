@@ -21,7 +21,8 @@ use wasm_bindgen::JsCast;
 use crate::catalog::logic::editorial::{self, ApproachDoc, EditorialDoc, SectionDoc, SectionKind};
 use crate::catalog::logic::pane;
 use crate::catalog::state;
-use crate::execution::view::{CodebenchStore, SolutionViewer};
+use crate::execution::view::SolutionViewer;
+use crate::hydration::{self, IslandStores};
 use crate::islands::markdown;
 use crate::shell::theme::ThemeStore;
 
@@ -29,12 +30,7 @@ use crate::shell::theme::ThemeStore;
 /// active once its top passes 84px below the container top, and a jump lands it at 70px.
 const SPY_THRESHOLD_PX: f64 = 84.0;
 
-pub fn editorial_pane(
-    md: &str,
-    load_code: RwSignal<(u32, String, String)>,
-    theme: ThemeStore,
-    codebench: CodebenchStore,
-) -> AnyView {
+pub fn editorial_pane(md: &str, load_code: RwSignal<(u32, String, String)>, stores: IslandStores) -> AnyView {
     let doc = editorial::parse_editorial(md);
     if doc.approaches.is_empty() {
         return view! { <p class="psub__note">"No editorial yet for this problem."</p> }.into_any();
@@ -60,7 +56,7 @@ pub fn editorial_pane(
                     let at = index.min(d.approaches.len() - 1);
                     (d.approaches[at].clone(), d.preamble.clone())
                 });
-                approach_body(approach, preamble, restore_section, load_code, theme, codebench)
+                approach_body(approach, preamble, restore_section, load_code, stores)
             }}
         </div>
     }
@@ -181,8 +177,7 @@ fn approach_body(
     preamble: String,
     restore_section: StoredValue<bool>,
     load_code: RwSignal<(u32, String, String)>,
-    theme: ThemeStore,
-    codebench: CodebenchStore,
+    stores: IslandStores,
 ) -> AnyView {
     let scroll_ref: NodeRef<leptos::html::Div> = NodeRef::new();
     let active_section = RwSignal::new(0_usize);
@@ -266,13 +261,13 @@ fn approach_body(
         .into_iter()
         .map(|section| {
             if section.label.is_empty() {
-                markdown_fragment(section.md, load_code, theme, codebench).into_any()
+                markdown_fragment(section.md, load_code, stores).into_any()
             } else {
                 let index = number;
                 number += 1;
                 let tag = (section.kind == SectionKind::Solution && !solution_tag.is_empty())
                     .then(|| solution_tag.clone());
-                section_block(index, section, tag, claims.clone(), load_code, theme, codebench).into_any()
+                section_block(index, section, tag, claims.clone(), load_code, stores).into_any()
             }
         })
         .collect();
@@ -284,7 +279,7 @@ fn approach_body(
             on:scroll=on_scroll
         >
             {(labels.len() > 1).then(|| jump_bar(labels.clone(), active_section, scroll_ref))}
-            {(!preamble.is_empty()).then(|| markdown_fragment(preamble, load_code, theme, codebench))}
+            {(!preamble.is_empty()).then(|| markdown_fragment(preamble, load_code, stores))}
             {sections}
         </div>
     }
@@ -380,8 +375,7 @@ fn section_block(
     tag: Option<String>,
     claims: (Option<String>, Option<String>),
     load_code: RwSignal<(u32, String, String)>,
-    theme: ThemeStore,
-    codebench: CodebenchStore,
+    stores: IslandStores,
 ) -> impl IntoView {
     let body = if section.kind == SectionKind::Complexity {
         match editorial::complexity_prose(&section.md) {
@@ -390,10 +384,10 @@ fn section_block(
                 let space = parsed.space.or_else(|| claims.1.map(|v| (v, String::new())));
                 complexity_cards(time, space).into_any()
             }
-            None => markdown_fragment(section.md, load_code, theme, codebench).into_any(),
+            None => markdown_fragment(section.md, load_code, stores).into_any(),
         }
     } else {
-        markdown_fragment(section.md, load_code, theme, codebench).into_any()
+        markdown_fragment(section.md, load_code, stores).into_any()
     };
     view! {
         <section class="pwb-esection" data-esec=index.to_string()>
@@ -438,8 +432,7 @@ fn complexity_cards(time: Option<(String, String)>, space: Option<(String, Strin
 fn markdown_fragment(
     md: String,
     load_code: RwSignal<(u32, String, String)>,
-    theme: ThemeStore,
-    codebench: CodebenchStore,
+    stores: IslandStores,
 ) -> impl IntoView {
     let node_ref: NodeRef<leptos::html::Div> = NodeRef::new();
     let mounts: StoredValue<Vec<Box<dyn Any>>, LocalStorage> = StoredValue::new_local(Vec::new());
@@ -465,8 +458,11 @@ fn markdown_fragment(
                     // Same-breath mounts (the step-11 rule): inner_html content and its
                     // islands must land together or Leptos render effects race the DOM.
                     mounts.update_value(|m| {
-                        m.extend(mount_gated_solutions(&node, load_code, theme));
-                        m.extend(crate::execution::view::hydrate_fence_groups(&node, codebench));
+                        m.extend(mount_gated_solutions(&node, load_code, stores.theme));
+                        m.extend(crate::execution::view::hydrate_fence_groups(
+                            &node,
+                            stores.codebench,
+                        ));
                         m.extend(crate::catalog::view::diagrams::hydrate_diagrams(&node));
                         m.extend(crate::viz::blocks::mount_widgets(&node));
                     });
@@ -487,31 +483,14 @@ fn mount_gated_solutions(
     load_code: RwSignal<(u32, String, String)>,
     theme: ThemeStore,
 ) -> Vec<Box<dyn Any>> {
-    let mut handles: Vec<Box<dyn Any>> = Vec::new();
-    let Ok(nodes) = root.query_selector_all("div.solution-block") else {
-        return handles;
-    };
-    for index in 0..nodes.length() {
-        let Some(node) = nodes.get(index) else { continue };
-        let Ok(element) = node.dyn_into::<web_sys::HtmlElement>() else {
-            continue;
-        };
-        let attr = |name: &str| {
-            element
-                .get_attribute(name)
-                .and_then(|encoded| js_sys::decode_uri_component(&encoded).ok())
-                .map(String::from)
-        };
-        let variants = attr("data-variants")
+    hydration::mount_each(root, "div.solution-block", |element| {
+        let variants = hydration::decoded_attr(&element, "data-variants")
             .and_then(|json| crate::execution::logic::parse_variants(&json))
-            .filter(|v| !v.is_empty());
-        let Some(variants) = variants else { continue };
-        let handle = leptos::mount::mount_to(element, move || {
-            view! { <GatedSolution variants=variants load_code=load_code theme=theme /> }.into_any()
-        });
-        handles.push(Box::new(handle));
-    }
-    handles
+            .filter(|v| !v.is_empty())?;
+        Some(hydration::mount(element, move || {
+            view! { <GatedSolution variants=variants load_code=load_code theme=theme /> }
+        }))
+    })
 }
 
 /// The reveal gate. The viewer mounts on reveal (visible, so Monaco measures right away)

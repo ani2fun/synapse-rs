@@ -12,8 +12,8 @@ use std::any::Any;
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use wasm_bindgen::JsCast;
 
+use crate::hydration;
 use crate::islands::diagram;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -21,49 +21,26 @@ use crate::islands::diagram;
 // ─────────────────────────────────────────────────────────────────────────────
 
 pub fn hydrate_diagrams(root: &web_sys::HtmlElement) -> Vec<Box<dyn Any>> {
-    let mut handles: Vec<Box<dyn Any>> = Vec::new();
-    for (selector, attr) in [
-        ("div.mermaid-block", "data-source"),
-        ("div.d2-block", "data-source"),
-        ("div.d2-slideshow", "data-slides"),
-    ] {
-        let Ok(nodes) = root.query_selector_all(selector) else {
-            continue;
-        };
-        for index in 0..nodes.length() {
-            let Some(node) = nodes.get(index) else { continue };
-            let Ok(element) = node.dyn_into::<web_sys::HtmlElement>() else {
-                continue;
-            };
-            let Some(payload) = element
-                .get_attribute(attr)
-                .and_then(|encoded| js_sys::decode_uri_component(&encoded).ok())
-                .map(String::from)
-            else {
-                continue;
-            };
-            let handle = match selector {
-                "div.mermaid-block" => leptos::mount::mount_to(element, move || {
-                    view! { <MermaidCard source=payload /> }.into_any()
-                }),
-                "div.d2-block" => {
-                    leptos::mount::mount_to(element, move || view! { <D2Card source=payload /> }.into_any())
-                }
-                _ => {
-                    let Ok(slides) = serde_json::from_str::<Vec<String>>(&payload) else {
-                        continue;
-                    };
-                    if slides.is_empty() {
-                        continue;
-                    }
-                    leptos::mount::mount_to(element, move || {
-                        view! { <D2Slideshow slides=slides /> }.into_any()
-                    })
-                }
-            };
-            handles.push(Box::new(handle));
-        }
-    }
+    let mut handles = hydration::mount_each(root, "div.mermaid-block", |element| {
+        let source = hydration::decoded_attr(&element, "data-source")?;
+        Some(hydration::mount(element, move || {
+            view! { <MermaidCard source=source /> }
+        }))
+    });
+    handles.extend(hydration::mount_each(root, "div.d2-block", |element| {
+        let source = hydration::decoded_attr(&element, "data-source")?;
+        Some(hydration::mount(element, move || {
+            view! { <D2Card source=source /> }
+        }))
+    }));
+    handles.extend(hydration::mount_each(root, "div.d2-slideshow", |element| {
+        let slides = hydration::decoded_attr(&element, "data-slides")
+            .and_then(|payload| serde_json::from_str::<Vec<String>>(&payload).ok())
+            .filter(|slides| !slides.is_empty())?;
+        Some(hydration::mount(element, move || {
+            view! { <D2Slideshow slides=slides /> }
+        }))
+    }));
     handles
 }
 

@@ -7,50 +7,27 @@
 use std::any::Any;
 
 use leptos::prelude::*;
-use wasm_bindgen::JsCast;
 
 use crate::execution::logic;
 use crate::execution::view::RunnableBlock;
+use crate::hydration::{self, IslandStores};
 
 pub fn hydrate_workbenches(
     root: &web_sys::HtmlElement,
     lesson_path: &[String],
-    auth: crate::identity::state::AuthStore,
     code_sink: RwSignal<(String, String)>,
-    theme: crate::shell::theme::ThemeStore,
-    viz_modal: crate::viz::modal::VizModalStore,
+    stores: IslandStores,
 ) -> Vec<Box<dyn Any>> {
-    let mut handles: Vec<Box<dyn Any>> = Vec::new();
-    let Ok(nodes) = root.query_selector_all("div.workbench") else {
-        return handles;
-    };
-    for index in 0..nodes.length() {
-        let Some(node) = nodes.get(index) else { continue };
-        let Ok(element) = node.dyn_into::<web_sys::HtmlElement>() else {
-            continue;
-        };
-        let Some(encoded) = element.get_attribute("data-variants") else {
-            continue;
-        };
-        let Ok(decoded) = js_sys::decode_uri_component(&encoded) else {
-            continue;
-        };
-        let Some(variants) = logic::parse_variants(&String::from(decoded)) else {
-            continue;
-        };
-        if variants.is_empty() {
-            continue;
-        }
+    hydration::mount_each(root, "div.workbench", |element| {
+        let variants = hydration::decoded_attr(&element, "data-variants")
+            .and_then(|json| logic::parse_variants(&json))
+            .filter(|variants| !variants.is_empty())?;
         // The authored suite rides in data-spec (absent on plain lesson blocks).
-        let spec = element
-            .get_attribute("data-spec")
-            .and_then(|encoded| js_sys::decode_uri_component(&encoded).ok())
-            .and_then(|decoded| serde_json::from_str(&String::from(decoded)).ok());
+        let spec =
+            hydration::decoded_attr(&element, "data-spec").and_then(|json| serde_json::from_str(&json).ok());
         let path = lesson_path.to_vec();
-        let handle = leptos::mount::mount_to(element, move || {
-            view! { <RunnableBlock variants=variants spec=spec lesson_path=path auth=auth code_sink=code_sink theme=theme viz_modal=viz_modal /> }
-        });
-        handles.push(Box::new(handle));
-    }
-    handles
+        Some(hydration::mount(element, move || {
+            view! { <RunnableBlock variants=variants spec=spec lesson_path=path code_sink=code_sink stores=stores /> }
+        }))
+    })
 }

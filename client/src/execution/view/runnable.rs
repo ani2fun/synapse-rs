@@ -18,7 +18,7 @@ use crate::execution::view::icons::{
 };
 use crate::execution::view::lazy;
 use crate::execution::view::workbench::{TestsPanel, TestsState, VerdictPanel};
-use crate::identity::state::AuthStore;
+use crate::hydration::IslandStores;
 use crate::islands::editor::{self, MountedEditor};
 
 // Component props are moved by design (leptos owns them for the view's lifetime); the length
@@ -30,15 +30,11 @@ pub fn RunnableBlock(
     variants: Vec<Variant>,
     spec: Option<TestSpec>,
     lesson_path: Vec<String>,
-    // Passed through hydration: blocks mount OUT-OF-TREE (`mount_to` starts a fresh root
-    // owner), so App's context is out of reach — the reader captures the store in-tree.
-    auth: AuthStore,
     // The Coach's snapshot of what the learner sees: (source, language), kept current on
     // every edit; the pane reads it only at send time.
     code_sink: RwSignal<(String, String)>,
-    // Same out-of-tree rule as `auth`: context is unreachable here, so the theme rides in.
-    theme: crate::shell::theme::ThemeStore,
-    viz_modal: crate::viz::modal::VizModalStore,
+    // Captured in-tree, carried out-of-tree — see `crate::hydration::IslandStores`.
+    stores: IslandStores,
     /// Embedded practice (step 30): Run only — the Submit verb never renders.
     #[prop(optional)]
     practice: bool,
@@ -54,7 +50,13 @@ pub fn RunnableBlock(
     #[prop(optional)]
     fill: bool,
 ) -> impl IntoView {
-    let stores: Vec<BlockStore> = variants.iter().map(|v| BlockStore::new(&v.source)).collect();
+    let IslandStores {
+        auth,
+        theme,
+        viz_modal,
+        ..
+    } = stores;
+    let block_stores: Vec<BlockStore> = variants.iter().map(|v| BlockStore::new(&v.source)).collect();
     // The reader's remembered language, resolved ONCE — `first` then carries it to the shiki
     // placeholder and the default height, which both used to assume variant 0.
     let start = lang_pref::index_for(&variants);
@@ -77,8 +79,8 @@ pub fn RunnableBlock(
     let preview_html: RwSignal<Option<String>> = RwSignal::new(None);
 
     let store_at = {
-        let stores = stores.clone();
-        move |i: usize| stores[i.min(stores.len() - 1)]
+        let block_stores = block_stores.clone();
+        move |i: usize| block_stores[i.min(block_stores.len() - 1)]
     };
     let active_store = {
         let store_at = store_at.clone();
@@ -608,7 +610,7 @@ pub fn RunnableBlock(
                 (Some(spec), Some(tests)) => {
                     // Chip switch clears every variant's stale run output (oracle: switchCase
                     // resets the FSM) — the chips keep their earlier ✓/✗ badges.
-                    let clear_stores = stores.clone();
+                    let clear_stores = block_stores.clone();
                     let on_switch = Callback::new(move |_case: usize| {
                         for store in &clear_stores {
                             store.state.update(|s| *s = s.clear_outcome());

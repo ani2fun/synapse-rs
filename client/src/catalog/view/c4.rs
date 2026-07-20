@@ -62,10 +62,11 @@ pub fn hydrate_c4_embeds(
         let Ok(host) = host.dyn_into::<web_sys::HtmlElement>() else {
             continue;
         };
-        let handle = leptos::mount::mount_to(host, move || {
+        // The one bespoke hydrator: iframe re-parenting + a created host means the kit's
+        // `mount_each` doesn't fit — only the mount itself is shared.
+        handles.push(crate::hydration::mount(host, move || {
             view! { <C4Embed frame=frame wrap=wrap src=src selected=selected /> }
-        });
-        handles.push(Box::new(handle));
+        }));
     }
     handles
 }

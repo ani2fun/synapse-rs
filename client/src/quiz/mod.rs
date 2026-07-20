@@ -9,7 +9,8 @@ use std::any::Any;
 
 use leptos::prelude::*;
 use serde::Deserialize;
-use wasm_bindgen::JsCast;
+
+use crate::hydration;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MODEL + DISCOVERY
@@ -29,27 +30,13 @@ pub struct Quiz {
 }
 
 pub fn hydrate_quizzes(root: &web_sys::HtmlElement) -> Vec<Box<dyn Any>> {
-    let mut handles: Vec<Box<dyn Any>> = Vec::new();
-    let Ok(nodes) = root.query_selector_all("div.quiz-block") else {
-        return handles;
-    };
-    for index in 0..nodes.length() {
-        let Some(node) = nodes.get(index) else { continue };
-        let Ok(element) = node.dyn_into::<web_sys::HtmlElement>() else {
-            continue;
-        };
-        let Some(quiz) = element
-            .get_attribute("data-quiz")
-            .and_then(|encoded| js_sys::decode_uri_component(&encoded).ok())
-            .map(String::from)
-            .and_then(|json| serde_json::from_str::<Quiz>(&json).ok())
-        else {
-            continue;
-        };
-        let handle = leptos::mount::mount_to(element, move || view! { <QuizCard quiz=quiz /> }.into_any());
-        handles.push(Box::new(handle));
-    }
-    handles
+    hydration::mount_each(root, "div.quiz-block", |element| {
+        let quiz = hydration::decoded_attr(&element, "data-quiz")
+            .and_then(|json| serde_json::from_str::<Quiz>(&json).ok())?;
+        Some(hydration::mount(element, move || {
+            view! { <QuizCard quiz=quiz /> }
+        }))
+    })
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

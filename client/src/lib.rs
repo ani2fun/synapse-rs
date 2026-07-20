@@ -11,6 +11,7 @@ pub mod api;
 pub mod blog;
 pub mod catalog;
 pub mod execution;
+pub mod hydration;
 pub mod identity;
 pub mod islands;
 pub mod log;

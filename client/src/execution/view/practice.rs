@@ -12,11 +12,10 @@ use std::any::Any;
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use wasm_bindgen::JsCast;
 
 use crate::execution::logic::{self, PracticeSpec};
 use crate::execution::view::RunnableBlock;
-use crate::identity::state::AuthStore;
+use crate::hydration::{self, IslandStores};
 use crate::islands::{editor, markdown};
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -25,61 +24,37 @@ use crate::islands::{editor, markdown};
 // preceding heading's "Practice: <Topic>" tail (fallbacks: the heading, "Your Turn").
 // ─────────────────────────────────────────────────────────────────────────────
 
-#[allow(clippy::too_many_arguments)] // the out-of-tree store caravan
 pub fn hydrate_practices(
     root: &web_sys::HtmlElement,
     lesson_path: &[String],
-    auth: AuthStore,
     code_sink: RwSignal<(String, String)>,
-    theme: crate::shell::theme::ThemeStore,
-    viz_modal: crate::viz::modal::VizModalStore,
-    codebench: super::CodebenchStore,
+    stores: IslandStores,
 ) -> Vec<Box<dyn Any>> {
-    let mut handles: Vec<Box<dyn Any>> = Vec::new();
-    let Ok(nodes) = root.query_selector_all("div.practice-problem") else {
-        return handles;
-    };
-    for index in 0..nodes.length() {
-        let Some(node) = nodes.get(index) else { continue };
-        let Ok(element) = node.dyn_into::<web_sys::HtmlElement>() else {
-            continue;
-        };
-        let attr = |name: &str| {
-            element
-                .get_attribute(name)
-                .and_then(|encoded| js_sys::decode_uri_component(&encoded).ok())
-                .map(String::from)
-        };
+    hydration::mount_each(root, "div.practice-problem", |element| {
+        let attr = |name: &str| hydration::decoded_attr(&element, name);
         let (Some(problem), Some(variants)) = (attr("data-problem"), attr("data-variants")) else {
-            continue;
+            return None;
         };
-        let Some(spec) = logic::decode_practice(
+        let spec = logic::decode_practice(
             &problem,
             &variants,
             attr("data-spec").as_deref(),
             attr("data-editorials").as_deref(),
-        ) else {
-            continue;
-        };
+        )?;
         let title = practice_title(&element);
         let path = lesson_path.to_vec();
-        let handle = leptos::mount::mount_to(element, move || {
+        Some(hydration::mount(element, move || {
             view! {
                 <PracticeProblem
                     spec=spec
                     title=title
                     lesson_path=path
-                    auth=auth
                     code_sink=code_sink
-                    theme=theme
-                    viz_modal=viz_modal
-                    codebench=codebench
+                    stores=stores
                 />
             }
-        });
-        handles.push(Box::new(handle));
-    }
-    handles
+        }))
+    })
 }
 
 /// Walk back to the nearest heading; take the text after "Practice:", else the heading,
@@ -114,11 +89,9 @@ pub fn PracticeProblem(
     spec: PracticeSpec,
     title: String,
     lesson_path: Vec<String>,
-    auth: AuthStore,
     code_sink: RwSignal<(String, String)>,
-    theme: crate::shell::theme::ThemeStore,
-    viz_modal: crate::viz::modal::VizModalStore,
-    codebench: super::CodebenchStore,
+    // Captured in-tree, carried out-of-tree — see `crate::hydration::IslandStores`.
+    stores: IslandStores,
 ) -> impl IntoView {
     let expanded = RwSignal::new(false);
     // 0 = Description; 1.. = the editorial approaches.
@@ -208,7 +181,7 @@ pub fn PracticeProblem(
                     </div>
                     <div class="pwb__pane-scroll">
                         <div class="pwb__pane" class:hidden=move || tab.get() != 0>
-                            {markdown_pane(spec.problem_md.clone(), None, theme, codebench)}
+                            {markdown_pane(spec.problem_md.clone(), None, stores)}
                         </div>
                         // Lazy: each editorial approach (and its Monaco solution viewers)
                         // mounts on first open, then only toggles visibility.
@@ -219,7 +192,7 @@ pub fn PracticeProblem(
                                         let md = approaches.read_value()[i].md.clone();
                                         view! {
                                             <div class="pwb__pane" class:hidden=move || tab.get() != i + 1>
-                                                {markdown_pane(md, Some(load_code), theme, codebench)}
+                                                {markdown_pane(md, Some(load_code), stores)}
                                             </div>
                                         }
                                     })}
@@ -242,10 +215,8 @@ pub fn PracticeProblem(
                         variants=variants
                         spec=tests
                         lesson_path=lesson_path
-                        auth=auth
                         code_sink=code_sink
-                        theme=theme
-                        viz_modal=viz_modal
+                        stores=stores
                         practice=true
                         load_code=load_code
                     />
@@ -274,8 +245,7 @@ pub fn PracticeProblem(
 fn markdown_pane(
     md: String,
     reveal_solutions: Option<RwSignal<(u32, String, String)>>,
-    theme: crate::shell::theme::ThemeStore,
-    codebench: super::CodebenchStore,
+    stores: IslandStores,
 ) -> impl IntoView {
     let node_ref: NodeRef<leptos::html::Div> = NodeRef::new();
     let mounts: StoredValue<Vec<Box<dyn Any>>, LocalStorage> = StoredValue::new_local(Vec::new());
@@ -290,10 +260,10 @@ fn markdown_pane(
                 Ok(html) => {
                     node.set_inner_html(&html);
                     if let Some(load_code) = reveal_solutions {
-                        mounts.update_value(|m| m.extend(mount_solutions(&node, load_code, theme)));
+                        mounts.update_value(|m| m.extend(mount_solutions(&node, load_code, stores.theme)));
                     }
                     mounts.update_value(|m| {
-                        m.extend(super::hydrate_fence_groups(&node, codebench));
+                        m.extend(super::hydrate_fence_groups(&node, stores.codebench));
                     });
                 }
                 Err(error) => {
@@ -315,34 +285,17 @@ pub(crate) fn mount_solutions(
     load_code: RwSignal<(u32, String, String)>,
     theme: crate::shell::theme::ThemeStore,
 ) -> Vec<Box<dyn Any>> {
-    let mut handles: Vec<Box<dyn Any>> = Vec::new();
-    let Ok(nodes) = root.query_selector_all("div.solution-block") else {
-        return handles;
-    };
-    for index in 0..nodes.length() {
-        let Some(node) = nodes.get(index) else { continue };
-        let Ok(element) = node.dyn_into::<web_sys::HtmlElement>() else {
-            continue;
-        };
-        let attr = |name: &str| {
-            element
-                .get_attribute(name)
-                .and_then(|encoded| js_sys::decode_uri_component(&encoded).ok())
-                .map(String::from)
-        };
-        let Some(variants) = attr("data-variants").and_then(|json| logic::parse_variants(&json)) else {
-            continue;
-        };
+    hydration::mount_each(root, "div.solution-block", |element| {
+        let variants = hydration::decoded_attr(&element, "data-variants")
+            .and_then(|json| logic::parse_variants(&json))?;
         // A solution group's languages share ONE viewer behind the same language dropdown as
         // the editor pane — Copy-to-editor stays language-exact (it sends the ACTIVE tab).
         // The fence metas' time/space chips deliberately stay off the header row: the
         // editorial's Complexity Analysis section already states them (user rule).
-        let handle = leptos::mount::mount_to(element, move || {
-            view! { <SolutionViewer variants=variants load_code=load_code theme=theme /> }.into_any()
-        });
-        handles.push(Box::new(handle));
-    }
-    handles
+        Some(hydration::mount(element, move || {
+            view! { <SolutionViewer variants=variants load_code=load_code theme=theme /> }
+        }))
+    })
 }
 
 #[allow(clippy::needless_pass_by_value, clippy::too_many_lines)]

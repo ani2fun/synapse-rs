@@ -137,10 +137,8 @@ fn step_link(target: Option<&str>, step: Step) -> Option<impl IntoView + use<>> 
 #[allow(clippy::needless_pass_by_value, clippy::too_many_lines)]
 #[component]
 pub fn ProblemWorkbench(payload: LessonPayloadDto, segments: Vec<String>) -> impl IntoView {
-    let auth = crate::identity::state::AuthStore::from_context();
-    let theme = crate::shell::theme::ThemeStore::from_context();
-    let viz_modal = crate::viz::modal::VizModalStore::from_context();
-    let codebench = crate::execution::view::CodebenchStore::from_context();
+    // Captured IN-TREE — hydrated islands can't reach App context; see `IslandStores`.
+    let stores = crate::hydration::IslandStores::capture();
 
     let restored = state::pane_prefs();
     let left_pct = RwSignal::new(restored.left_pct);
@@ -269,11 +267,11 @@ pub fn ProblemWorkbench(payload: LessonPayloadDto, segments: Vec<String>) -> imp
                     <div class="pwb__pane-host">
                         <div class="pwb__pane" class:hidden=move || tab.get() != Tab::Description>
                             <div class="pwb__pane-scroll synapse-prose">
-                                {description_pane(desc_md, wb_spec, segments.read_value().clone(), auth, code_ctx, theme, viz_modal, codebench)}
+                                {description_pane(desc_md, wb_spec, segments.read_value().clone(), code_ctx, stores)}
                             </div>
                         </div>
                         <div class="pwb__pane" class:hidden=move || tab.get() != Tab::Editorial>
-                            {super::editorial::editorial_pane(&editorial_md, load_code, theme, codebench)}
+                            {super::editorial::editorial_pane(&editorial_md, load_code, stores)}
                         </div>
                         <div class="pwb__pane" class:hidden=move || tab.get() != Tab::Coach>
                             <div class="pwb__pane-scroll synapse-prose">
@@ -310,7 +308,7 @@ pub fn ProblemWorkbench(payload: LessonPayloadDto, segments: Vec<String>) -> imp
                     {move || match wb_spec.get() {
                         Some((variants, spec)) => view! {
                             <div>
-                                {(!auth.authed()).then(|| view! {
+                                {(!stores.auth.authed()).then(|| view! {
                                     <div class="wb__edit-bar">
                                         <span class="wb__edit-status">
                                             <span class="wb__edit-dot"></span>
@@ -322,10 +320,8 @@ pub fn ProblemWorkbench(payload: LessonPayloadDto, segments: Vec<String>) -> imp
                                     variants=variants
                                     spec=spec
                                     lesson_path=segments.read_value().clone()
-                                    auth=auth
                                     code_sink=code_ctx
-                                    theme=theme
-                                    viz_modal=viz_modal
+                                    stores=stores
                                     load_code=load_code
                                     submitted=submitted
                                     fill=true
@@ -343,16 +339,12 @@ pub fn ProblemWorkbench(payload: LessonPayloadDto, segments: Vec<String>) -> imp
 
 /// The description: rendered markdown with the FIRST workbench placeholder EXTRACTED into
 /// the right pane; everything else hydrates in place.
-#[allow(clippy::too_many_arguments)] // the out-of-tree store caravan (same as RunnableBlock)
 fn description_pane(
     md: String,
     wb_spec: RwSignal<Option<(Vec<Variant>, Option<TestSpec>)>>,
     segments: Vec<String>,
-    auth: crate::identity::state::AuthStore,
     code_ctx: RwSignal<(String, String)>,
-    theme: crate::shell::theme::ThemeStore,
-    viz_modal: crate::viz::modal::VizModalStore,
-    codebench: crate::execution::view::CodebenchStore,
+    stores: crate::hydration::IslandStores,
 ) -> impl IntoView {
     let node_ref: NodeRef<leptos::html::Div> = NodeRef::new();
     let mounts: StoredValue<Vec<Box<dyn Any>>, LocalStorage> = StoredValue::new_local(Vec::new());
@@ -386,11 +378,12 @@ fn description_pane(
                     wb_spec.set(Some((variants, spec)));
                 }
             }
-            let mut handles = crate::execution::view::hydrate_workbenches(
-                &node, &segments, auth, code_ctx, theme, viz_modal,
-            );
+            let mut handles = crate::execution::view::hydrate_workbenches(&node, &segments, code_ctx, stores);
             handles.extend(crate::catalog::view::diagrams::hydrate_diagrams(&node));
-            handles.extend(crate::execution::view::hydrate_fence_groups(&node, codebench));
+            handles.extend(crate::execution::view::hydrate_fence_groups(
+                &node,
+                stores.codebench,
+            ));
             handles.extend(crate::viz::blocks::mount_widgets(&node));
             mounts.set_value(handles);
         });

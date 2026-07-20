@@ -12,6 +12,6 @@ mod workbench;
 pub use codebench::{CodebenchModal, CodebenchStore};
 pub use fence_group::hydrate_fence_groups;
 pub use hydrate::hydrate_workbenches;
+pub(crate) use practice::SolutionViewer;
 pub use practice::hydrate_practices;
-pub(crate) use practice::mount_solutions;
 pub use runnable::RunnableBlock;

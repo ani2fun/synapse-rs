@@ -113,18 +113,38 @@ fn approach_kind(tag: &str) -> String {
     }
 }
 
-/// A solution fence's meta carries `time=O(…) space=O(…)` claims, extracted here.
+/// A solution fence's meta carries `time=O(…) space=O(…)` claims, extracted here. A value
+/// may contain spaces (`time=O(log N)`, `time=O(min(N1, N2))`) — following tokens are pulled
+/// in until its parentheses balance, so whitespace inside the O-group never truncates it.
 #[must_use]
 pub fn solution_complexities(meta: &str) -> Vec<(String, String)> {
-    meta.split_whitespace()
-        .filter_map(|token| {
-            let (name, value) = token.split_once('=')?;
-            match name {
-                "time" | "space" => Some((name.to_owned(), value.to_owned())),
-                _ => None,
-            }
+    fn depth_delta(s: &str) -> i32 {
+        s.chars().fold(0, |depth, c| match c {
+            '(' => depth + 1,
+            ')' => depth - 1,
+            _ => depth,
         })
-        .collect()
+    }
+    let mut out = Vec::new();
+    let mut tokens = meta.split_whitespace();
+    while let Some(token) = tokens.next() {
+        let Some((name, value)) = token.split_once('=') else {
+            continue;
+        };
+        if name != "time" && name != "space" {
+            continue;
+        }
+        let mut value = value.to_owned();
+        let mut depth = depth_delta(&value);
+        while depth > 0 {
+            let Some(next) = tokens.next() else { break };
+            value.push(' ');
+            value.push_str(next);
+            depth += depth_delta(next);
+        }
+        out.push((name.to_owned(), value));
+    }
+    out
 }
 
 #[cfg(test)]
@@ -213,5 +233,30 @@ mod tests {
             ]
         );
         assert!(solution_complexities("solution").is_empty());
+    }
+
+    /// Real authored metas put spaces INSIDE the O-group — the value runs until its
+    /// parentheses balance, never to the first space.
+    #[test]
+    fn a_spaced_complexity_value_survives_whole() {
+        assert_eq!(
+            solution_complexities("solution time=O(log N) space=O(1)"),
+            vec![
+                ("time".to_owned(), "O(log N)".to_owned()),
+                ("space".to_owned(), "O(1)".to_owned())
+            ]
+        );
+        assert_eq!(
+            solution_complexities("solution time=O(log(min(N1, N2))) space=O(min(N1, N2))"),
+            vec![
+                ("time".to_owned(), "O(log(min(N1, N2)))".to_owned()),
+                ("space".to_owned(), "O(min(N1, N2))".to_owned())
+            ]
+        );
+        // An unbalanced value swallows the rest rather than panicking.
+        assert_eq!(
+            solution_complexities("solution time=O(log space=O(1)"),
+            vec![("time".to_owned(), "O(log space=O(1)".to_owned())]
+        );
     }
 }

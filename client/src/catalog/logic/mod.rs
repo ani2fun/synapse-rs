@@ -1,6 +1,7 @@
 //! Pure catalog navigation over the WIRE DTOs (the logic layer: no leptos, no web-sys — the
 //! purity gate greps it; plain `cargo test` covers it natively).
 
+pub mod editorial;
 pub mod pane;
 pub mod prefs;
 pub mod progress;

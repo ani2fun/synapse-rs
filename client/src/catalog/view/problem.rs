@@ -8,21 +8,18 @@
 
 use std::any::Any;
 
-use leptos::prelude::*;
-use leptos::task::spawn_local;
-use synapse_shared::catalog::LessonPayloadDto;
-use synapse_shared::execution::TestSpec;
-use synapse_shared::submission::SubmissionDto;
-use wasm_bindgen::JsCast;
-
 use crate::api;
 use crate::catalog::logic;
 use crate::catalog::logic::pane::{self, TABS, Tab};
 use crate::catalog::state;
 use crate::execution::logic::Variant;
 use crate::execution::view::RunnableBlock;
-use crate::islands::editor::RELAYOUT_EVENT;
 use crate::islands::markdown;
+use leptos::prelude::*;
+use leptos::task::spawn_local;
+use synapse_shared::catalog::LessonPayloadDto;
+use synapse_shared::execution::TestSpec;
+use synapse_shared::submission::SubmissionDto;
 
 fn humanize(slug: &str) -> String {
     slug.split('-')
@@ -265,27 +262,37 @@ pub fn ProblemWorkbench(payload: LessonPayloadDto, segments: Vec<String>) -> imp
                             view! { <span class=class>{d.clone()}</span> }
                         })}
                     </div>
-                    <div class="pwb__pane-scroll synapse-prose">
+                    // Each pane owns its own scroll region (step 57): the editorial's
+                    // stepper strip must sit BETWEEN the tab bar and the scrolling
+                    // content, which one shared scroll wrapper cannot give it. A side
+                    // benefit: per-tab scroll positions stop bleeding into each other.
+                    <div class="pwb__pane-host">
                         <div class="pwb__pane" class:hidden=move || tab.get() != Tab::Description>
-                            {description_pane(desc_md, wb_spec, segments.read_value().clone(), auth, code_ctx, theme, viz_modal, codebench)}
+                            <div class="pwb__pane-scroll synapse-prose">
+                                {description_pane(desc_md, wb_spec, segments.read_value().clone(), auth, code_ctx, theme, viz_modal, codebench)}
+                            </div>
                         </div>
                         <div class="pwb__pane" class:hidden=move || tab.get() != Tab::Editorial>
-                            {editorial_pane(editorial_md, load_code, theme, codebench)}
+                            {super::editorial::editorial_pane(&editorial_md, load_code, theme, codebench)}
                         </div>
                         <div class="pwb__pane" class:hidden=move || tab.get() != Tab::Coach>
-                            <crate::tutoring::CoachPane
-                                problem=Some(segments.read_value().join("/"))
-                                code_ctx=code_ctx
-                            />
+                            <div class="pwb__pane-scroll synapse-prose">
+                                <crate::tutoring::CoachPane
+                                    problem=Some(segments.read_value().join("/"))
+                                    code_ctx=code_ctx
+                                />
+                            </div>
                         </div>
                         <div class="pwb__pane" class:hidden=move || tab.get() != Tab::Submissions>
-                            {move || subs_seen.get().then(|| view! {
-                                <SubmissionsFeed
-                                    path=segments.read_value().clone()
-                                    refetch=submitted
-                                    load_code=load_code
-                                />
-                            })}
+                            <div class="pwb__pane-scroll synapse-prose">
+                                {move || subs_seen.get().then(|| view! {
+                                    <SubmissionsFeed
+                                        path=segments.read_value().clone()
+                                        refetch=submitted
+                                        load_code=load_code
+                                    />
+                                })}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -391,183 +398,6 @@ fn description_pane(
     });
     on_cleanup(move || mounts.set_value(Vec::new()));
     view! { <div class="pwb-description" node_ref=node_ref></div> }
-}
-
-/// The editorial: solutions reveal directly (this tab IS the answer); Copy-to-editor routes
-/// into the right pane's matching language tab. The `##` headings become a SECOND row of
-/// section pills (Intuition · Approach · Solution · …) — everything stays mounted (Monaco
-/// state survives; `automaticLayout` re-measures on reveal), switching only toggles CSS.
-fn editorial_pane(
-    md: String,
-    load_code: RwSignal<(u32, String, String)>,
-    theme: crate::shell::theme::ThemeStore,
-    codebench: crate::execution::view::CodebenchStore,
-) -> impl IntoView {
-    if md.trim().is_empty() {
-        return view! { <p class="psub__note">"No editorial yet for this problem."</p> }.into_any();
-    }
-    let node_ref: NodeRef<leptos::html::Div> = NodeRef::new();
-    let mounts: StoredValue<Vec<Box<dyn Any>>, LocalStorage> = StoredValue::new_local(Vec::new());
-    let section_labels: RwSignal<Vec<String>> = RwSignal::new(Vec::new());
-    let active_section = RwSignal::new(0_usize);
-    Effect::new(move |ran: Option<bool>| {
-        if ran == Some(true) {
-            return true;
-        }
-        let Some(node) = node_ref.get() else { return false };
-        let md = md.clone();
-        spawn_local(async move {
-            match markdown::render(&md).await {
-                Ok(html) => {
-                    node.set_inner_html(&html);
-                    // Open the authored <details> spoilers — this tab is the answer.
-                    if let Ok(all) = node.query_selector_all("details") {
-                        for i in 0..all.length() {
-                            if let Some(d) = all.get(i).and_then(|n| n.dyn_into::<web_sys::Element>().ok()) {
-                                let _ = d.set_attribute("open", "");
-                            }
-                        }
-                    }
-                    // Restore BEFORE the mounts below: effects are queued, so by the time the
-                    // reveal effect runs, `mount_solutions` has registered its RELAYOUT_EVENT
-                    // listeners AND the target section is already visible — so its Monaco
-                    // measures correctly on the first try instead of mounting into 0×0.
-                    let labels = sectionize_editorial(&node);
-                    let start = pane::section_index(&labels, &state::pane_prefs().section);
-                    section_labels.set(labels);
-                    // Guarded: `set` notifies unconditionally, and setting 0 would re-run the
-                    // reveal effect and fire a redundant relayout on EVERY editorial.
-                    if start != 0 {
-                        active_section.set(start);
-                    }
-                    mounts.update_value(|m| {
-                        m.extend(crate::execution::view::mount_solutions(&node, load_code, theme));
-                        m.extend(crate::execution::view::hydrate_fence_groups(&node, codebench));
-                        // An editorial is authored markdown like any lesson: its diagrams and
-                        // widgets need the same hydration the reader and description panes do.
-                        m.extend(crate::catalog::view::diagrams::hydrate_diagrams(&node));
-                        m.extend(crate::viz::blocks::mount_widgets(&node));
-                    });
-                }
-                Err(_) => node.set_text_content(Some(&md)),
-            }
-        });
-        true
-    });
-    // Switching pills toggles `.hidden` on the section wrappers directly — they are raw DOM,
-    // not Leptos views, so the signal drives them by hand.
-    Effect::new(move |_| {
-        let active = active_section.get();
-        let Some(node) = node_ref.get_untracked() else {
-            return;
-        };
-        let Ok(sections) = node.query_selector_all(".pwb-esec") else {
-            return;
-        };
-        for i in 0..sections.length() {
-            if let Some(section) = sections
-                .get(i)
-                .and_then(|n| n.dyn_into::<web_sys::Element>().ok())
-            {
-                let list = section.class_list();
-                let _ = if (i as usize) == active {
-                    list.remove_1("hidden")
-                } else {
-                    list.add_1("hidden")
-                };
-            }
-        }
-        // A revealed section's monaco mounted inside `display: none` and measured 0×0 — it
-        // renders no lines until told to re-measure. The viewers listen for this rather than
-        // being reached into, so the switcher stays ignorant of what it just revealed.
-        if let (Some(window), Ok(event)) = (web_sys::window(), web_sys::Event::new(RELAYOUT_EVENT)) {
-            let _ = window.dispatch_event(&event);
-        }
-    });
-    on_cleanup(move || mounts.set_value(Vec::new()));
-    view! {
-        {move || {
-            let labels = section_labels.get();
-            (labels.len() > 1).then(|| view! {
-                <div class="pwb-esec-tabs">
-                    {labels
-                        .into_iter()
-                        .enumerate()
-                        .map(|(i, label)| {
-                            // Remembered by LABEL — the next problem's index 1 is a different
-                            // section, but its "Solution" is the same "Solution".
-                            let remembered = label.clone();
-                            view! {
-                                <button
-                                    class="pwb-esec-tab"
-                                    class:pwb-esec-tab--active=move || active_section.get() == i
-                                    on:click=move |_| {
-                                        active_section.set(i);
-                                        state::set_pane_section(&remembered);
-                                    }
-                                >
-                                    {label}
-                                </button>
-                            }
-                        })
-                        .collect_view()}
-                </div>
-            })
-        }}
-        <div class="pwb-editorial" node_ref=node_ref></div>
-    }
-    .into_any()
-}
-
-/// Group the rendered editorial's DOM into `.pwb-esec` wrappers, one per `h2` (falling back
-/// to `h1` when the author used top-level headings): the heading plus everything until the
-/// next one. Prose BEFORE the first heading stays put — always visible above the sections.
-/// Returns the section labels (empty/one section → no pills, nothing wrapped is hidden).
-fn sectionize_editorial(node: &web_sys::HtmlElement) -> Vec<String> {
-    let heading_tag = match node.query_selector("h2") {
-        Ok(Some(_)) => "H2",
-        _ => "H1",
-    };
-    let children = node.children();
-    let snapshot: Vec<web_sys::Element> = (0..children.length()).filter_map(|i| children.item(i)).collect();
-    let mut labels: Vec<String> = Vec::new();
-    let mut current: Option<web_sys::Element> = None;
-    let Some(document) = node.owner_document() else {
-        return labels;
-    };
-    for child in snapshot {
-        if child.tag_name() == heading_tag {
-            let label = child.text_content().unwrap_or_default().trim().to_owned();
-            let Ok(wrapper) = document.create_element("div") else {
-                continue;
-            };
-            wrapper.set_class_name("pwb-esec");
-            let _ = node.append_child(&wrapper);
-            labels.push(if label.is_empty() {
-                format!("Section {}", labels.len() + 1)
-            } else {
-                label
-            });
-            current = Some(wrapper);
-        }
-        if let Some(wrapper) = &current {
-            let _ = wrapper.append_child(&child);
-        }
-    }
-    if labels.len() > 1 {
-        // Show the first section; hide the rest (the effect keeps this in sync afterwards).
-        if let Ok(sections) = node.query_selector_all(".pwb-esec") {
-            for i in 1..sections.length() {
-                if let Some(section) = sections
-                    .get(i)
-                    .and_then(|n| n.dyn_into::<web_sys::Element>().ok())
-                {
-                    let _ = section.class_list().add_1("hidden");
-                }
-            }
-        }
-    }
-    labels
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

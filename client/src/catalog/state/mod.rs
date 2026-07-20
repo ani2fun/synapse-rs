@@ -172,6 +172,20 @@ pub fn set_pane_left_pct(left_pct: f64) {
     });
 }
 
+// The remembered editorial APPROACH gets its own key rather than a fourth `PanePrefs` field:
+// an approach label is free text like `section`, and the pipe-delimited record can only let
+// ONE field absorb the remainder — a second free-text field would corrupt on pipes (and a
+// format change would reset everyone's stored panes, the step-46 prefs lesson).
+const APPROACH_KEY: &str = "problem-approach";
+
+pub fn editorial_approach() -> String {
+    crate::storage::get(APPROACH_KEY).unwrap_or_default()
+}
+
+pub fn set_editorial_approach(label: &str) {
+    crate::storage::set(APPROACH_KEY, label);
+}
+
 // ── Reading progress (step 51) ────────────────────────────────────────────────
 // Anonymous and device-local, deliberately. Signing in currently buys a bigger run budget,
 // submission history and an admin flag — and production enforces the submit allowlist — so a

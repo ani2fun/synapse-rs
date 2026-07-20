@@ -345,9 +345,9 @@ pub(crate) fn mount_solutions(
     handles
 }
 
-#[allow(clippy::needless_pass_by_value)]
+#[allow(clippy::needless_pass_by_value, clippy::too_many_lines)]
 #[component]
-fn SolutionViewer(
+pub(crate) fn SolutionViewer(
     variants: Vec<logic::Variant>,
     load_code: RwSignal<(u32, String, String)>,
     theme: crate::shell::theme::ThemeStore,

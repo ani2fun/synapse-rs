@@ -5,6 +5,7 @@ mod c4;
 mod c4_docs;
 pub mod chrome;
 mod diagrams;
+mod editorial;
 mod library;
 mod prefs;
 mod problem;

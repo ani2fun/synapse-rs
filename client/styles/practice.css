@@ -94,20 +94,146 @@
 .pwb__pane-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 18px 18px; }
 .pwb__pane.hidden { display: none; }
 
-/* ── the editorial's SECOND tab row: one pill per ## section (Intuition · Approach ·
-      Solution · …); sections stay mounted — switching only toggles .hidden ── */
-.pwb-esec-tabs { display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0 4px;
-                 padding-bottom: 8px; border-bottom: 1px dashed hsl(var(--border)); }
-.pwb-esec-tab { border-radius: 999px; padding: 4px 11px; font-size: 12px; font-weight: 500;
-                cursor: pointer; border: 1px solid hsl(var(--border)); background: transparent;
-                color: hsl(var(--muted-foreground)); transition: color 120ms, border-color 120ms,
-                background 120ms; }
-.pwb-esec-tab:hover { color: hsl(var(--foreground)); border-color: hsl(var(--primary) / 0.4); }
-.pwb-esec-tab--active { color: hsl(var(--primary)); background: hsl(var(--primary) / 0.08);
-                        border-color: hsl(var(--primary) / 0.35); font-weight: 600; }
-.pwb-esec.hidden { display: none; }
-/* The pills already name the section — the duplicated heading inside it steps back. */
-.pwb-esec > :is(h1, h2):first-child { margin-top: 0.4em; }
+/* ── the problem page's pane host (step 57): each pane owns its own scroll region, so the
+      editorial can put its stepper strip BETWEEN the tab bar and the scrolling content ── */
+.pwb__pane-host { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.pwb__pane-host > .pwb__pane { flex: 1 1 auto; min-height: 0; display: flex;
+                               flex-direction: column; }
+.pwb__pane-host > .pwb__pane.hidden { display: none; }
+.pwb-epane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+
+/* ── the approach stepper (multi-approach editorials): numbered circles over one connector
+      rail; the rail's inset is set inline (half a column per side, so it spans centres) ── */
+.pwb-estep { flex: 0 0 auto; padding: 12px 18px 13px;
+             border-bottom: 1px solid hsl(var(--border) / 0.6);
+             background: hsl(var(--muted) / 0.18); }
+.pwb-estep__head { display: flex; align-items: center; justify-content: space-between;
+                   margin-bottom: 11px; }
+.pwb-estep__label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.16em;
+                    text-transform: uppercase; color: hsl(var(--muted-foreground)); }
+.pwb-estep__hint { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em;
+                   text-transform: uppercase; color: hsl(var(--muted-foreground) / 0.7); }
+.pwb-estep__row { position: relative; display: flex; justify-content: space-between; gap: 6px; }
+.pwb-estep__rail { position: absolute; top: 13px; height: 2px;
+                   background: hsl(var(--border)); z-index: 0; }
+.pwb-estep__btn { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column;
+                  align-items: center; gap: 6px; padding: 0; border: none;
+                  background: transparent; cursor: pointer; position: relative; z-index: 1; }
+.pwb-estep__num { width: 26px; height: 26px; flex: none; border-radius: 50%;
+                  display: flex; align-items: center; justify-content: center;
+                  font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+                  border: 1.5px solid hsl(var(--border)); background: hsl(var(--card));
+                  color: hsl(var(--muted-foreground));
+                  transition: background 120ms, border-color 120ms, color 120ms; }
+.pwb-estep__num--done { background: transparent; border-color: hsl(var(--primary));
+                        color: hsl(var(--primary)); }
+.pwb-estep__num--active { background: hsl(var(--primary)); border-color: hsl(var(--primary));
+                          color: hsl(var(--primary-foreground)); }
+.pwb-estep__name { font-size: 13px; font-weight: 500; line-height: 1.2; text-align: center;
+                   color: hsl(var(--muted-foreground)); }
+.pwb-estep__name--active { font-weight: 700; color: hsl(var(--foreground)); }
+.pwb-estep__metrics { display: flex; flex-direction: column; align-items: center; gap: 1px;
+                      min-width: 0; max-width: 100%; }
+.pwb-estep__time { font-family: var(--font-mono); font-size: 10px;
+                   color: hsl(var(--muted-foreground));
+                   max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+                   white-space: nowrap; }
+.pwb-estep__time--active { color: hsl(var(--primary)); }
+.pwb-estep__space { font-family: var(--font-mono); font-size: 9px;
+                    color: hsl(var(--muted-foreground) / 0.7);
+                    max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+                    white-space: nowrap; }
+
+/* ── the single-approach bar: ★ + the fence meta's time/space claims ── */
+.pwb-ebar { flex: 0 0 auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+            padding: 10px 18px; border-bottom: 1px solid hsl(var(--border) / 0.6);
+            background: hsl(var(--muted) / 0.18); }
+.pwb-ebar__id { display: inline-flex; align-items: center; gap: 8px; }
+.pwb-ebar__star { width: 24px; height: 24px; flex: none; border-radius: 50%;
+                  background: hsl(var(--primary)); color: hsl(var(--primary-foreground));
+                  display: inline-flex; align-items: center; justify-content: center;
+                  font-size: 11px; }
+.pwb-ebar__name { font-size: 14px; font-weight: 700; color: hsl(var(--foreground)); }
+.pwb-ebar__pills { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.pwb-ebar__pill { font-family: var(--font-mono); font-size: 11px; padding: 3px 9px;
+                  border-radius: 9999px; }
+.pwb-ebar__pill--time { background: hsl(var(--primary) / 0.1); color: hsl(var(--primary)); }
+.pwb-ebar__pill--space { background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); }
+
+/* ── the sticky Jump bar: one pill per section, spy-driven. The negative side margins let
+      the full-width strip escape .pwb__pane-scroll's 18px padding; the pane's 4px TOP
+      padding is dropped on the editorial scroller instead of negative-margined away —
+      sticky pins at the scrollport edge, and any gap above the bar shows a sliver of
+      passing content ── */
+.pwb-escroll { padding-top: 0; }
+.pwb-ejump { position: sticky; top: 0; z-index: 6; margin: 0 -18px 14px;
+             padding: 9px 18px; display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+             background: hsl(var(--card) / 0.92);
+             backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px);
+             border-bottom: 1px solid hsl(var(--border) / 0.6); }
+.pwb-ejump__label { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.14em;
+                    text-transform: uppercase; color: hsl(var(--muted-foreground) / 0.7);
+                    margin-right: 2px; }
+.pwb-ejump__pill { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em;
+                   text-transform: uppercase; line-height: 1; padding: 5px 11px;
+                   border-radius: 9999px; cursor: pointer;
+                   border: 1px solid hsl(var(--border)); background: transparent;
+                   color: hsl(var(--muted-foreground));
+                   transition: color 120ms, background 120ms, border-color 120ms; }
+.pwb-ejump__pill:hover { color: hsl(var(--foreground));
+                         border-color: hsl(var(--primary) / 0.4); }
+.pwb-ejump__pill--active { border-color: transparent; background: hsl(var(--primary) / 0.12);
+                           color: hsl(var(--primary)); }
+
+/* ── numbered sections: `01 Intuition` headers in one scrolling document (the jump
+      offset and spy threshold live in view/editorial.rs — the pane scrolls itself) ── */
+.pwb-esection { margin-bottom: 30px; }
+/* The editorial body reads at the design's own 15.5px, NOT the reader-size preference —
+   the prefs scale the LESSON column via html[data-reader-size] on .synapse-prose, and at
+   "lg" (18px) the prose sat level with the 19px section titles and the hierarchy vanished.
+   An explicit size on the fragment beats the inherited scale without a specificity war. */
+.pwb-efrag { font-size: 15.5px; line-height: 1.72; }
+.pwb-esection__head { display: flex; align-items: baseline; gap: 11px; margin-bottom: 6px; }
+.pwb-esection__no { font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+                    color: hsl(var(--primary)); }
+.synapse-prose .pwb-esection__title { font-size: 19px; font-weight: 600; margin: 0;
+                                      color: hsl(var(--foreground)); }
+.pwb-esection__tag { font-family: var(--font-mono); font-size: 11px; margin-left: auto;
+                     color: hsl(var(--muted-foreground) / 0.7); }
+
+/* ── the solution gate: a dashed reveal card by default; the viewer + note when open ── */
+.pwb-ereveal { width: 100%; display: flex; align-items: center; gap: 14px; text-align: left;
+               padding: 18px 20px; margin: 0.75rem 0; cursor: pointer;
+               border: 1px dashed hsl(var(--border)); border-radius: 12px;
+               background: hsl(var(--muted) / 0.3);
+               transition: border-color 120ms, background 120ms; }
+.pwb-ereveal:hover { border-color: hsl(var(--primary) / 0.55);
+                     background: hsl(var(--muted) / 0.45); }
+.pwb-ereveal__icon { width: 40px; height: 40px; flex: none; border-radius: 11px;
+                     background: hsl(var(--primary) / 0.12); color: hsl(var(--primary));
+                     display: inline-flex; align-items: center; justify-content: center; }
+.pwb-ereveal__copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pwb-ereveal__title { font-size: 15px; font-weight: 600; color: hsl(var(--foreground)); }
+.pwb-ereveal__sub { font-size: 13px; color: hsl(var(--muted-foreground)); }
+.pwb-ereveal-open__bar { display: flex; justify-content: flex-end; margin: 0.75rem 0 4px; }
+.pwb-ereveal__note { display: flex; align-items: center; gap: 6px; margin: 9px 2px 0;
+                     font-size: 12.5px; color: hsl(var(--muted-foreground) / 0.8); }
+
+/* ── the Complexity cards: Time (brand) and Space, big mono O-values + the prose ── */
+.pwb-ecx { display: flex; gap: 12px; flex-wrap: wrap; }
+.pwb-ecx__card { flex: 1 1 210px; min-width: 190px; padding: 14px 16px;
+                 border: 1px solid hsl(var(--border)); border-radius: 12px;
+                 background: hsl(var(--card)); }
+.pwb-ecx__kind { display: flex; align-items: center; gap: 6px;
+                 font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em;
+                 text-transform: uppercase; color: hsl(var(--muted-foreground)); }
+.pwb-ecx__value { display: block; margin: 8px 0 9px; font-family: var(--font-mono);
+                  font-size: 21px; font-weight: 600; letter-spacing: -0.01em;
+                  overflow-wrap: anywhere; }
+.pwb-ecx__value--time { color: hsl(var(--primary)); }
+.pwb-ecx__value--space { color: hsl(var(--foreground)); }
+.synapse-prose .pwb-ecx__prose { margin: 0; font-size: 13.5px; line-height: 1.6;
+                                 color: hsl(var(--foreground) / 0.78); }
 .pwb__md { font-size: 15px; line-height: 1.65; }
 .pwb__md :is(h1, h2, h3) { margin-top: 1.2em; }
 
@@ -155,13 +281,8 @@
                   padding: 1px 8px; }
 .solution__chip b { color: hsl(var(--foreground)); font-weight: 600; }
 
-/* ── stacked on small screens: panes grow, splitter hides ── */
-@media (max-width: 1023px) {
-    .pwb--embedded .pwb__panes { height: auto; max-height: none; flex-direction: column; }
-    .pwb__left { width: 100% !important; }
-    .wb-split { display: none; }
-    .pwb__pane-scroll, .pwb__right { overflow: visible; }
-}
+/* (The small-screen stacking block lives at the END of this file — it must out-cascade
+   the standalone problem page's fixed height, which is declared below it.) */
 
 /* ─────────────────────────────────────────────────────────────────────────────
    THE PROBLEM PAGE (step 37; oracle: ProblemWorkbench + SubmissionsFeed) —
@@ -279,3 +400,21 @@ a.pwb__crumb:hover { color: hsl(var(--primary)); }
 .subs__pre { margin: 0; overflow-x: auto; background: #0e1116; }
 .subs__pre pre { margin: 0; padding: 12px; font-family: var(--font-mono); font-size: 12.5px;
                  line-height: 1.6; background: transparent; }
+
+/* ── stacked on small screens: panes grow, splitter hides. LAST in the file on purpose —
+      the standalone page's fixed height above shares specificity with the auto height
+      here, so source order is what decides the phone layout ── */
+@media (max-width: 1023px) {
+    /* BOTH frames stack — the embedded widget always did; the standalone page joined in
+       step 57. Before that it kept its desktop geometry on phones: a fixed-height frame
+       whose overflow-hidden panes CLIPPED the tab content below ~480px, beside a right
+       pane squeezed to ~24px — the whole editor invisible (measured on prod). */
+    .pwb__panes { height: auto; max-height: none; flex-direction: column; }
+    .pwb:not(.pwb--embedded) { height: auto; min-height: 0; }
+    .pwb__left { width: 100% !important; }
+    .wb-split { display: none; }
+    .pwb__pane-scroll, .pwb__right { overflow: visible; }
+    /* The per-pane hosts stop constraining height: the page scrolls, the panes grow, and
+       the editorial's scroll-spy (which reads the pane's own scroll) simply stays put. */
+    .pwb__pane-host, .pwb__pane-host > .pwb__pane, .pwb-epane { min-height: auto; }
+}

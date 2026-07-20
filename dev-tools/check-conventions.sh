@@ -13,6 +13,9 @@
 #   3. FILE-SIZE CAPS: server & shared ≤ 500 lines/file, client (+ TS islands)
 #      ≤ 800 — source AND tests. A file over its cap is doing too much or
 #      explaining too much; split it along the hexagonal / three-layer seams.
+#      `*.gen.ts` is exempt (step A02): a generated schema is machine output,
+#      not prose to split — the cap's reasoning does not apply to it, the same
+#      way dist/pkg/node_modules are not walked at all.
 #
 # Run from the repo root (CI runs it before the toolchain — it needs nothing
 # but grep/find/wc). Exit 1 with every violation listed, so one run shows the
@@ -78,19 +81,20 @@ check_caps() {
   return $over
 }
 
-echo "→ file-size caps (server/shared ≤ 500 · client/web ≤ 800)"
+echo "→ file-size caps (server/shared ≤ 500 · client/web ≤ 800 · *.gen.ts exempt)"
 server_ok=0
 check_caps 500 find server shared -name "*.rs" -not -path "*/target/*" || server_ok=1
 client_ok=0
 if [[ -d client ]]; then
   check_caps 800 find client \( -name "*.rs" -o -name "*.ts" \) \
     -not -path "*/node_modules/*" -not -path "*/target/*" -not -path "*/dist/*" \
-    -not -path "*/pkg/*" || client_ok=1
+    -not -path "*/pkg/*" -not -name "*.gen.ts" || client_ok=1
 fi
 web_ok=0
 if [[ -d web ]]; then
   check_caps 800 find web \( -name "*.ts" -o -name "*.tsx" -o -name "*.astro" \) \
-    -not -path "*/node_modules/*" -not -path "*/dist/*" -not -path "*/.astro/*" || web_ok=1
+    -not -path "*/node_modules/*" -not -path "*/dist/*" -not -path "*/.astro/*" \
+    -not -name "*.gen.ts" || web_ok=1
 fi
 if ((server_ok == 0 && client_ok == 0 && web_ok == 0)); then
   echo "  ok"

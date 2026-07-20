@@ -234,17 +234,24 @@ jobs:
       - name: bundle budget (700 KiB gz critical path)
         run: dev-tools/check-bundle-budget.sh
 
-  # ── The Astro app (migration step A01) ───────────────────────────────────────
+  # ── The Astro app (migration step A01, wire types + client step A02) ─────────────
   # Builds and type-checks web/ so the branch cannot rot the new front end while the old one
-  # still serves. vitest runs with --passWithNoTests until A02 lands the first ported suite.
-  # `astro build` needs no running API: output is "server", so pages fetch at REQUEST time
-  # and the build only bundles.
+  # still serves. `astro build` needs no running API: output is "server", so pages fetch at
+  # REQUEST time and the build only bundles.
+  #
+  # The Rust toolchain joins here (A02) because `dev-tools/gen-api-types.sh` runs `cargo build`
+  # to dump the OpenAPI document — it has to install BEFORE the npm steps, not just before the
+  # step that calls the script, or the ordering reads as accidental rather than a dependency.
+  # 20-minute budget: a cold `cargo build -p synapse-server` inside a job with no prior Rust
+  # cache made the old 15-minute figure tight.
   web:
-    timeout-minutes: 15
+    timeout-minutes: 20
     needs: conventions
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -253,6 +260,17 @@ jobs:
       - name: npm ci
         working-directory: web
         run: npm ci
+      - name: generated types are current
+        # Regenerates schema.gen.ts exactly as a developer would and diffs it — a server change
+        # nobody re-ran the generator for fails HERE, not as a silent divergence a reviewer has
+        # to notice by eye. `git diff --exit-code` on the one generated file, not the whole tree:
+        # a stray unrelated diff should not masquerade as drift.
+        run: |
+          dev-tools/gen-api-types.sh
+          git diff --exit-code web/src/lib/api/schema.gen.ts || {
+            echo "::error file=web/src/lib/api/schema.gen.ts::schema.gen.ts is stale — run dev-tools/gen-api-types.sh and commit the result"
+            exit 1
+          }
       - name: vitest
         working-directory: web
         run: npm test

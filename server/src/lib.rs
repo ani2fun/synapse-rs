@@ -26,7 +26,7 @@ use platform::static_routes::StaticRoutes;
 use submission::http::{LiveSubmitSolution, SubmissionRoutesState};
 use synapse_shared::api::{ApiError, HealthStatus};
 use synapse_shared::blog::{BlogPostDto, BlogSummaryDto};
-use synapse_shared::catalog::{ComponentDocDto, LessonPayloadDto, SynapseIndexDto};
+use synapse_shared::catalog::{BookEntryDto, ChapterDto, ComponentDocDto, LessonPayloadDto, SynapseIndexDto};
 use synapse_shared::execution::{RunRequest, RunResult};
 use synapse_shared::identity::{AuthConfigDto, MeDto};
 use synapse_shared::insights::LessonViewDto;
@@ -216,6 +216,14 @@ where
         HealthStatus,
         ApiError,
         SynapseIndexDto,
+        // `BookDto.entries` and `ChapterDto.entries` carry `schema(no_recursion)` (they are
+        // genuinely self-referential trees) — that stops utoipa's auto-walk from EVER reaching
+        // `BookEntryDto`/`ChapterDto`, so without listing them here the rendered document has a
+        // dangling `$ref` no `cargo test` catches (the contract lock only checks schemas the
+        // oracle ALSO names, and it does not name these). `openapi-typescript` is a stricter
+        // reader than our own tests — it surfaced this generating `schema.gen.ts` (step A02).
+        BookEntryDto,
+        ChapterDto,
         LessonPayloadDto,
         ComponentDocDto,
         RunRequest,

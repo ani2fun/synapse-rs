@@ -12,7 +12,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use serde_json::Value;
 use synapse_server::tutoring::application::{TutorClient, TutorError, TutoringService};
-use synapse_server::tutoring::http::{TutorRoutesState, routes};
+use synapse_server::tutoring::http::TutorRoutesState;
 use synapse_shared::tutor::ChatMessage;
 use tower::ServiceExt;
 
@@ -25,12 +25,19 @@ impl TutorClient for Scripted {
     }
 }
 
+/// The FULL app over the scripted client (step 60): the structural-404 pin now proves the
+/// disabled chat route is absent from the WHOLE router, not just a sub-router.
 fn app(enabled: bool, outcome: Result<String, TutorError>) -> axum::Router {
-    routes(TutorRoutesState {
-        service: Arc::new(TutoringService::new(Scripted(outcome))),
-        enabled,
-        model: "llama3.1".to_owned(),
-    })
+    common::app_with_stores(
+        "http://127.0.0.1:9/realms/synapse",
+        common::lazy_allowlist(),
+        common::lazy_views(),
+        TutorRoutesState {
+            service: Arc::new(TutoringService::new(Scripted(outcome))),
+            enabled,
+            model: "llama3.1".to_owned(),
+        },
+    )
 }
 
 async fn call(app: axum::Router, method: &str, uri: &str, body: Option<&str>) -> (StatusCode, Value) {

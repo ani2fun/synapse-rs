@@ -87,6 +87,7 @@ introduced the feature, never as later afterthoughts.
 | 57 | `step-57` | [The Editorial tab redesign](57-editorial-redesign.md) | 2026-07-20 |
 | 58 | `step-58` | [The hydration seam](58-hydration-seam.md) | 2026-07-20 |
 | 59 | `step-59` | [Discipline made structural, and the interface trims](59-discipline-and-trims.md) | 2026-07-20 |
+| 60 | `step-60` | [AppDeps learns the ports it already had](60-appdeps-generics.md) | 2026-07-20 |
 
 > **Step 40's shape.** Every step through 39 is one squashed commit. Step 40 is eleven
 > (`c9b302f..HEAD`): its work was interactive — a design question, two answers built and kept,

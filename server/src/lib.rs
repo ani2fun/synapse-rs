@@ -38,7 +38,23 @@ use utoipa::OpenApi;
 
 /// Everything `app` composes — one wiring struct so `main` and the ITs build the same graph
 /// field by field.
-pub struct AppDeps {
+///
+/// Generic (step 60, DIP at the wiring boundary) over the three ports a test wants to fake
+/// through the FULL router: the allowlist, the lesson-view store, and the tutor client. The
+/// defaults are the production adapters, so `main` and the common IT helper spell nothing
+/// extra; an IT that passes a fake gets the whole `app()` — layer stack included — instead
+/// of assembling its own sub-router. `submit` stays concrete on purpose: its `List` param is
+/// the Postgres allowlist, and parameterizing the four-param service through here would be
+/// generics sprawl for no current test need (the admin router is what the fakes exercise).
+pub struct AppDeps<
+    L = submission::infrastructure::PostgresSubmissionAllowlist,
+    V = insights::PostgresLessonViews,
+    C = tutoring::infrastructure::OllamaTutorClient,
+> where
+    L: submission::application::SubmissionAllowlist + 'static,
+    V: insights::LessonViewStore + 'static,
+    C: tutoring::application::TutorClient + 'static,
+{
     pub catalog: Arc<LiveCatalogService>,
     pub run: Arc<LiveRunService>,
     pub submit: Arc<LiveSubmitSolution>,
@@ -46,9 +62,9 @@ pub struct AppDeps {
     pub blog: Arc<LiveBlogService>,
     pub limiter: Arc<RateLimiter>,
     /// The allowlist store the admin panel manages (the submit gate holds its own Arc).
-    pub allowlist: Arc<submission::infrastructure::PostgresSubmissionAllowlist>,
+    pub allowlist: Arc<L>,
     /// Readership (step 49): the catalog records into it, the admin panel reads it.
-    pub views: Arc<insights::PostgresLessonViews>,
+    pub views: Arc<V>,
     /// The production dist dir; absent (dev) → no static routes, and `/` answers plain text.
     pub static_root: String,
     /// Public origin for canonical + Open Graph URLs (step 50).
@@ -60,7 +76,7 @@ pub struct AppDeps {
     /// report 503 — the honest answer for a store that is not there).
     pub readiness: Arc<dyn platform::health::ReadinessProbe>,
     /// The coach (step 22): when disabled the chat route is never mounted — a structural 404.
-    pub tutor: tutoring::http::TutorRoutesState<tutoring::infrastructure::OllamaTutorClient>,
+    pub tutor: tutoring::http::TutorRoutesState<C>,
 }
 
 /// The assembled HTTP surface. Contexts contribute their routers here as they land; integration
@@ -68,7 +84,12 @@ pub struct AppDeps {
 /// Precedence mirrors the oracle: API (cache-stamped) → `/c4` proxy → static+SPA fallback →
 /// the plain-text root. The SPA fallback ENUMERATES its segments, so it can never shadow
 /// `/api`; `ContentCacheControl` stamps only public content GETs on 200.
-pub fn app(deps: AppDeps) -> Router {
+pub fn app<L, V, C>(deps: AppDeps<L, V, C>) -> Router
+where
+    L: submission::application::SubmissionAllowlist + 'static,
+    V: insights::LessonViewStore + 'static,
+    C: tutoring::application::TutorClient + 'static,
+{
     let submissions = SubmissionRoutesState {
         submit: deps.submit,
         identity: Arc::clone(&deps.ident.identity),

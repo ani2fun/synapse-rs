@@ -4,7 +4,8 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use std::collections::HashSet;
+mod common;
+
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -15,10 +16,7 @@ use axum::routing::get;
 use chrono::{TimeZone, Utc};
 use jsonwebtoken::{Algorithm, EncodingKey, Header};
 use serde_json::{Value, json};
-use synapse_server::identity::application::IdentityService;
-use synapse_server::identity::infrastructure::{JwksTokenVerifier, KeycloakAdminClient};
 use synapse_server::submission::application::{AllowlistEntry, SubmissionAllowlist, SubmissionError};
-use synapse_server::submission::http::admin::{AdminRoutesState, routes};
 use tower::ServiceExt;
 
 const TEST_PEM: &str = include_str!("fixtures/test-only-rsa.pem");
@@ -113,17 +111,15 @@ fn mint(issuer: &str, username: &str) -> String {
     jsonwebtoken::encode(&header, &claims, &key).unwrap()
 }
 
-/// The admin router over the fake, with `tester` as the one admin.
+/// The FULL app over the fake allowlist (step 60 — `AppDeps` is generic over the port, so
+/// this IT no longer assembles its own sub-router; requests cross the real layer stack).
 fn admin_app(issuer: &str, allowlist: &'static FakeAllowlist) -> Router {
-    let identity = Arc::new(IdentityService::new(
-        JwksTokenVerifier::new(issuer, "synapse-web"),
-        KeycloakAdminClient::new(issuer, "synapse-admin", "dev-admin-secret"),
-    ));
-    routes(AdminRoutesState {
-        allowlist: Arc::new(allowlist),
-        identity,
-        admin_users: Arc::new(HashSet::from(["tester".to_owned()])),
-    })
+    common::app_with_stores(
+        issuer,
+        Arc::new(allowlist),
+        common::lazy_views(),
+        common::tutor_off(),
+    )
 }
 
 async fn call(

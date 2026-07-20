@@ -43,6 +43,70 @@ pub fn deps(content_root: &Path) -> AppDeps {
     )
 }
 
+/// A pool that will never connect (port 9 = discard) — store-backed routes answer honestly
+/// (503 / empty) without a database.
+fn lazy_pool() -> sqlx::PgPool {
+    sqlx::postgres::PgPoolOptions::new()
+        .connect_lazy("postgres://nobody:nowhere@127.0.0.1:9/none")
+        .unwrap_or_else(|e| unreachable!("lazy pools do not connect: {e}"))
+}
+
+/// The lazy-pool default stores + the disabled tutor, for ITs that fake only ONE of the
+/// three swappable ports (step 60) and want the production shape for the rest.
+#[allow(dead_code)]
+pub fn lazy_allowlist() -> Arc<PostgresSubmissionAllowlist> {
+    Arc::new(PostgresSubmissionAllowlist::new(lazy_pool()))
+}
+#[allow(dead_code)]
+pub fn lazy_views() -> Arc<synapse_server::insights::PostgresLessonViews> {
+    Arc::new(synapse_server::insights::PostgresLessonViews::new(lazy_pool()))
+}
+#[allow(dead_code)]
+pub fn tutor_off() -> TutorRoutesState<OllamaTutorClient> {
+    TutorRoutesState {
+        service: Arc::new(TutoringService::new(OllamaTutorClient::new(
+            "http://127.0.0.1:9",
+            "llama3.1",
+        ))),
+        enabled: false,
+        model: "llama3.1".to_owned(),
+    }
+}
+
+/// The FULL app with caller-supplied stores for the three fakeable ports (step 60): an IT
+/// that fakes one port passes the defaults above for the others and still drives the whole
+/// router — layer stack included — instead of assembling its own sub-router.
+#[allow(dead_code)]
+pub fn app_with_stores<L, V, C>(
+    issuer: &str,
+    allowlist: Arc<L>,
+    views: Arc<V>,
+    tutor: TutorRoutesState<C>,
+) -> Router
+where
+    L: synapse_server::submission::application::SubmissionAllowlist + 'static,
+    V: synapse_server::insights::LessonViewStore + 'static,
+    C: synapse_server::tutoring::application::TutorClient + 'static,
+{
+    let base = deps_with(Path::new("__no_content__"), "http://127.0.0.1:9", None, issuer);
+    synapse_server::app(AppDeps {
+        allowlist,
+        views,
+        tutor,
+        catalog: base.catalog,
+        run: base.run,
+        submit: base.submit,
+        ident: base.ident,
+        blog: base.blog,
+        limiter: base.limiter,
+        static_root: base.static_root,
+        site_url: base.site_url,
+        content_root: base.content_root,
+        likec4_url: base.likec4_url,
+        readiness: base.readiness,
+    })
+}
+
 /// The knobs every IT combination needs: executor, database, issuer.
 pub fn deps_with(
     content_root: &Path,
@@ -50,11 +114,7 @@ pub fn deps_with(
     pool: Option<sqlx::PgPool>,
     issuer: &str,
 ) -> AppDeps {
-    let pool = pool.unwrap_or_else(|| {
-        sqlx::postgres::PgPoolOptions::new()
-            .connect_lazy("postgres://nobody:nowhere@127.0.0.1:9/none")
-            .unwrap_or_else(|e| unreachable!("lazy pools do not connect: {e}"))
-    });
+    let pool = pool.unwrap_or_else(lazy_pool);
     let repo = FileSystemContentRepository::new(content_root, true);
     let runner = Arc::new(RunCodeService::new(GoJudgeRunner::new(executor_url)));
     let allowlist = Arc::new(PostgresSubmissionAllowlist::new(pool.clone()));

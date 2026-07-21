@@ -215,6 +215,11 @@ jobs:
       - name: npm ci
         working-directory: client
         run: npm ci
+      - name: npm ci (web — the vite build resolves web/tsconfig's `extends` and the
+          single-sourced islands through web/node_modules; third appearance of this trap,
+          after the Docker build and the e2e job)
+        working-directory: web
+        run: npm ci
       - name: vitest (the TS-island suites + the stylesheet gate)
         working-directory: client
         run: npm test

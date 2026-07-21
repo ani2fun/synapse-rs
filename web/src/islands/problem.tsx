@@ -18,8 +18,8 @@
  * workbench is extracted and mounted exactly once — by this island — with no auto-hydrator racing
  * it for the same placeholder.
  *
- * Deliberately waiting: the Editorial STEPPER + approach tabs (A08 — the pane renders plain
- * editorial markdown for now), Visualise (A10), and real auth gating (A11 — until it installs
+ * The Editorial tab mounts A08's stepper island (`practice/EditorialPane`) on first open. Still
+ * deliberately waiting: Visualise (A10) and real auth gating (A11 — until it installs
  * `window.__synapseAuth`, Edit/Submit/Submissions read anonymous, which is the correct anonymous
  * experience, not a regression). The Coach tab (A09) is likewise not rendered yet.
  */
@@ -36,6 +36,7 @@ import { Workbench } from "./workbench/Workbench";
 import { hydrateFenceGroups } from "./workbench/fenceGroups";
 import { AUTH_CHANGED, isAuthed, OPEN_CONTENTS, RELAYOUT, SUBMITTED } from "./workbench/contracts";
 import { SubmissionsFeed } from "./problem-submissions";
+import { EditorialPane } from "./practice/EditorialPane";
 
 // The workbench root (its event target) is minted when the right pane mounts; the Submissions feed
 // dispatches LOAD_CODE / USE_CASE onto it, so it is shared through this module-scoped getter.
@@ -203,14 +204,19 @@ function wireTabs(pwb: HTMLElement, lessonPath: string[], spec: TestSpec | null)
   const panes = Array.from(pwb.querySelectorAll<HTMLElement>(".pwb__pane[data-pane]"));
   const seen = new Set<string>();
 
-  // Editorial (A08 replaces this plain render with the stepper): the SSR'd editorial HTML is
-  // already in the hidden pane — hydrate its interactive placeholders once on first open.
+  // Editorial: the A08 stepper island renders itself into the host on first open, parsing the raw
+  // editorial markdown the SSR carried on `data-editorial` and hydrating GATED solution viewers
+  // whose Copy-to-editor targets the right pane's workbench (via the `workbenchRoot` getter).
   const onFirstOpen = (tab: string): void => {
     if (seen.has(tab)) return;
     seen.add(tab);
     if (tab === "editorial") {
-      const host = pwb.querySelector<HTMLElement>('[data-pane="editorial"] .pwb-editorial');
-      if (host) hydrateContent(host, lessonPath);
+      const host = pwb.querySelector<HTMLElement>('[data-pane="editorial"] .pwb-editorial-host');
+      if (!host) return;
+      const md = decodedAttr(host, "data-editorial") ?? "";
+      host.replaceChildren();
+      render(h(EditorialPane, { md, workbenchRoot }), host);
+      log.debug(`editorial stepper mounted (${md.length} chars)`);
     } else if (tab === "submissions") {
       const host = pwb.querySelector<HTMLElement>('[data-pane="submissions"] .psub-host');
       if (host) render(h(SubmissionsFeed, { path: lessonPath, spec, workbenchRoot }), host);

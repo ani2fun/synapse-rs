@@ -55,7 +55,10 @@ let mode: Mode = "error";
 let payload: LessonPayload | null = null;
 let html = "";
 let descriptionHtml = "";
-let editorialHtml = "";
+// The RAW editorial markdown (inline tail, else the sidecar) — the A08 stepper island parses it
+// and renders per-section on first open of the Editorial tab, so the server ships the markdown, not
+// pre-rendered HTML (the old Leptos reader rendered client-side too; parity, and per-section).
+let editorialMd = "";
 let counter: { problems: string[]; at: number } | null = null;
 let book: components["schemas"]["BookDto"] | null = null;
 let errorMessage = "";
@@ -68,8 +71,7 @@ try {
     // inline editorial wins, else the co-located sidecar the payload already carries.
     const [descMd, inlineEditorial] = problemContentSplit(payload.raw);
     descriptionHtml = await renderLesson(descMd);
-    const editorialMd = inlineEditorial.trim() !== "" ? inlineEditorial : (payload.editorial ?? "");
-    editorialHtml = editorialMd.trim() !== "" ? await renderLesson(editorialMd) : "";
+    editorialMd = inlineEditorial.trim() !== "" ? inlineEditorial : (payload.editorial ?? "");
   } else {
     html = await renderLesson(payload.raw);
   }
@@ -235,14 +237,10 @@ const difficulty = payload?.frontmatter.difficulty ?? null;
                   </div>
                 </div>
                 <div class="pwb__pane hidden" data-pane="editorial">
-                  <div class="pwb__pane-scroll synapse-prose">
-                    {/* A08 replaces this plain editorial with the approach stepper. */}
-                    {editorialHtml ? (
-                      <div class="pwb-editorial pwb-description" set:html={editorialHtml} />
-                    ) : (
-                      <p class="psub__note">No editorial for this problem yet.</p>
-                    )}
-                  </div>
+                  {/* No `.pwb__pane-scroll` wrapper here (unlike the other panes): the A08 stepper
+                      island renders its OWN `.pwb-epane > .pwb__pane-scroll` into this host on first
+                      open, carrying the raw editorial markdown it parses. */}
+                  <div class="pwb-editorial-host" data-editorial={editorialMd ? encodeURIComponent(editorialMd) : ""} />
                 </div>
                 <div class="pwb__pane hidden" data-pane="submissions">
                   <div class="pwb__pane-scroll synapse-prose">
@@ -341,8 +339,14 @@ const difficulty = payload?.frontmatter.difficulty ?? null;
     isLesson && payload && (
       <script>
         import "../../islands/reader";
-        if (document.querySelector(".pwb[data-problem]")) import("../../islands/problem");
-        else import("../../islands/workbench");
+        if (document.querySelector(".pwb[data-problem]")) {
+          import("../../islands/problem");
+        } else {
+          import("../../islands/workbench");
+          // Practice widgets (A08) live in ordinary lesson bodies — their `.practice-problem`
+          // placeholders auto-hydrate here (the island guards itself off problem pages).
+          import("../../islands/practice");
+        }
       </script>
     )
   }

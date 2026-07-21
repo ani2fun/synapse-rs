@@ -142,7 +142,7 @@ function C4Embed({
 // ─────────────────────────────────────────────────────────────────────────────
 // THE FULLSCREEN IFRAME ZOOM
 // A NEW iframe with the same src fills the modal (LikeC4 owns its own pan/zoom); one 300 ms poll
-// reads the live scale % AND the overlay state.
+// reads the overlay state.
 // ─────────────────────────────────────────────────────────────────────────────
 
 function C4Zoom({ src, onClose, onSelect }: { src: string; onClose: () => void; onSelect: (id: string) => void }) {
@@ -159,10 +159,7 @@ function C4Zoom({ src, onClose, onSelect }: { src: string; onClose: () => void; 
 
   // The one poll: the overlay state (our chrome steps aside while LikeC4's dialog is up). A
   // MutationObserver inside a live React canvas would fire every pan frame; one timer is
-  // cheaper and dies with the modal. NO ± / % pill of our own here (user call, 2026-07-21):
-  // LikeC4's react-flow viewer already renders its own zoom column bottom-left, so the
-  // synthetic-wheel controls duplicated it — the parity chrome that made sense on the small
-  // inline embed is noise on the fullscreen one.
+  // cheaper and dies with the modal.
   useEffect(() => {
     const id = window.setInterval(() => {
       const doc = frameRef.current?.contentDocument;
@@ -172,6 +169,33 @@ function C4Zoom({ src, onClose, onSelect }: { src: string; onClose: () => void; 
     }, 300);
     return () => window.clearInterval(id);
   }, []);
+
+  // ± steps ≈ ±25%: a synthetic ctrl+wheel pinch built from the IFRAME's OWN `WheelEvent`
+  // constructor (react-flow's handling runs in that realm), dispatched at the pane's centre.
+  // These are the ONLY zoom buttons the fullscreen has: the deployed LikeC4 build renders no
+  // react-flow controls of its own (its zoom is pinch/scroll only, and the buttons its top
+  // panel carries are navigation, which the scope style hides on purpose). Left column, per
+  // the design call — never a bottom-centre pill.
+  const zoomStep = (zoomIn: boolean): void => {
+    const frame = frameRef.current;
+    const doc = frame?.contentDocument;
+    const win = frame?.contentWindow;
+    const pane = doc?.querySelector(".react-flow__pane");
+    if (!doc || !win || !pane) return;
+    const rect = pane.getBoundingClientRect();
+    // Every real Window carries its constructors as properties even though lib.dom.d.ts does
+    // not type them — and the IFRAME's own WheelEvent is the one react-flow listens for.
+    const WheelEventCtor = (win as unknown as { WheelEvent: typeof WheelEvent }).WheelEvent;
+    const event = new WheelEventCtor("wheel", {
+      deltaY: zoomIn ? -16 : 16,
+      clientX: rect.left + rect.width / 2,
+      clientY: rect.top + rect.height / 2,
+      bubbles: true,
+      cancelable: true,
+      ctrlKey: true,
+    });
+    pane.dispatchEvent(event);
+  };
 
   return (
     <div class="diagram-zoom-scrim" onClick={onClose}>
@@ -198,6 +222,14 @@ function C4Zoom({ src, onClose, onSelect }: { src: string; onClose: () => void; 
               if (doc) attachNodeBridge(doc, onSelect);
             }}
           ></iframe>
+          <div class="diagram-zoom__ctlcol">
+            <button class="diagram-zoom__ctl" aria-label="Zoom in" title="Zoom in" onClick={() => zoomStep(true)}>
+              +
+            </button>
+            <button class="diagram-zoom__ctl" aria-label="Zoom out" title="Zoom out" onClick={() => zoomStep(false)}>
+              −
+            </button>
+          </div>
         </div>
       </div>
     </div>

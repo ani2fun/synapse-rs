@@ -99,6 +99,15 @@
 .diagram-zoom__level { min-width: 3.2rem; text-align: center; font-family: var(--font-mono);
                        font-size: 0.8rem; color: hsl(var(--muted-foreground));
                        user-select: none; }
+/* The C4 fullscreen's zoom column: BOTTOM-LEFT, vertical — the deployed LikeC4 build ships no
+   zoom buttons of its own (pinch/scroll only), so these are the only ones the modal has.
+   .diagram-zoom__ctl owns the button look. */
+.diagram-zoom__ctlcol { position: absolute; bottom: 16px; left: 14px; z-index: 2;
+                        display: flex; flex-direction: column; gap: 6px; padding: 6px;
+                        border: 1px solid hsl(var(--border)); border-radius: 12px;
+                        background: hsl(var(--card) / 0.92);
+                        box-shadow: 0 8px 24px -12px hsl(var(--foreground) / 0.5);
+                        backdrop-filter: blur(4px); }
 
 /* Top-LEFT, deliberately: LikeC4's own chrome lives top-right, so ours never collides.
    Positioning only; .modal-btn owns the look. */
@@ -147,7 +156,8 @@
 .diagram-zoom--fill { max-width: none; max-height: none; padding: 0; overflow: hidden;
                       background: hsl(var(--card)); }
 .diagram-zoom--c4-overlay .diagram-zoom__close,
-.diagram-zoom--c4-overlay .diagram-zoom__controls { display: none; }
+.diagram-zoom--c4-overlay .diagram-zoom__controls,
+.diagram-zoom--c4-overlay .diagram-zoom__ctlcol { display: none; }
 
 /* ── the C4 docs panel (step 34): the component guide slides in from the right.
       z-index sits ABOVE the diagram-zoom scrim (70) so the guide stays readable over the

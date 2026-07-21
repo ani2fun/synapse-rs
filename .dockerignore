@@ -8,6 +8,10 @@ target
 client/dist
 client/pkg
 client/node_modules
+# Astro build outputs — regenerated in-build (build-viz-wasm.sh + npm run build), so a
+# stale local copy must not leak into the context. node_modules stays excluded below.
+web/dist
+web/src/lib/viz-wasm/pkg
 **/node_modules
 *.md
 !README.md

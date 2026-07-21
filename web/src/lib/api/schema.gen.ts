@@ -69,7 +69,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The SPA's Keycloak coordinates, split from the issuer. */
+        /** The frontend's Keycloak coordinates, split from the issuer. */
         get: operations["getAuthConfig"];
         put?: never;
         post?: never;
@@ -146,7 +146,7 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Delete the caller's sign-in (oracle steps 21/37): verified bearer required; the Keycloak
+         * Delete the caller's sign-in: verified bearer required; the Keycloak
          *     call rides the SCOPED service-account client. Failures are loud — never a swallowed
          *     success.
          */
@@ -323,7 +323,7 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** @description One allowlist grant (`/api/admin/allowlist`, step 21). */
+        /** @description One allowlist grant (`/api/admin/allowlist`). */
         AllowlistEntryDto: {
             /** @description ISO-8601 instant. */
             grantedAt: string;
@@ -460,7 +460,7 @@ export interface components {
         /**
          * @description Walking-skeleton health — just a status string today. Real backing-store checks
          *     (Postgres / go-judge / Keycloak) join it when those stores are actually wired; the spec
-         *     grows to match (ADR-S019).
+         *     grows to match.
          */
         HealthStatus: {
             /** @example ok */
@@ -470,7 +470,7 @@ export interface components {
             essential: boolean;
             /**
              * @description The lesson's frontmatter `kind`, index-side, so the client can tell a problem from prose
-             *     without fetching every payload (step 64's "PROBLEM N / M" counter).
+             *     without fetching every payload (drives the "PROBLEM N / M" counter).
              *
              *     NOT named `kind`: `BookEntryDto` is `#[serde(tag = "kind")]`, so a field by that name
              *     would emit the key TWICE — and serde cannot see inside the newtype to catch it. Skipped
@@ -517,7 +517,7 @@ export interface components {
         };
         /**
          * @description The verified caller (`GET /api/me`). `admin` is UX-only — the server re-checks per call
-         *     (it joins with the admin step; false until then).
+         *     against the admin allowlist, so this is only ever a display hint.
          */
         MeDto: {
             admin: boolean;

@@ -4,6 +4,9 @@
 
 mod test_run;
 
+#[cfg(test)]
+mod judge_vectors_test;
+
 pub use test_run::{ArgSpec, TestCase, TestSpec, Verdict, judge, stdin_for};
 
 use serde::{Deserialize, Serialize};

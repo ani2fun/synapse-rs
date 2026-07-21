@@ -22,7 +22,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@markdown": fileURLToPath(new URL("../web/src/lib/markdown", import.meta.url)),
-      "@editor": fileURLToPath(new URL("./islands/editor", import.meta.url)),
+      "@editor": fileURLToPath(new URL("../web/src/lib/islands/editor", import.meta.url)),
       "@auth": fileURLToPath(new URL("./islands/auth", import.meta.url)),
       "@tracer": fileURLToPath(new URL("./islands/tracer", import.meta.url)),
       "@diagram": fileURLToPath(new URL("./islands/diagram", import.meta.url)),

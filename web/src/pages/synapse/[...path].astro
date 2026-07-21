@@ -25,6 +25,7 @@ import { bookOf } from "../../lib/catalog/tree";
 import type { components } from "../../lib/api/schema.gen";
 
 import "../../../../client/styles/reader.css";
+import "../../../../client/styles/runnable.css";
 import "../../../../client/styles/markdown.css";
 
 type Mode = "lesson" | "problem" | "notFound" | "error";
@@ -158,6 +159,9 @@ const description = payload?.frontmatter.summary ?? undefined;
       <script>
         import "../../islands/reader";
       </script>
+  <script>
+    import "../../islands/workbench";
+  </script>
     )
   }
 </Base>

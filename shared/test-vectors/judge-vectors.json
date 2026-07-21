@@ -1,0 +1,113 @@
+{
+  "_comment": "Shared cross-language vectors for shared/src/execution/test_run.rs's `judge` + `stdin_for`. Both the Rust crate (shared/src/execution/judge_vectors_test.rs) and the web workbench twin (web/src/lib/execution/judge.test.ts) run every vector in this file, so a change to either side's rules — or an accidental divergence in the TS port — fails a test on BOTH sides. `judgeVectors[].status` is a `RunStatus` case name; `stdinVectors[].argIds` become `ArgSpec`s with dummy label/type on both sides (only `id` matters to `stdin_for`).",
+  "judgeVectors": [
+    {
+      "name": "cleanExactMatch",
+      "status": "Accepted",
+      "stdout": "42\n",
+      "expected": "42",
+      "verdict": "Accepted"
+    },
+    {
+      "name": "wrongAnswer",
+      "status": "Accepted",
+      "stdout": "41",
+      "expected": "42",
+      "verdict": "WrongAnswer"
+    },
+    {
+      "name": "runtimeErrorIsErroredRegardlessOfOutput",
+      "status": "RuntimeError",
+      "stdout": "",
+      "expected": "42",
+      "verdict": "Errored"
+    },
+    {
+      "name": "noExpectedMeansFinished",
+      "status": "Accepted",
+      "stdout": "anything",
+      "expected": null,
+      "verdict": "Finished"
+    },
+    {
+      "name": "trailingNewlineAndSurroundingWhitespaceAreTrimmed",
+      "status": "Accepted",
+      "stdout": "  42  \n\n",
+      "expected": "42",
+      "verdict": "Accepted"
+    },
+    {
+      "name": "emptyExpectedDiffersFromNoExpected",
+      "status": "Accepted",
+      "stdout": "42",
+      "expected": "",
+      "verdict": "WrongAnswer"
+    },
+    {
+      "name": "emptyStdoutMatchesEmptyExpected",
+      "status": "Accepted",
+      "stdout": "\n",
+      "expected": "",
+      "verdict": "Accepted"
+    },
+    {
+      "name": "compileErrorIsErrored",
+      "status": "CompileError",
+      "stdout": "",
+      "expected": "42",
+      "verdict": "Errored"
+    },
+    {
+      "name": "timeLimitExceededIsErroredEvenIfStdoutHappensToMatch",
+      "status": "TimeLimitExceeded",
+      "stdout": "42",
+      "expected": "42",
+      "verdict": "Errored"
+    },
+    {
+      "name": "internalErrorIsErroredWithNoExpectedDeclared",
+      "status": "InternalError",
+      "stdout": "",
+      "expected": null,
+      "verdict": "Errored"
+    }
+  ],
+  "stdinVectors": [
+    {
+      "name": "inOrderWithTrailingNewline",
+      "argIds": ["a", "b"],
+      "values": { "b": "2", "a": "1" },
+      "expected": "1\n2\n"
+    },
+    {
+      "name": "missingValueBecomesEmptyLine",
+      "argIds": ["a", "b"],
+      "values": { "b": "2" },
+      "expected": "\n2\n"
+    },
+    {
+      "name": "noArgsYieldsJustTheTrailingNewline",
+      "argIds": [],
+      "values": {},
+      "expected": ""
+    },
+    {
+      "name": "allValuesMissingYieldsBlankLinesForEach",
+      "argIds": ["a", "b", "c"],
+      "values": {},
+      "expected": "\n\n\n"
+    },
+    {
+      "name": "multiCaseThreeArgsAssembleInDeclarationOrder",
+      "argIds": ["x", "y", "z"],
+      "values": { "z": "3", "x": "1", "y": "2" },
+      "expected": "1\n2\n3\n"
+    },
+    {
+      "name": "extraValuesNotDeclaredAreIgnored",
+      "argIds": ["a"],
+      "values": { "a": "1", "stray": "99" },
+      "expected": "1\n"
+    }
+  ]
+}

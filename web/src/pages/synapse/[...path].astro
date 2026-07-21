@@ -377,6 +377,9 @@ const difficulty = payload?.frontmatter.difficulty ?? null;
           // Practice widgets (A08) live in ordinary lesson bodies — their `.practice-problem`
           // placeholders auto-hydrate here (the island guards itself off problem pages).
           import("../../islands/practice");
+          // The reader chrome (sidebar faces, prefs FAB, TOC + minimap) — lesson pages ONLY, so
+          // it rides the dynamic lesson branch, never the problem page.
+          import("../../islands/chrome");
         }
       </script>
     )

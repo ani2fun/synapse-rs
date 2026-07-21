@@ -210,3 +210,25 @@ side (an orphaned rule swallowing the centering declaration); this time the file
 never wired to the page at all, on the OTHER side of the same seam — proof that the class of bug
 survives a full framework rewrite when the thing that guards against it is a positional
 assertion, not the CSS's own good intentions.
+
+## Fixed forward (user parity sweep, 2026-07-21) — the deferred chrome lands
+
+A05 deferred the step-36 chrome the e2e specs never exercised; the user's report called three
+pieces due, and they landed as `islands/chrome.ts` (561 lines, vanilla TS over the classes
+reader.css carried all along — zero CSS added) plus the pure `lib/catalog/chrome.ts`
+(`spreadFractions`, oracle pins ported):
+
+- **The sidebar's three faces** — Expanded (« + panel-collapse head), Compact (numbered rail,
+  conic `--progress` ring on the active chapter), Hidden (+ floating expand) — persisted under
+  the old client's exact `reader-sidebar` key/values (`expanded`/`compact`/`hidden`, legacy
+  `collapsed` alias accepted), so a saved face carries across the migration.
+- **The reading-preferences FAB + pane** — size/leading/family/width pills over the existing
+  `prefs.ts` serialize (format byte-identical: the `[s,l,f,w] else DEFAULT` parser makes any
+  drift reset everyone's settings — the pinned hazard).
+- **The right-side TOC + minimap** — h2 sections from the rendered body, −80px header-offset
+  jumps, minimap ticks spread by the pinned de-overlap logic with a progress fill.
+
+Loaded from the lesson branch's dynamic import only, plus a `.pwb[data-problem]` self-guard —
+a problem page shows none of it (probed: 0 of every class). Still deferred, by name: the
+sticky wayfinding bar, the 2px progress bar, focus mode, scroll-to-top, the sidebar Filter
+box and Learn-browse toggle. web vitest 184 → 186.

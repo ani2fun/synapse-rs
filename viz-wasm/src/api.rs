@@ -1,8 +1,7 @@
 //! The crate's one wire call: tracing runs through the ORDINARY `/api/run` (no new
-//! endpoint), so this is a minimal same-origin POST with the same bearer seam the
-//! Leptos client's api has. Each host installs its own provider: the Leptos client's
-//! `AuthStore` wires its token handle in, the Astro app calls [`entry`](crate::entry)'s
-//! `viz_install_token` with the auth island's provider. The default stays anonymous.
+//! endpoint), so this is a minimal same-origin POST with its own bearer seam. The Astro app
+//! calls [`entry`](crate::entry)'s `viz_install_token` with the auth island's provider; until
+//! it does, the default stays anonymous.
 
 use std::cell::RefCell;
 
@@ -11,13 +10,13 @@ use synapse_shared::api::ApiError;
 use synapse_shared::execution::{RunRequest, RunResult};
 
 thread_local! {
-    // Boxed (not the client's plain `fn` pointer): the Astro host's provider is a closure over
-    // a `js_sys::Function` handed across the wasm boundary — it captures.
+    // Boxed, not a plain `fn` pointer: the provider is a closure over a `js_sys::Function`
+    // handed across the wasm boundary — it captures, so it needs an owning box.
     static TOKEN_PROVIDER: RefCell<Box<dyn Fn() -> Option<String>>> =
         RefCell::new(Box::new(|| None));
 }
 
-/// Install the bearer provider — called once by whichever host owns identity.
+/// Install the bearer provider — called once by the host's auth island (via `entry`).
 pub fn set_token_provider(provider: impl Fn() -> Option<String> + 'static) {
     TOKEN_PROVIDER.with_borrow_mut(|p| *p = Box::new(provider));
 }

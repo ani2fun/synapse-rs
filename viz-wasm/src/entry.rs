@@ -1,11 +1,10 @@
 //! The wasm-bindgen surface: what the Astro app's lazy `viz.ts` loader calls. Three
 //! verbs — mount the inline widgets, open the Visualise modal, install the bearer provider.
 //!
-//! Self-hosting: in the Leptos client the modal store lives in App context and the shell
-//! mounts `<VisualiseModal/>` once. There is no App here, so the entry mints ONE store under
-//! a detached root owner (signals that outlive views must never be owned by a caller's
+//! Self-hosting: there is no App shell to hold the modal store, so the entry mints ONE store
+//! under a detached root owner (signals that outlive views must never be owned by a caller's
 //! reactive scope) and mounts the modal into its own document-level host on first need,
-//! providing that store as context so `modal.rs` runs unchanged under both hosts.
+//! providing that store as context so `modal.rs` runs against it directly.
 //!
 //! Handles from `mount_widgets` are deliberately leaked into a thread-local: the Astro app is
 //! an MPA — every navigation is a full page load, so "page lifetime" and "wasm instance
@@ -71,7 +70,7 @@ pub fn viz_mount_widgets() -> usize {
 
 /// Open the Visualise modal for one traced run — the `window.__synapseViz` contract's landing
 /// point. `viz_hint` is the variant's RAW `viz=` hint; `VizStructure::parse` splits it into
-/// the structure + optional root exactly as the Leptos client's Visualise button does. An
+/// the structure + optional root exactly as the workbench's Visualise button expects. An
 /// unknown hint is refused honestly (logged, `false`) rather than opening a modal that could
 /// only show a failure card for an authoring mistake.
 #[wasm_bindgen]

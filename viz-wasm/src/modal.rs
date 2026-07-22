@@ -52,9 +52,9 @@ pub struct VizModalStore {
 }
 
 impl VizModalStore {
-    /// A fresh store. Callers own the reactive scope: the Leptos client mints it inside App's
-    /// owner via [`provide`](Self::provide); the Astro entry mints it under a detached root
-    /// (its signal outlives every view there).
+    /// A fresh store, owned by the caller's reactive scope. `entry` mints it under a detached
+    /// root owner so its signal outlives every view; [`provide`](Self::provide) is the in-tree
+    /// alternative for a host that mounts the modal inside a live App.
     #[must_use]
     pub fn new() -> Self {
         Self {

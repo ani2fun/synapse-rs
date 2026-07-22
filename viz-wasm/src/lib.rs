@@ -3,11 +3,11 @@
 //! `Playback` stepper), the trace session, and the Visualise modal. Layout is computed ONCE
 //! over the union of steps; the step signal only toggles drawing.
 //!
-//! Two consumers, one crate: the Leptos client depends on it as an rlib (its `viz` module),
-//! and the Astro app loads the cdylib as a lazy wasm bundle through [`entry`]'s wasm-bindgen
-//! surface. Mounting, the editor/tracer externs, the `/api/run` fetch + bearer seam, the theme
-//! probe, and the logger all live in-crate, so the crate is self-contained by construction —
-//! neither host needs to supply anything beyond calling into it.
+//! The Astro app loads the cdylib as a lazy wasm bundle through [`entry`]'s wasm-bindgen
+//! surface; the crate also builds as an rlib so the engine tests + goldens run natively under
+//! `cargo test`. Mounting, the editor/tracer externs, the `/api/run` fetch + bearer seam, the
+//! theme probe, and the logger all live in-crate, so the crate is self-contained by
+//! construction — the host supplies nothing beyond calling into it.
 
 pub mod api;
 pub mod blocks;

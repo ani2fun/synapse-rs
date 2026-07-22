@@ -70,6 +70,19 @@ function decodedAttr(element: Element, name: string): string | null {
   }
 }
 
+/** The SAMPLE suite the SSR injected on `.pwb[data-problem]` (server-filtered from `.tests.json`).
+ *  This is where a problem's testcases come from now that the description markdown holds no
+ *  `testcases` fence. `null` when absent (non-problem, or a problem with no sidecar) or unparseable. */
+function injectedSampleTests(pwb: HTMLElement): TestSpec | null {
+  const raw = decodedAttr(pwb, "data-sample-tests");
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as TestSpec;
+  } catch {
+    return null;
+  }
+}
+
 /** Decode a `div.workbench` placeholder's variants (+ optional suite). `null` when unusable. */
 function decodeWorkbench(element: Element): { variants: Variant[]; spec: TestSpec | null } | null {
   const variantsJson = decodedAttr(element, "data-variants");
@@ -284,6 +297,9 @@ function init(): void {
   wireSplitter(pwb);
   wireContents(pwb);
 
+  // The problem's sample suite rides a `data-sample-tests` attribute now, not a description fence.
+  const injected = injectedSampleTests(pwb);
+
   // Extract the FIRST description workbench into the right pane, hydrate the rest in place.
   const description = pwb.querySelector<HTMLElement>(".pwb-description");
   let extracted: { variants: Variant[]; spec: TestSpec | null } | null = null;
@@ -291,7 +307,11 @@ function init(): void {
     const first = description.querySelector("div.workbench");
     if (first) {
       extracted = decodeWorkbench(first);
-      if (extracted) first.remove();
+      // The starter `run` block no longer carries `data-spec`; the suite comes from the payload.
+      if (extracted) {
+        extracted.spec = extracted.spec ?? injected;
+        first.remove();
+      }
     }
     hydrateContent(description, lessonPath);
   }
@@ -306,7 +326,7 @@ function init(): void {
   // The Submissions feed listens for SUBMITTED itself; this line only keeps the flow followable.
   document.addEventListener(SUBMITTED, () => log.debug("submit completed (SUBMITTED bubbled to document)"));
 
-  wireTabs(pwb, lessonPath, extracted?.spec ?? null);
+  wireTabs(pwb, lessonPath, extracted?.spec ?? injected);
 }
 
 if (document.readyState === "loading") {

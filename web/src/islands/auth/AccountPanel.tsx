@@ -12,7 +12,7 @@ import { ApiFailure } from "../../lib/api/client";
 import type { Me } from "../../lib/api/client";
 import * as log from "../../lib/log";
 import { useAuthState } from "./Chip";
-import { deleteAccount, eraseAllData, eraseSubmissions, signIn } from "./store";
+import { deleteAccount, eraseAllData, eraseSubmissions, resetProgress, signIn } from "./store";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STATUS + THE PENDING ACTION
@@ -24,8 +24,9 @@ type ActionStatus =
   | { kind: "ok"; message: string }
   | { kind: "error"; message: string };
 
-/** Which destructive action awaits confirmation. */
-type Pending = "erase" | "eraseAll" | "delete";
+/** Which action awaits confirmation. `resetProgress` is convenience data, not destructive; the
+ *  rest are the danger zone. */
+type Pending = "resetProgress" | "erase" | "eraseAll" | "delete";
 
 function failureMessage(error: unknown): string {
   return error instanceof ApiFailure ? error.message : error instanceof Error ? error.message : String(error);
@@ -66,7 +67,11 @@ function SignedIn({ me }: { me: Me }) {
     setPending(null);
     void (async () => {
       try {
-        if (pendingAction === "erase") {
+        if (pendingAction === "resetProgress") {
+          setStatus({ kind: "busy", message: "Resetting your progress…" });
+          const cleared = await resetProgress();
+          setStatus({ kind: "ok", message: `Progress reset — ${cleared} lesson(s) cleared.` });
+        } else if (pendingAction === "erase") {
           setStatus({ kind: "busy", message: "Erasing your submissions…" });
           const deleted = await eraseSubmissions();
           setStatus({ kind: "ok", message: `Deleted ${deleted} submission(s).` });
@@ -96,12 +101,26 @@ function SignedIn({ me }: { me: Me }) {
           ← Back to the library
         </a>
       </div>
+      <StatusBanner status={status} />
+      <section class="account-page__progress">
+        <p class="account-page__section-head">Reading progress</p>
+        <p class="account-page__section-note">
+          Your ✓ ticks — lessons read and problems solved — are saved to your account and sync across devices.
+        </p>
+        <Card
+          title="Reset progress"
+          desc="Clear every ✓. Your submissions are kept — this only resets what shows as read or solved."
+          button="Reset progress"
+          icon="↺"
+          variant="neutral"
+          onClick={() => setPending("resetProgress")}
+        />
+      </section>
       <section class="account-page__danger">
         <p class="account-page__danger-head">
           <span class="account-page__danger-icon">⚠</span> Danger zone
         </p>
         <p class="account-page__danger-note">These actions are permanent and can't be undone.</p>
-        <StatusBanner status={status} />
         <Card
           title="Erase my submissions"
           desc="Permanently delete every code submission you've made, across all problems."
@@ -131,20 +150,28 @@ function Card({
   desc,
   button,
   onClick,
+  variant = "danger",
+  icon = "🗑",
 }: {
   title: string;
   desc: string;
   button: string;
   onClick: () => void;
+  variant?: "danger" | "neutral";
+  icon?: string;
 }) {
+  const btnClass =
+    variant === "neutral"
+      ? "account-page__btn account-page__btn--neutral"
+      : "account-page__btn account-page__btn--danger";
   return (
     <div class="account-page__card">
       <span class="account-page__card-text">
         <span class="account-page__card-title">{title}</span>
         <span class="account-page__card-desc">{desc}</span>
       </span>
-      <button class="account-page__btn account-page__btn--danger" onClick={onClick}>
-        <span class="account-page__btn-icon">🗑</span>
+      <button class={btnClass} onClick={onClick}>
+        <span class="account-page__btn-icon">{icon}</span>
         {button}
       </button>
     </div>
@@ -205,6 +232,11 @@ function ConfirmModal({
 }
 
 const CONFIRM_COPY: Record<Pending, { title: string; body: string; verb: string }> = {
+  resetProgress: {
+    title: "Reset your progress?",
+    body: "Every ✓ will be cleared — the lessons you've read and the problems you've solved. Your submissions are kept.",
+    verb: "Reset progress",
+  },
   erase: {
     title: "Erase your submissions?",
     body: "Every attempt you've saved will be deleted. This can't be undone.",

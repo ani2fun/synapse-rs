@@ -24,6 +24,19 @@
 .account-page__back { margin-left: auto; font-size: 0.8rem; color: hsl(var(--primary)); text-decoration: none; }
 .account-page__back:hover { text-decoration: underline; }
 
+/* The neutral "Reading progress" section — same card grammar as the danger zone, but a plain
+   border and heading: resetting progress is convenience data, not a permanent data loss. */
+.account-page__progress { margin-top: 1.75rem; border: 1px solid hsl(var(--border)); border-radius: 0.75rem;
+                          padding: 1rem 1.2rem; background: hsl(var(--card)); display: flex;
+                          flex-direction: column; gap: 0.75rem; }
+.account-page__section-head { font-weight: 700; color: hsl(var(--foreground)); }
+.account-page__section-note { font-size: 0.8rem; color: hsl(var(--muted-foreground)); margin-top: -0.5rem; }
+.account-page__btn--neutral { flex: none; display: inline-flex; gap: 0.35rem; align-items: center;
+                              padding: 0.4rem 0.85rem; border-radius: 0.5rem;
+                              border: 1px solid hsl(var(--border)); background: hsl(var(--muted) / 0.4); color: hsl(var(--foreground) / 0.85);
+                              font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+.account-page__btn--neutral:hover { background: hsl(var(--muted) / 0.7); }
+
 .account-page__danger { margin-top: 1.75rem; border: 1px solid hsl(var(--status-err) / 0.35); border-radius: 0.75rem;
                         padding: 1rem 1.2rem; background: hsl(var(--card)); display: flex;
                         flex-direction: column; gap: 0.75rem; }

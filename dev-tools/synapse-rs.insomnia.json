@@ -111,6 +111,66 @@
       "description": "POST shares the step-18 rate-limit gate (429 + 'Sign in for a bigger submission budget.')."
     },
     {
+      "_id": "fld_progress",
+      "_type": "request_group",
+      "parentId": "wrk_synapse_rs",
+      "name": "progress",
+      "description": "Per-user completion (the reader's \u2713 ticks). Mark/reset require a bearer; GET is [] when anonymous. Reset clears progress ONLY \u2014 submissions survive."
+    },
+    {
+      "_id": "req_progress_mark",
+      "_type": "request",
+      "parentId": "fld_progress",
+      "name": "POST /api/progress",
+      "description": "Mark one lesson complete for the caller (idempotent); returns the caller's full completed list. 401 when anonymous.",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/progress",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"path\": \"dsa/two-sum\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_progress_list",
+      "_type": "request",
+      "parentId": "fld_progress",
+      "name": "GET /api/progress",
+      "description": "The caller's completed lesson paths (anonymous \u2192 []).",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/progress",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_progress_reset",
+      "_type": "request",
+      "parentId": "fld_progress",
+      "name": "DELETE /api/progress",
+      "description": "Reset the caller's progress \u2014 clears the \u2713 ticks; submissions are untouched. 401 when anonymous.",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/api/progress",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
       "_id": "req_submit",
       "_type": "request",
       "parentId": "fld_submissions",

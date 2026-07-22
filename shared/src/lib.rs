@@ -14,5 +14,6 @@ pub mod catalog;
 pub mod execution;
 pub mod identity;
 pub mod insights;
+pub mod progress;
 pub mod submission;
 pub mod tutor;

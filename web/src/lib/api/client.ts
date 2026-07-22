@@ -22,6 +22,7 @@ export type SubmitRequest = components["schemas"]["SubmitRequestDto"];
 export type SubmissionAccepted = components["schemas"]["SubmissionAcceptedDto"];
 export type Submission = components["schemas"]["SubmissionDto"];
 export type DeleteResult = components["schemas"]["DeleteResultDto"];
+export type ProgressList = components["schemas"]["ProgressListDto"];
 export type Me = components["schemas"]["MeDto"];
 export type AuthConfig = components["schemas"]["AuthConfigDto"];
 export type BlogSummary = components["schemas"]["BlogSummaryDto"];
@@ -156,7 +157,7 @@ async function del<T>(path: string): Promise<T> {
   return decode<T>(response);
 }
 
-// ── the 18 endpoints, one function per server route ────────────────────────────────────────────
+// ── the endpoints, one function per server route ───────────────────────────────────────────────
 
 /** The browsable library index. */
 export function fetchIndex(): Promise<SynapseIndex> {
@@ -216,6 +217,23 @@ export function me(): Promise<Me> {
 /** Erase every submission of the caller ("reset my data"). */
 export function eraseSubmissions(): Promise<DeleteResult> {
   return del<DeleteResult>("/api/submissions");
+}
+
+/** The caller's completed lesson paths (anonymous → `[]`) — the reader merges these into its
+ *  local ✓ set so progress follows the account across devices. */
+export async function listProgress(): Promise<string[]> {
+  return (await get<ProgressList>("/api/progress")).completed;
+}
+
+/** Mark one lesson complete for the caller; returns the caller's full completed list after the
+ *  mark (an authoritative snapshot the reader can ignore or self-heal from). */
+export async function markProgress(path: string): Promise<string[]> {
+  return (await post<ProgressList>("/api/progress", { path })).completed;
+}
+
+/** Reset the caller's progress — clears the ✓ ticks server-side; submissions are untouched. */
+export function resetProgress(): Promise<DeleteResult> {
+  return del<DeleteResult>("/api/progress");
 }
 
 /** Remove the caller's sign-in (the Keycloak account). App data is the separate verb above —

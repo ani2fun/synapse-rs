@@ -20,13 +20,25 @@ pub struct ArgSpec {
     pub placeholder: Option<String>,
 }
 
-/// One authored case: values per declared arg + the optional expected stdout.
+/// One authored case: values per declared arg + the optional expected stdout. `sample` marks
+/// the browser-visible cases — the judge runs every case, but only samples cross the wire so a
+/// student cannot hard-code the hidden suite. Absent in `.tests.json` ⇒ `false` ⇒ hidden.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct TestCase {
     pub args: BTreeMap<String, String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expected: Option<String>,
+    #[serde(default, skip_serializing_if = "is_hidden")]
+    pub sample: bool,
+}
+
+/// `skip_serializing_if` for `sample`: a hidden (non-sample) case omits the key entirely, so the
+/// wire payload the browser sees carries no redundant markers. The `&bool` signature is serde's
+/// requirement, not a choice.
+#[allow(clippy::trivially_copy_pass_by_ref)]
+fn is_hidden(sample: &bool) -> bool {
+    !*sample
 }
 
 /// The whole authored suite (a testcases fence or a `.tests.json` sidecar).
@@ -35,6 +47,28 @@ pub struct TestCase {
 pub struct TestSpec {
     pub args: Vec<ArgSpec>,
     pub cases: Vec<TestCase>,
+}
+
+impl TestSpec {
+    /// The browser-visible projection: the declared args plus only the `sample` cases, each with
+    /// its flag cleared (the samples ARE the payload, so the marker adds nothing). This is the
+    /// ONLY `TestSpec` the catalog serves to a page — the hidden judge cases never leave the server.
+    #[must_use]
+    pub fn samples(&self) -> TestSpec {
+        TestSpec {
+            args: self.args.clone(),
+            cases: self
+                .cases
+                .iter()
+                .filter(|case| case.sample)
+                .map(|case| TestCase {
+                    args: case.args.clone(),
+                    expected: case.expected.clone(),
+                    sample: false,
+                })
+                .collect(),
+        }
+    }
 }
 
 /// A judged case's verdict.
@@ -139,5 +173,35 @@ mod tests {
         let written = serde_json::to_string(&spec).unwrap();
         assert!(written.contains("\"type\":\"int\""));
         assert!(!written.contains("tpe"));
+    }
+
+    #[test]
+    fn sample_defaults_to_hidden_and_omits_the_key_when_false() {
+        // A `.tests.json` case with no `sample` field decodes as hidden (judge-only)…
+        let spec: TestSpec = serde_json::from_str(
+            r#"{"args":[{"id":"n","label":"N","type":"int"}],"cases":[{"args":{"n":"3"},"expected":"6"}]}"#,
+        )
+        .unwrap();
+        assert!(!spec.cases[0].sample);
+        // …and re-serializes with no `sample` key, so hidden cases stay unmarked on the wire.
+        assert!(!serde_json::to_string(&spec).unwrap().contains("sample"));
+    }
+
+    #[test]
+    fn samples_keeps_only_sampled_cases_and_clears_the_flag() {
+        let spec: TestSpec = serde_json::from_str(
+            r#"{"args":[{"id":"n","label":"N","type":"int"}],"cases":[
+                {"args":{"n":"6"},"expected":"[1, 2, 3, 6]","sample":true},
+                {"args":{"n":"999"},"expected":"[1, 3, 9, 27, 37, 111, 333, 999]"}
+            ]}"#,
+        )
+        .unwrap();
+        let samples = spec.samples();
+        assert_eq!(samples.cases.len(), 1, "only the sampled case survives");
+        assert_eq!(samples.cases[0].args["n"], "6");
+        assert!(!samples.cases[0].sample, "the served marker is cleared");
+        assert_eq!(samples.args, spec.args, "declared args are preserved");
+        // The hidden case's expected output never appears in the served projection.
+        assert!(!serde_json::to_string(&samples).unwrap().contains("999"));
     }
 }

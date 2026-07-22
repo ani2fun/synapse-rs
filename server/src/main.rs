@@ -16,9 +16,10 @@ use synapse_server::identity::http::IdentityRoutesState;
 use synapse_server::identity::infrastructure::{JwksTokenVerifier, KeycloakAdminClient};
 use synapse_server::platform::rate_limiter::{RateLimitBucket, RateLimiter};
 use synapse_server::platform::readiness::PgReadiness;
+use synapse_server::progress::PostgresProblemProgress;
 use synapse_server::submission::application::SubmitSolution;
 use synapse_server::submission::infrastructure::{
-    FsProblemTests, PostgresSubmissionAllowlist, PostgresSubmissionRepository,
+    FsProblemTests, PostgresSubmissionAllowlist, PostgresSubmissionRepository, ProgressRecorderAdapter,
 };
 use synapse_server::tutoring::application::TutoringService;
 use synapse_server::tutoring::http::TutorRoutesState;
@@ -59,6 +60,7 @@ async fn main() -> anyhow::Result<()> {
     let allowlist = Arc::new(PostgresSubmissionAllowlist::new(pool.clone()));
     let views = Arc::new(synapse_server::insights::PostgresLessonViews::new(pool.clone()));
     let readiness = Arc::new(PgReadiness::new(pool.clone()));
+    let progress = Arc::new(PostgresProblemProgress::new(pool.clone()));
     let submit = Arc::new(SubmitSolution::new(
         Arc::new(PostgresSubmissionRepository::new(pool)),
         Arc::new(FsProblemTests::new(FileSystemContentRepository::new(
@@ -68,21 +70,11 @@ async fn main() -> anyhow::Result<()> {
         Arc::clone(&runner),
         Arc::clone(&allowlist),
         cfg.submission_allowlist_enforced,
+        // An accepted submission marks the lesson done in the caller's progress.
+        Arc::new(ProgressRecorderAdapter::new(Arc::clone(&progress))),
     ));
 
-    let identity = IdentityRoutesState {
-        identity: Arc::new(IdentityService::new(
-            JwksTokenVerifier::new(&cfg.identity_issuer, &cfg.identity_audience),
-            KeycloakAdminClient::new(
-                &cfg.identity_issuer,
-                &cfg.keycloak_admin_client_id,
-                &cfg.keycloak_admin_client_secret,
-            ),
-        )),
-        issuer: cfg.identity_issuer.clone(),
-        audience: cfg.identity_audience.clone(),
-        admin_users: Arc::new(cfg.admin_user_set()),
-    };
+    let identity = identity_state(&cfg);
     let tutor = TutorRoutesState {
         service: Arc::new(TutoringService::new(OllamaTutorClient::new(
             &cfg.tutor_url,
@@ -136,6 +128,7 @@ async fn main() -> anyhow::Result<()> {
         limiter,
         allowlist,
         views,
+        progress,
         tutor,
         astro_url: cfg.astro_url,
         site_url: cfg.site_url,
@@ -149,6 +142,25 @@ async fn main() -> anyhow::Result<()> {
         .await?;
     tracing::info!("drained — bye");
     Ok(())
+}
+
+/// The identity routes-state: the JWKS token verifier + the Keycloak admin client, plus the
+/// issuer/audience/admin-set the routes carry. Extracted from `main` so the wiring point stays
+/// scannable (and under the per-function line cap).
+fn identity_state(cfg: &synapse_server::config::AppConfig) -> IdentityRoutesState {
+    IdentityRoutesState {
+        identity: Arc::new(IdentityService::new(
+            JwksTokenVerifier::new(&cfg.identity_issuer, &cfg.identity_audience),
+            KeycloakAdminClient::new(
+                &cfg.identity_issuer,
+                &cfg.keycloak_admin_client_id,
+                &cfg.keycloak_admin_client_secret,
+            ),
+        )),
+        issuer: cfg.identity_issuer.clone(),
+        audience: cfg.identity_audience.clone(),
+        admin_users: Arc::new(cfg.admin_user_set()),
+    }
 }
 
 /// Resolves on SIGTERM (what Kubernetes sends first on a rolling update or eviction) or on

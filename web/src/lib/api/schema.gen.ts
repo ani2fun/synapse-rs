@@ -156,6 +156,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The caller's completed lesson paths — private: anonymous callers get `[]` and the store is
+         *     never touched (mirrors `list_submissions`).
+         */
+        get: operations["listProgress"];
+        put?: never;
+        /**
+         * Mark one lesson complete for the caller (idempotent), then return the caller's full completed
+         *     list so the client has an authoritative post-mark snapshot. Bearer required.
+         */
+        post: operations["markProgress"];
+        /**
+         * Reset all of the caller's progress ("reset progress"). Clears only these rows — the caller's
+         *     submission history is a separate store and survives.
+         */
+        delete: operations["resetProgress"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ready": {
         parameters: {
             query?: never;
@@ -342,6 +370,16 @@ export interface components {
             hint?: string | null;
         };
         /**
+         * @description One declared stdin argument. The authored JSON writes `type`; the field is `tpe` here
+         *     (mapped at the codec) since `type` is a reserved word.
+         */
+        ArgSpec: {
+            id: string;
+            label: string;
+            placeholder?: string | null;
+            type: string;
+        };
+        /**
          * @description The SPA's Keycloak coordinates (`GET /api/auth/config`) — exactly
          *     `new Keycloak({url, realm, clientId})`.
          */
@@ -492,7 +530,9 @@ export interface components {
         };
         /**
          * @description The lesson the reader renders. `raw` = the markdown body, fence stripped; `prev`/`next` are
-         *     ready-to-navigate FULL paths (`category…/book/chapter…/lesson`), null at book ends.
+         *     ready-to-navigate FULL paths (`category…/book/chapter…/lesson`), null at book ends. `tests`
+         *     carries ONLY the sample cases for a `kind: problem` lesson (the workbench sources them from
+         *     here now that the description markdown no longer duplicates a `testcases` fence); null otherwise.
          */
         LessonPayloadDto: {
             book: components["schemas"]["BookRefDto"];
@@ -502,6 +542,7 @@ export interface components {
             next?: string | null;
             prev?: string | null;
             raw: string;
+            tests?: null | components["schemas"]["TestSpec"];
         };
         /**
          * @description One lesson's readership. `lastViewed` is an ISO-8601 UTC string, matching the `publishedAt`
@@ -515,6 +556,10 @@ export interface components {
             /** Format: int64 */
             views: number;
         };
+        /** @description `POST /api/progress` body — mark one lesson path complete for the caller. */
+        MarkProgressRequestDto: {
+            path: string;
+        };
         /**
          * @description The verified caller (`GET /api/me`). `admin` is UX-only — the server re-checks per call
          *     against the admin allowlist, so this is only ever a display hint.
@@ -524,6 +569,10 @@ export interface components {
             email?: string | null;
             id: string;
             username: string;
+        };
+        /** @description `GET /api/progress` — every lesson path the caller has completed. */
+        ProgressListDto: {
+            completed: string[];
         };
         /** @description The run request. `language` is a fence alias (`py`, `cpp`, …), resolved server-side. */
         RunRequest: {
@@ -578,6 +627,23 @@ export interface components {
         };
         SynapseIndexDto: {
             entries: components["schemas"]["CatalogEntryDto"][];
+        };
+        /**
+         * @description One authored case: values per declared arg + the optional expected stdout. `sample` marks
+         *     the browser-visible cases — the judge runs every case, but only samples cross the wire so a
+         *     student cannot hard-code the hidden suite. Absent in `.tests.json` ⇒ `false` ⇒ hidden.
+         */
+        TestCase: {
+            args: {
+                [key: string]: string;
+            };
+            expected?: string | null;
+            sample?: boolean;
+        };
+        /** @description The whole authored suite (a testcases fence or a `.tests.json` sidecar). */
+        TestSpec: {
+            args: components["schemas"]["ArgSpec"][];
+            cases: components["schemas"]["TestCase"][];
         };
         /**
          * @description The whole conversation each turn — the server is stateless; the transcript lives in the
@@ -958,6 +1024,106 @@ export interface operations {
             };
             /** @description Keycloak admin API unavailable */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    listProgress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The caller's completed lesson paths */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgressListDto"];
+                };
+            };
+        };
+    };
+    markProgress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkProgressRequestDto"];
+            };
+        };
+        responses: {
+            /** @description Marked complete; the caller's completed paths */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgressListDto"];
+                };
+            };
+            /** @description Anonymous */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Store failed */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    resetProgress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Progress cleared */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteResultDto"];
+                };
+            };
+            /** @description Anonymous */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Store failed */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };

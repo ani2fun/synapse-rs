@@ -23,6 +23,8 @@ import * as log from "../lib/log";
 
 import * as storage from "../lib/storage";
 import * as progress from "../lib/catalog/progress";
+import * as api from "../lib/api/client";
+import { AUTH_CHANGED, isAuthed } from "./workbench/contracts";
 import { parse as parsePrefs, applyToHtml } from "../lib/catalog/prefs";
 
 const SYNAPSE_PREFIX = "/synapse/";
@@ -96,6 +98,36 @@ function markDone(path: string): void {
   // The just-finished lesson's own sidebar row gets its tick immediately, not only after the
   // next reload — matches marking-and-reading the same reactive set in one breath.
   applyDoneTicks(document, done);
+  // A signed-in reader's progress is the ACCOUNT's, not the device's — persist it so the tick
+  // survives a cache wipe and follows them to another browser. Anonymous stays localStorage-only.
+  if (isAuthed()) void api.markProgress(path);
+}
+
+/** Reconcile the local ✓ set with the server for a signed-in reader: pull the account's completed
+ *  paths down (mutating `done` IN PLACE so the nav-drawer closure that captured it still shows the
+ *  new ticks), then push this browser's pre-sign-in ticks up. The push list drains to empty once
+ *  the server has them, so later syncs only download. Anonymous callers never reach here. */
+async function syncFromServer(done: Set<string>): Promise<void> {
+  try {
+    const server = await api.listProgress();
+    let added = false;
+    for (const path of server) {
+      if (!done.has(path)) {
+        done.add(path);
+        added = true;
+      }
+    }
+    if (added) {
+      storage.set(storage.READER_PROGRESS_KEY, progress.serialize(done));
+      applyDoneTicks(document, done);
+    }
+    const onServer = new Set(server);
+    const localOnly = [...done].filter((path) => !onServer.has(path));
+    for (const path of localOnly) void api.markProgress(path);
+    log.info(`progress synced — ${server.length} down, ${localOnly.length} up`);
+  } catch (error) {
+    log.debug(`progress sync skipped: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 function wireProgress(path: string): void {
@@ -198,6 +230,14 @@ function init(): void {
   const done = readDone();
   applyDoneTicks(document, done);
   wireNavDrawer(done);
+
+  // Signed-in readers reconcile with the account's progress — now, and again whenever auth adopts
+  // late (the store fetches its config async, so `isAuthed()` is often false on first paint). A
+  // problem the reader was excluded from marking still gets its tick here, from an accepted submission.
+  if (isAuthed()) void syncFromServer(done);
+  window.addEventListener(AUTH_CHANGED, () => {
+    if (isAuthed()) void syncFromServer(done);
+  });
 
   if (path) {
     visit(path);

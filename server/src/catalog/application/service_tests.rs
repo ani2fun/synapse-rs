@@ -100,6 +100,15 @@ fn fixture() -> StubRepo {
             "the editorial".to_owned(),
         ),
         (
+            // One sample case + one hidden judge case — the sidecar the judge reads in full.
+            "01-learn/02-dsa/02-lists/01-singly.tests.json".to_owned(),
+            r#"{"args":[{"id":"n","label":"n","type":"int"}],"cases":[
+                {"args":{"n":"1"},"expected":"a","sample":true},
+                {"args":{"n":"2"},"expected":"hidden"}
+            ]}"#
+            .to_owned(),
+        ),
+        (
             "01-learn/02-dsa/02-lists/02-doubly.md".to_owned(),
             "doubly body".to_owned(),
         ),
@@ -175,6 +184,33 @@ async fn problem_lessons_join_their_editorial_sidecar() {
         .unwrap();
     assert_eq!(lesson.frontmatter.kind.as_deref(), Some("problem"));
     assert_eq!(lesson.editorial.as_deref(), Some("the editorial"));
+}
+
+#[tokio::test]
+async fn problem_lessons_serve_only_their_sample_tests() {
+    let service = CatalogService::new(fixture());
+    let lesson = service
+        .lesson(&path(&["learn", "dsa", "lists", "singly"]))
+        .await
+        .unwrap();
+    let tests = lesson.sample_tests.expect("a problem with a .tests.json sidecar");
+    assert_eq!(tests.cases.len(), 1, "only the sample case is served");
+    assert_eq!(tests.cases[0].args["n"], "1");
+    assert!(!tests.cases[0].sample, "the served marker is cleared");
+    // The hidden judge case (and its expected output) never reaches the payload.
+    assert!(
+        tests
+            .cases
+            .iter()
+            .all(|c| c.expected.as_deref() != Some("hidden"))
+    );
+}
+
+#[tokio::test]
+async fn non_problem_lessons_have_no_sample_tests() {
+    let service = CatalogService::new(fixture());
+    let lesson = service.lesson(&path(&["learn", "dsa", "intro"])).await.unwrap();
+    assert_eq!(lesson.sample_tests, None);
 }
 
 #[tokio::test]

@@ -90,6 +90,22 @@ impl ProblemTests for FakeTests {
     }
 }
 
+/// Captures every `(user_id, lesson_path)` an accepted submission recorded. The `Arc`d interior
+/// lets a test keep a probe after the recorder moves into the service.
+#[derive(Default, Clone)]
+struct FakeSolvedRecorder {
+    solved: Arc<Mutex<Vec<(String, String)>>>,
+}
+
+impl SolvedRecorder for FakeSolvedRecorder {
+    async fn record_solved(&self, user_id: &str, lesson_path: &str) {
+        self.solved
+            .lock()
+            .unwrap()
+            .push((user_id.to_owned(), lesson_path.to_owned()));
+    }
+}
+
 /// The in-memory allowlist: a fixed set of lowercase usernames (the gate's side; the
 /// management verbs are exercised by the admin route ITs with their own fake).
 struct FakeAllowlist(Vec<&'static str>);
@@ -165,12 +181,13 @@ fn spec(expected: &[Option<&str>]) -> TestSpec {
             .map(|(i, e)| TestCase {
                 args: BTreeMap::from([("n".to_owned(), i.to_string())]),
                 expected: e.map(str::to_owned),
+                sample: false,
             })
             .collect(),
     }
 }
 
-type TestService = SubmitSolution<FakeRepo, FakeTests, ScriptedRunner, FakeAllowlist>;
+type TestService = SubmitSolution<FakeRepo, FakeTests, ScriptedRunner, FakeAllowlist, FakeSolvedRecorder>;
 
 fn service_gated(
     suite: Option<TestSpec>,
@@ -178,19 +195,32 @@ fn service_gated(
     allowlist: FakeAllowlist,
     enforced: bool,
 ) -> (TestService, ScriptedRunner) {
+    let (svc, probe, _) = service_full(suite, replies, allowlist, enforced);
+    (svc, probe)
+}
+
+/// The full builder — also hands back the solved-progress probe. `service_gated`/`service` drop it.
+fn service_full(
+    suite: Option<TestSpec>,
+    replies: Vec<Result<RunResult, ExecutionError>>,
+    allowlist: FakeAllowlist,
+    enforced: bool,
+) -> (TestService, ScriptedRunner, FakeSolvedRecorder) {
     let runner = ScriptedRunner {
         replies: Arc::new(Mutex::new(replies)),
         ..ScriptedRunner::default()
     };
     let probe = runner.clone();
+    let recorder = FakeSolvedRecorder::default();
     let svc = SubmitSolution::new(
         Arc::new(FakeRepo::default()),
         Arc::new(FakeTests(suite)),
         Arc::new(RunCodeService::new(runner)),
         Arc::new(allowlist),
         enforced,
+        Arc::new(recorder.clone()),
     );
-    (svc, probe)
+    (svc, probe, recorder)
 }
 
 fn service(
@@ -328,6 +358,54 @@ async fn judge_and_complete_walks_judging_then_completed_and_never_sticks() {
     assert!(stored.state.is_completed());
 }
 
+fn row(user_id: Option<&str>) -> Submission {
+    Submission {
+        id: SubmissionId(Uuid::new_v4()),
+        lesson_path: path(),
+        language: "python".into(),
+        source: "src".into(),
+        user_id: user_id.map(str::to_owned),
+        created_at: Utc::now(),
+        state: SubmissionState::Pending,
+    }
+}
+
+#[tokio::test]
+async fn an_accepted_submission_records_the_signed_in_solver_progress() {
+    let (svc, _, recorder) = service_full(None, vec![ok_run("0")], FakeAllowlist(vec![]), false);
+    let submission = row(Some("sub-1"));
+    svc.repo.save(&submission).await.unwrap();
+    svc.judge_and_complete(submission, spec(&[Some("0")])).await;
+    // The lesson path is recorded `/`-joined, keyed by the caller's opaque sub — exactly once.
+    assert_eq!(
+        recorder.solved.lock().unwrap().clone(),
+        vec![("sub-1".to_owned(), "dsa/two-sum".to_owned())]
+    );
+}
+
+#[tokio::test]
+async fn anonymous_or_rejected_submissions_record_no_progress() {
+    // Accepted but anonymous → nobody to attribute the solve to.
+    let (svc, _, recorder) = service_full(None, vec![ok_run("0")], FakeAllowlist(vec![]), false);
+    let anon = row(None);
+    svc.repo.save(&anon).await.unwrap();
+    svc.judge_and_complete(anon, spec(&[Some("0")])).await;
+    assert!(
+        recorder.solved.lock().unwrap().is_empty(),
+        "anonymous solves record nothing"
+    );
+
+    // Signed in but the suite rejects → not solved, so nothing is recorded.
+    let (svc2, _, recorder2) = service_full(None, vec![ok_run("wrong")], FakeAllowlist(vec![]), false);
+    let failed = row(Some("sub-2"));
+    svc2.repo.save(&failed).await.unwrap();
+    svc2.judge_and_complete(failed, spec(&[Some("0")])).await;
+    assert!(
+        recorder2.solved.lock().unwrap().is_empty(),
+        "a rejection is not a completion"
+    );
+}
+
 #[tokio::test]
 async fn gating_off_lets_anyone_submit() {
     // The dev default: open instance — anonymous and unlisted both save.
@@ -400,74 +478,9 @@ async fn get_unknown_is_unknown_submission() {
     assert!(matches!(err, SubmissionError::UnknownSubmission(_)));
 }
 
-// ── boot-time reconciliation ──────────────────────────────────────────────────
-
-fn unfinished_row(state: SubmissionState, age: Duration) -> Submission {
-    Submission {
-        id: SubmissionId(Uuid::new_v4()),
-        lesson_path: path(),
-        language: "python".into(),
-        source: "src".into(),
-        user_id: None,
-        created_at: Utc::now() - age,
-        state,
-    }
-}
-
-#[tokio::test]
-async fn reconcile_completes_rows_a_dead_process_left_judging() {
-    let (svc, _) = service(Some(spec(&[Some("0"), Some("1")])), vec![]);
-    let orphan = unfinished_row(SubmissionState::Judging, Duration::minutes(30));
-    svc.repo.save(&orphan).await.unwrap();
-
-    let healed = svc.reconcile_unfinished(Duration::minutes(10)).await.unwrap();
-
-    assert_eq!(healed, 1);
-    let row = svc.get(orphan.id).await.unwrap();
-    // Terminal, and honest about why — the client's poll can stop.
-    match row.state {
-        SubmissionState::Completed {
-            outcome:
-                SuiteOutcome::JudgeFailed {
-                    passed,
-                    total,
-                    detail,
-                },
-            ..
-        } => {
-            assert_eq!(
-                (passed, total),
-                (0, 2),
-                "the suite size rides along for the 0/N verdict"
-            );
-            assert!(detail.contains("restart"), "detail explains itself: {detail}");
-        }
-        other => panic!("expected a JudgeFailed completion, got {other:?}"),
-    }
-}
-
-#[tokio::test]
-async fn reconcile_spares_a_run_that_may_still_be_in_flight() {
-    let (svc, _) = service(Some(spec(&[Some("0")])), vec![]);
-    // Younger than the grace window: another replica could legitimately still be judging it.
-    let fresh = unfinished_row(SubmissionState::Judging, Duration::seconds(5));
-    svc.repo.save(&fresh).await.unwrap();
-
-    let healed = svc.reconcile_unfinished(Duration::minutes(10)).await.unwrap();
-
-    assert_eq!(healed, 0);
-    assert_eq!(svc.get(fresh.id).await.unwrap().state, SubmissionState::Judging);
-}
-
-#[tokio::test]
-async fn reconcile_leaves_completed_rows_alone() {
-    let (svc, _) = service(Some(spec(&[Some("0")])), vec![]);
-    let done = unfinished_row(SubmissionState::Judging, Duration::minutes(30))
-        .completed(SuiteOutcome::Accepted { total: 1 }, Utc::now());
-    svc.repo.save(&done).await.unwrap();
-
-    let healed = svc.reconcile_unfinished(Duration::minutes(10)).await.unwrap();
-
-    assert_eq!(healed, 0);
-    assert!(svc.get(done.id).await.unwrap().state.is_completed());
-}
+// Boot-time reconciliation lives in the child module `service_tests/reconcile.rs` (it shares the
+// fakes + builders above via `super`) so this file stays under the 500-line cap. The explicit
+// `#[path]` is needed because this file is itself `#[path]`-loaded — submodule resolution would
+// otherwise look beside `mod.rs`, not beside this file.
+#[path = "service_tests/reconcile.rs"]
+mod reconcile;

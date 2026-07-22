@@ -10,6 +10,7 @@ pub mod execution;
 pub mod identity;
 pub mod insights;
 pub mod platform;
+pub mod progress;
 pub mod submission;
 pub mod tutoring;
 
@@ -64,6 +65,10 @@ pub struct AppDeps<
     pub allowlist: Arc<L>,
     /// Readership: the catalog records into it, the admin panel reads it.
     pub views: Arc<V>,
+    /// Per-user completion: the reader syncs its ✓ ticks here, an accepted submission records
+    /// into it, and `/account`'s "Reset progress" clears it. Concrete (one Postgres store) —
+    /// no test fakes it through the router, unlike the three generic ports above.
+    pub progress: Arc<progress::PostgresProblemProgress>,
     /// The Astro SSR sidecar serving the pages. `Some` mounts `astro_proxy` as the router
     /// FALLBACK (registered routes always win); `None` (dev without a web tier) serves the
     /// API alone with a plain-text pointer at `/`.
@@ -118,6 +123,10 @@ where
         identity: Arc::clone(&deps.ident.identity),
         admin_users: Arc::clone(&deps.ident.admin_users),
     };
+    let progress_state = progress::http::ProgressRoutesState {
+        progress: deps.progress,
+        identity: Arc::clone(&deps.ident.identity),
+    };
     let catalog_state = catalog::http::routes::CatalogRoutesState {
         service: deps.catalog,
         views: deps.views,
@@ -131,6 +140,7 @@ where
         .merge(blog::http::routes(deps.blog))
         .merge(submission::http::admin::routes(admin))
         .merge(insights::http::routes(readership))
+        .merge(progress::http::routes(progress_state))
         .merge(tutoring::http::routes(deps.tutor))
         .layer(axum::middleware::from_fn(platform::content_cache_control::stamp))
         .merge(media.routes())
@@ -203,6 +213,9 @@ where
         submission::http::admin::grant_allowlist,
         submission::http::admin::revoke_allowlist,
         insights::http::list_lesson_views,
+        progress::http::mark_progress,
+        progress::http::list_progress,
+        progress::http::reset_progress,
         tutoring::http::tutor_config,
         tutoring::http::tutor_chat
     ),
@@ -221,6 +234,11 @@ where
         ChapterDto,
         LessonPayloadDto,
         ComponentDocDto,
+        // Reached only through `LessonPayloadDto.tests` — list them so the `$ref` resolves for
+        // `openapi-typescript` (a stricter reader than the contract-lock test).
+        synapse_shared::execution::ArgSpec,
+        synapse_shared::execution::TestCase,
+        synapse_shared::execution::TestSpec,
         RunRequest,
         RunResult,
         SubmitRequestDto,
@@ -234,6 +252,8 @@ where
         AllowlistEntryDto,
         GrantRequestDto,
         LessonViewDto,
+        synapse_shared::progress::ProgressListDto,
+        synapse_shared::progress::MarkProgressRequestDto,
         synapse_shared::tutor::ChatMessage,
         synapse_shared::tutor::TutorConfigDto,
         synapse_shared::tutor::TutorChatRequestDto,

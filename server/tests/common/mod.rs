@@ -15,9 +15,10 @@ use synapse_server::identity::application::IdentityService;
 use synapse_server::identity::http::IdentityRoutesState;
 use synapse_server::identity::infrastructure::{JwksTokenVerifier, KeycloakAdminClient};
 use synapse_server::platform::rate_limiter::{RateLimitBucket, RateLimiter};
+use synapse_server::progress::PostgresProblemProgress;
 use synapse_server::submission::application::SubmitSolution;
 use synapse_server::submission::infrastructure::{
-    FsProblemTests, PostgresSubmissionAllowlist, PostgresSubmissionRepository,
+    FsProblemTests, PostgresSubmissionAllowlist, PostgresSubmissionRepository, ProgressRecorderAdapter,
 };
 use synapse_server::tutoring::application::TutoringService;
 use synapse_server::tutoring::http::TutorRoutesState;
@@ -99,6 +100,7 @@ where
         ident: base.ident,
         blog: base.blog,
         limiter: base.limiter,
+        progress: base.progress,
         astro_url: base.astro_url,
         site_url: base.site_url,
         content_root: base.content_root,
@@ -122,6 +124,7 @@ pub fn deps_with(
     let readiness = Arc::new(synapse_server::platform::readiness::PgReadiness::new(
         pool.clone(),
     ));
+    let progress = Arc::new(PostgresProblemProgress::new(pool.clone()));
     // Gate OFF (the dev default) — the gate tests exercise it over in-memory fakes.
     let submit = Arc::new(SubmitSolution::new(
         Arc::new(PostgresSubmissionRepository::new(pool)),
@@ -132,6 +135,7 @@ pub fn deps_with(
         Arc::clone(&runner),
         Arc::clone(&allowlist),
         false,
+        Arc::new(ProgressRecorderAdapter::new(Arc::clone(&progress))),
     ));
     let ident = IdentityRoutesState {
         identity: Arc::new(IdentityService::new(
@@ -150,6 +154,7 @@ pub fn deps_with(
         ident,
         allowlist,
         views,
+        progress,
         // The dev default: coach OFF — chat is a structural 404 (the tutor ITs build their own).
         tutor: TutorRoutesState {
             service: Arc::new(TutoringService::new(OllamaTutorClient::new(

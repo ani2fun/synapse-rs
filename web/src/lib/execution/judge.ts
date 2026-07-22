@@ -1,8 +1,10 @@
 // The authored test suite + pure judging — mirrors `judge` + `stdin_for` in
 // shared/src/execution/test_run.rs, used by BOTH the server and the workbench island.
-// `ArgSpec`/`TestCase`/`TestSpec` never cross the wire through a utoipa-documented endpoint
-// (unlike `RunResult`/`RunStatus`, which live in `../api/schema.gen`), so they are defined here
-// rather than generated — this module is their TS home, same as `test_run.rs` is their Rust one.
+// This hand-written `ArgSpec`/`TestCase`/`TestSpec` is the workbench's JUDGING vocabulary and its
+// TS home, same as `test_run.rs` is their Rust one. A SAMPLE projection of `TestSpec` also crosses
+// the wire on `LessonPayloadDto.tests` (the generated `components["schemas"]["TestSpec"]` in
+// `../api/schema.gen`); `islands/problem` parses that payload back into this structurally identical
+// shape, so the two stay in lock-step by design.
 //
 // Kept in lock-step with the Rust twin by `shared/test-vectors/judge-vectors.json`: both
 // `judge.test.ts` (here) and `shared/src/execution/judge_vectors_test.rs` run the SAME vectors,
@@ -22,10 +24,13 @@ export interface ArgSpec {
   placeholder?: string | null;
 }
 
-/** One authored case: values per declared arg + the optional expected stdout. */
+/** One authored case: values per declared arg + the optional expected stdout. `sample` marks a
+ *  browser-visible case; hidden judge cases never reach the client, so every case in a parsed
+ *  payload is a sample and the flag is informational here (the workbench judges every case it holds). */
 export interface TestCase {
   args: Record<string, string>;
   expected?: string | null;
+  sample?: boolean | null;
 }
 
 /** The whole authored suite (a testcases fence or a `.tests.json` sidecar). */

@@ -27,16 +27,17 @@ use crate::platform::rate_limiter::RateLimiter;
 use crate::submission::application::{SubmitSolution, Submitter};
 use crate::submission::domain::SubmissionId;
 use crate::submission::infrastructure::{
-    FsProblemTests, PostgresSubmissionAllowlist, PostgresSubmissionRepository,
+    FsProblemTests, PostgresSubmissionAllowlist, PostgresSubmissionRepository, ProgressRecorderAdapter,
 };
 
 /// The production wiring: Postgres store · filesystem suites · the go-judge-backed runner ·
-/// the Postgres allowlist.
+/// the Postgres allowlist · the progress recorder (an accepted submission marks the lesson done).
 pub type LiveSubmitSolution = SubmitSolution<
     PostgresSubmissionRepository,
     FsProblemTests<FileSystemContentRepository>,
     GoJudgeRunner,
     PostgresSubmissionAllowlist,
+    ProgressRecorderAdapter<crate::progress::PostgresProblemProgress>,
 >;
 
 #[derive(Clone)]

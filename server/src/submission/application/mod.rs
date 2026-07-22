@@ -102,9 +102,18 @@ pub trait ProblemTests: Send + Sync {
     ) -> impl Future<Output = Result<Option<TestSpec>, SubmissionError>> + Send;
 }
 
+/// A cross-context hook: an ACCEPTED submission marks its lesson complete in the caller's progress.
+/// The submission context defines this narrow port; the `progress` context supplies the adapter, so
+/// neither reaches into the other's internals and the submission domain stays pure. Fire-and-forget
+/// by contract — the recorder owns its own failure policy, because a progress-store hiccup must
+/// never fail (or slow the honesty of) judging.
+pub trait SolvedRecorder: Send + Sync {
+    fn record_solved(&self, user_id: &str, lesson_path: &str) -> impl Future<Output = ()> + Send;
+}
+
 /// Submit → 202 → background judge → poll. Cloning shares the same adapters (`Arc`s), which is
 /// what lets the judge run as a DETACHED task outliving the request.
-pub struct SubmitSolution<Repo, Tests, R: CodeRunner, List> {
+pub struct SubmitSolution<Repo, Tests, R: CodeRunner, List, Notify> {
     repo: Arc<Repo>,
     tests: Arc<Tests>,
     runner: Arc<RunCodeService<R>>,
@@ -112,9 +121,12 @@ pub struct SubmitSolution<Repo, Tests, R: CodeRunner, List> {
     /// Dev/personal instances stay open (default false); prod flips it on
     /// (`SUBMISSION_ALLOWLIST_ENFORCED`) — saving uses shared compute + storage.
     allowlist_enforced: bool,
+    /// An ACCEPTED submission marks its lesson complete here (fire-and-forget). The production
+    /// wiring bridges this to the `progress` context; tests pass a no-op.
+    solved: Arc<Notify>,
 }
 
-impl<Repo, Tests, R: CodeRunner, List> Clone for SubmitSolution<Repo, Tests, R, List> {
+impl<Repo, Tests, R: CodeRunner, List, Notify> Clone for SubmitSolution<Repo, Tests, R, List, Notify> {
     fn clone(&self) -> Self {
         Self {
             repo: Arc::clone(&self.repo),
@@ -122,16 +134,18 @@ impl<Repo, Tests, R: CodeRunner, List> Clone for SubmitSolution<Repo, Tests, R, 
             runner: Arc::clone(&self.runner),
             allowlist: Arc::clone(&self.allowlist),
             allowlist_enforced: self.allowlist_enforced,
+            solved: Arc::clone(&self.solved),
         }
     }
 }
 
-impl<Repo, Tests, R, List> SubmitSolution<Repo, Tests, R, List>
+impl<Repo, Tests, R, List, Notify> SubmitSolution<Repo, Tests, R, List, Notify>
 where
     Repo: SubmissionRepository + Send + Sync + 'static,
     Tests: ProblemTests + Send + Sync + 'static,
     R: CodeRunner + Send + Sync + 'static,
     List: SubmissionAllowlist + Send + Sync + 'static,
+    Notify: SolvedRecorder + Send + Sync + 'static,
 {
     pub fn new(
         repo: Arc<Repo>,
@@ -139,6 +153,7 @@ where
         runner: Arc<RunCodeService<R>>,
         allowlist: Arc<List>,
         allowlist_enforced: bool,
+        solved: Arc<Notify>,
     ) -> Self {
         Self {
             repo,
@@ -146,6 +161,7 @@ where
             runner,
             allowlist,
             allowlist_enforced,
+            solved,
         }
     }
 
@@ -284,8 +300,16 @@ where
                 detail: error.to_string(),
             },
         };
+        let accepted = matches!(outcome, SuiteOutcome::Accepted { .. });
         if let Err(error) = self.repo.update(&submission.completed(outcome, Utc::now())).await {
             tracing::warn!(id = %submission.id, %error, "could not record the outcome");
+        }
+        // An accepted attempt promotes the lesson into the SIGNED-IN caller's progress
+        // (fire-and-forget). Anonymous rows belong to nobody, so they record nothing.
+        if accepted && let Some(user_id) = submission.user_id.as_deref() {
+            self.solved
+                .record_solved(user_id, &submission.lesson_path.join("/"))
+                .await;
         }
     }
 

@@ -3,6 +3,7 @@
 
 use std::sync::Arc;
 
+use synapse_shared::execution::TestSpec;
 use tokio::sync::RwLock;
 
 use crate::catalog::application::content_repository::{ContentError, ContentRepository};
@@ -78,6 +79,9 @@ impl<R: ContentRepository> CatalogService<R> {
         let editorial = self
             .editorial_for(file_path, parsed.frontmatter.kind.as_deref())
             .await?;
+        let sample_tests = self
+            .sample_tests_for(file_path, parsed.frontmatter.kind.as_deref())
+            .await?;
 
         let reading_order = resolver::lessons_in_reading_order(book);
         let position = reading_order.iter().position(|(p, _)| *p == in_book_path);
@@ -96,6 +100,7 @@ impl<R: ContentRepository> CatalogService<R> {
             prev_path,
             next_path,
             editorial,
+            sample_tests,
         })
     }
 
@@ -149,6 +154,30 @@ impl<R: ContentRepository> CatalogService<R> {
         let stem = lesson_file.strip_suffix(".md").unwrap_or(lesson_file);
         match self.repo.read_lesson(&format!("{stem}.editorial.md")).await {
             Ok(text) => Ok(Some(text)),
+            Err(ContentError::NotFound(_)) => Ok(None),
+            Err(other) => Err(other),
+        }
+    }
+
+    /// A `kind: problem` lesson's `<lesson>.tests.json` sidecar, projected to its SAMPLE cases —
+    /// the only testcases the browser may see. The full suite stays server-side with the judge
+    /// (`FsProblemTests` reads the same file for grading). Absent sidecar (or a non-problem lesson)
+    /// → `None`; a malformed sidecar is a loud `Io` error, the same authoring bug the judge hits.
+    async fn sample_tests_for(
+        &self,
+        lesson_file: &str,
+        kind: Option<&str>,
+    ) -> Result<Option<TestSpec>, ContentError> {
+        if kind != Some("problem") {
+            return Ok(None);
+        }
+        let stem = lesson_file.strip_suffix(".md").unwrap_or(lesson_file);
+        match self.repo.read_lesson(&format!("{stem}.tests.json")).await {
+            Ok(text) => {
+                let spec: TestSpec = serde_json::from_str(&text)
+                    .map_err(|err| ContentError::Io(format!("invalid {stem}.tests.json: {err}")))?;
+                Ok(Some(spec.samples()))
+            }
             Err(ContentError::NotFound(_)) => Ok(None),
             Err(other) => Err(other),
         }

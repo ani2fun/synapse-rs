@@ -194,7 +194,12 @@ const difficulty = payload?.frontmatter.difficulty ?? null;
   {
     mode === "problem" && payload && (
       <main class="shell-main">
-        <div class="pwb not-prose" data-problem>
+        {/* data-sample-tests carries the SAMPLE testcases (server-filtered from the tests.json
+            sidecar; hidden judge cases never ship). The description markdown no longer holds a
+            testcases fence, so islands/problem reads the workbench suite from here. Empty when
+            a lesson has none. (Keep this comment apostrophe-free: an apostrophe inside a JSX
+            expression comment breaks the dev-mode script extraction.) */}
+        <div class="pwb not-prose" data-problem data-sample-tests={payload.tests ? encodeURIComponent(JSON.stringify(payload.tests)) : ""}>
           <nav class="pwb__crumbs" aria-label="Breadcrumb">
             <a class="pwb__crumb" href="/">
               Home

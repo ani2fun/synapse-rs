@@ -93,6 +93,7 @@ pub fn to_payload(content: &LessonContent) -> LessonPayloadDto {
         prev: content.prev_path.as_deref().map(full),
         next: content.next_path.as_deref().map(full),
         editorial: content.editorial.clone(),
+        tests: content.sample_tests.clone(),
     }
 }
 

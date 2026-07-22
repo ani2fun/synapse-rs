@@ -20,6 +20,8 @@ import * as log from "../lib/log";
 // re-walking the whole catalog tree per card; the continue card resolves its book through
 // `bookOf` the same way.
 import * as storage from "../lib/storage";
+import * as api from "../lib/api/client";
+import { AUTH_CHANGED, isAuthed } from "./workbench/contracts";
 import { completedCount, parse as parseDone } from "../lib/catalog/progress";
 import { bookOf, findBook, readingOrder } from "../lib/catalog/tree";
 import type { SynapseIndex } from "../lib/api/client";
@@ -45,11 +47,13 @@ function injectProgressChips(index: SynapseIndex, done: Set<string>): void {
     if (!book) continue;
     const total = readingOrder(book).length;
     const count = completedCount(book, done);
-    if (count <= 0 || total <= 0) continue;
 
     const footer = card.querySelector(".lib-card__footer");
     const cta = footer?.querySelector(".lib-card__cta");
     if (!footer || !cta) continue;
+    // Idempotent: a re-inject (after the signed-in server merge) replaces the device-only chip.
+    footer.querySelector(".lib-card__progress")?.remove();
+    if (count <= 0 || total <= 0) continue;
 
     const chip = document.createElement("span");
     chip.className = count === total ? "lib-card__progress lib-card__progress--all" : "lib-card__progress";
@@ -105,6 +109,25 @@ function wireStartReading(): void {
   });
 }
 
+/** Merge the signed-in reader's account progress into the chips (now or when auth adopts late).
+ *  Anonymous → `listProgress` returns `[]`, a no-op; the device chips already showed. */
+function syncChipsFromServer(index: SynapseIndex, done: Set<string>): void {
+  if (!isAuthed()) return;
+  void api
+    .listProgress()
+    .then((server) => {
+      let added = false;
+      for (const path of server) {
+        if (!done.has(path)) {
+          done.add(path);
+          added = true;
+        }
+      }
+      if (added) injectProgressChips(index, done);
+    })
+    .catch((error) => log.debug(`library progress sync skipped: ${error instanceof Error ? error.message : String(error)}`));
+}
+
 function init(): void {
   wireStartReading();
   const index = readIndex();
@@ -112,6 +135,8 @@ function init(): void {
   const done = parseDone(storage.get(storage.READER_PROGRESS_KEY));
   injectProgressChips(index, done);
   renderContinueCard(index);
+  syncChipsFromServer(index, done);
+  window.addEventListener(AUTH_CHANGED, () => syncChipsFromServer(index, done));
 }
 
 if (document.readyState === "loading") {

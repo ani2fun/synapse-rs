@@ -184,9 +184,19 @@ export async function eraseSubmissions(): Promise<number> {
   return result.deleted;
 }
 
-/** Erase server data AND this browser's reading state, then reload. */
+/** Reset the caller's completion progress — clears the ✓ ticks BOTH server-side and in this
+ *  browser's local set. Submissions are untouched (this is not "erase my data"). Returns the
+ *  server row count removed. */
+export async function resetProgress(): Promise<number> {
+  const result = await api.resetProgress();
+  storage.remove(storage.READER_PROGRESS_KEY);
+  return result.deleted;
+}
+
+/** Erase server data (submissions + progress) AND this browser's reading state, then reload. */
 export async function eraseAllData(): Promise<void> {
   await api.eraseSubmissions();
+  await api.resetProgress();
   clearReaderStorage();
   window.location.reload();
 }
@@ -194,6 +204,7 @@ export async function eraseAllData(): Promise<void> {
 /** Erase → delete → sign out; any failed leg throws before the next, stopping the chain. */
 export async function deleteAccount(): Promise<void> {
   await api.eraseSubmissions();
+  await api.resetProgress();
   await api.deleteMe();
   clearReaderStorage();
   signOut();

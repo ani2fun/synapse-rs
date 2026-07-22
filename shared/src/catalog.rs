@@ -5,6 +5,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::execution::TestSpec;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(tag = "kind", rename_all = "lowercase")]
@@ -107,7 +109,9 @@ pub struct LessonFrontmatterDto {
 }
 
 /// The lesson the reader renders. `raw` = the markdown body, fence stripped; `prev`/`next` are
-/// ready-to-navigate FULL paths (`category…/book/chapter…/lesson`), null at book ends.
+/// ready-to-navigate FULL paths (`category…/book/chapter…/lesson`), null at book ends. `tests`
+/// carries ONLY the sample cases for a `kind: problem` lesson (the workbench sources them from
+/// here now that the description markdown no longer duplicates a `testcases` fence); null otherwise.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "camelCase")]
@@ -119,6 +123,7 @@ pub struct LessonPayloadDto {
     pub prev: Option<String>,
     pub next: Option<String>,
     pub editorial: Option<String>,
+    pub tests: Option<TestSpec>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -237,6 +237,12 @@ function d2Transform() {
  * and the raw fence stays. Every other fence is a static highlighted block
  * via the default handler → rehype-pretty-code.
  *
+ * NOTE: standalone `kind: problem` descriptions no longer carry a ```testcases
+ * fence — their SAMPLE suite arrives on the payload (`LessonPayloadDto.tests`
+ * → the page's `data-sample-tests`, read by `islands/problem`). The `data-spec`
+ * splice here stays for inline lessons that still co-locate run + testcases
+ * fences (the OOP / authoring-reference pages).
+ *
  * **Solution fences** — ```lang solution time=O(…) space=O(…) — group
  * adjacently the same way into one spoiler-safe `<div class="solution-block"
  * data-variants data-metas>` placeholder the client reveals on demand. A

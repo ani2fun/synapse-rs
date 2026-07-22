@@ -3,10 +3,9 @@
 // after hydration — book slugs are globally unique (tree.ts's `findBook` test), so a single
 // attribute is enough to re-resolve the book without re-walking the whole catalog tree per card.
 //
-// The "N/M read" progress chip is deliberately ABSENT from this markup: it is injected
-// client-side by islands/library.ts once localStorage resolves. SSR has no reading history to
-// show — "nothing until there is something to report" rule, run after hydration rather than
-// inline here.
+// The progress bar is deliberately ABSENT from this markup: it is injected client-side into the
+// footer by islands/library.ts once localStorage resolves. SSR has no reading history to show —
+// "nothing until there is something to report" rule, run after hydration rather than inline here.
 import { chapterCount, firstLessonPath, lessonCount } from "../lib/catalog/tree";
 import type { components } from "../lib/api/schema.gen";
 
@@ -30,12 +29,24 @@ metaParts.push(`${lessons} ${plural(lessons, "lesson")}`);
 if (book.estimatedReadingMinutes != null) metaParts.push(`~${book.estimatedReadingMinutes} min`);
 const meta = metaParts.join(" · ");
 const tags = book.tags.slice(0, 3);
+const primaryTag = tags.length > 0 ? tags[0] : null;
 const path = firstLessonPath(book);
 ---
 
 {
   path ? (
     <a class="lib-card" href={`/synapse/${path}`} data-book-slug={book.slug}>
+      <div class="lib-card__top">
+        <span class="lib-card__tile" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 0 4 22.5z" />
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          </svg>
+        </span>
+        {primaryTag && <span class="lib-card__badge">{primaryTag}</span>}
+      </div>
+      <div class="lib-card__title">{book.title}</div>
+      {book.description && <p class="lib-card__desc">{book.description}</p>}
       <div class="lib-card__meta">
         <svg
           class="lib-card__meta-ic"
@@ -54,12 +65,7 @@ const path = firstLessonPath(book);
         </svg>
         <span>{meta}</span>
       </div>
-      <div class="lib-card__title">{book.title}</div>
-      {book.description && <p class="lib-card__desc">{book.description}</p>}
       <div class="lib-card__footer">
-        {tags.map((tag) => (
-          <span class="lib-card__tag">{tag}</span>
-        ))}
         <span class="lib-card__cta">
           Read
           <svg
@@ -81,6 +87,17 @@ const path = firstLessonPath(book);
     </a>
   ) : (
     <div class="lib-card lib-card--empty" data-book-slug={book.slug}>
+      <div class="lib-card__top">
+        <span class="lib-card__tile" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 0 4 22.5z" />
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          </svg>
+        </span>
+        {primaryTag && <span class="lib-card__badge">{primaryTag}</span>}
+      </div>
+      <div class="lib-card__title">{book.title}</div>
+      {book.description && <p class="lib-card__desc">{book.description}</p>}
       <div class="lib-card__meta">
         <svg
           class="lib-card__meta-ic"
@@ -99,12 +116,7 @@ const path = firstLessonPath(book);
         </svg>
         <span>{meta}</span>
       </div>
-      <div class="lib-card__title">{book.title}</div>
-      {book.description && <p class="lib-card__desc">{book.description}</p>}
       <div class="lib-card__footer">
-        {tags.map((tag) => (
-          <span class="lib-card__tag">{tag}</span>
-        ))}
         <span class="lib-card__cta">
           Read
           <svg

@@ -1,6 +1,7 @@
 import * as log from "../lib/log";
 // The reader's post-hydration chrome: done-ticks on the sidebar, reading-progress WRITES, the
-// mobile nav drawer, and reflecting saved reading-preferences onto `<html>`. Vanilla TS, same
+// book-progress indicators (rail card + sidebar bar), the mobile nav drawer, and reflecting saved
+// reading-preferences onto `<html>`. Vanilla TS, same
 // reasoning as `islands/library.ts` — the SSR page is plain HTML and every job here is either
 // `localStorage` (no SSR equivalent) or a scroll/click listener, so there is nothing for a
 // component framework to hydrate INTO. This island loads on EVERY lesson page, including problem
@@ -9,14 +10,17 @@ import * as log from "../lib/log";
 // Built on the pure `progress.ts`/`prefs.ts` helpers:
 //   - done-ticks + the `--active`/`--done` classes (the exact class list, `.reader-sidebar__tick`
 //     span, `aria-label="Finished"`).
+//   - book-progress painting: the rail card + the sidebar bar, counted from the sidebar's links
+//     and the done-set, re-painted after each server sync.
 //   - progress WRITES (`reader-last`, `reader-progress`): idempotent — a re-mark of an
 //     already-finished lesson writes nothing — driven by a scroll recompute + `progress.isAtEnd`.
 //   - the mobile drawer (FAB → scrim + drawer, closes on scrim/Escape/any nav-link tap via
 //     `closest("a")`).
 //   - prefs: the `applyToHtml` half only — the FAB editing UI itself lives in `islands/chrome.ts`.
 //
-// The Compact rail, the minimap, the sticky bar, the TOC FAB, and the reading-preferences FAB's
-// editing UI live in `islands/chrome.ts` (lesson pages only, not problem pages). Not implemented
+// The Compact rail, the on-this-page outline (desktop rail + mobile sheet), the top progress bar,
+// the scroll-top FAB, and the reading-preferences FAB's editing UI live in `islands/chrome.ts`
+// (lesson pages only, not problem pages). Not implemented
 // anywhere yet: focus mode, the sidebar filter box, and the Learn-browse toggle — none of the
 // e2e specs exercise them, and the SSR sidebar (`Sidebar.astro`/`SidebarTree.astro`) never
 // renders their markup, so there is nothing half-wired left inert.
@@ -77,6 +81,42 @@ function readDone(): Set<string> {
   return progress.parse(storage.get(storage.READER_PROGRESS_KEY));
 }
 
+/** Paint the book-progress indicators — the right-rail card and the sidebar bar — from the
+ *  done-set. The sidebar shows only the current book, so counting its links is an exact "N of M".
+ *  Re-run after each server sync (and each fresh tick) so the % follows the account, not just the
+ *  device. A no-op where neither indicator is present (e.g. the sidebar-less problem page). */
+function paintProgress(done: Set<string>): void {
+  const links = Array.from(
+    document.querySelectorAll<HTMLAnchorElement>(".reader-sidebar .reader-sidebar__link"),
+  );
+  const total = links.length;
+  if (total === 0) return;
+  let complete = 0;
+  for (const link of links) {
+    const path = lessonPathFromHref(link.getAttribute("href") ?? "");
+    if (path && done.has(path)) complete += 1;
+  }
+  const pct = Math.round((complete / total) * 100);
+
+  // The right-rail progress card.
+  const pctEl = document.querySelector("[data-progress-pct]");
+  if (pctEl) pctEl.textContent = `${pct}%`;
+  const subEl = document.querySelector("[data-progress-sub]");
+  if (subEl) subEl.textContent = `${complete}/${total} lessons`;
+  const fillEl = document.querySelector<HTMLElement>("[data-progress-fill]");
+  if (fillEl) fillEl.style.setProperty("--pct", `${pct}%`);
+
+  // The sidebar book-progress bar (rides into the mobile Contents drawer via the sidebar clone).
+  document.querySelectorAll<HTMLElement>("[data-book-progress]").forEach((box) => {
+    box.hidden = false;
+    box.querySelector<HTMLElement>("[data-book-progress-fill]")?.style.setProperty("--pct", `${pct}%`);
+    const lbl = box.querySelector("[data-book-progress-sub]");
+    if (lbl) lbl.textContent = `${complete} of ${total} lessons complete`;
+  });
+
+  log.debug(`reader: progress ${complete}/${total} (${pct}%)`);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PROGRESS WRITES
 // ─────────────────────────────────────────────────────────────────────────────
@@ -98,6 +138,7 @@ function markDone(path: string): void {
   // The just-finished lesson's own sidebar row gets its tick immediately, not only after the
   // next reload — matches marking-and-reading the same reactive set in one breath.
   applyDoneTicks(document, done);
+  paintProgress(done);
   // A signed-in reader's progress is the ACCOUNT's, not the device's — persist it so the tick
   // survives a cache wipe and follows them to another browser. Anonymous stays localStorage-only.
   if (isAuthed()) void api.markProgress(path);
@@ -120,6 +161,7 @@ async function syncFromServer(done: Set<string>): Promise<void> {
     if (added) {
       storage.set(storage.READER_PROGRESS_KEY, progress.serialize(done));
       applyDoneTicks(document, done);
+      paintProgress(done);
     }
     const onServer = new Set(server);
     const localOnly = [...done].filter((path) => !onServer.has(path));
@@ -215,6 +257,29 @@ function wireNavDrawer(done: Set<string>): void {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// TWO-MODE SIDEBAR (book contents ⇄ all-books browse)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** "Back to Main" flips the Expanded face from the current book's contents to the library browse
+ *  list (all books); the browse view's own back button flips it back. Delegated on `document`, so
+ *  one handler drives the desktop sidebar AND the cloned drawer (a clone carries no listeners). The
+ *  trigger is an `<a href="/">`, so without JS it still falls back to the library page. */
+function wireSidebarViewToggle(): void {
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const toggle = target.closest<HTMLElement>("[data-sidebar-view]");
+    if (!toggle) return;
+    const inner = toggle.closest<HTMLElement>(".reader-sidebar__inner");
+    if (!inner) return;
+    event.preventDefault();
+    const view = toggle.getAttribute("data-sidebar-view") ?? "book";
+    inner.setAttribute("data-view", view);
+    log.debug(`reader: sidebar view → ${view}`);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PREFS (`applyToHtml` half only)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -229,7 +294,9 @@ function init(): void {
   const path = currentLessonPath();
   const done = readDone();
   applyDoneTicks(document, done);
+  paintProgress(done);
   wireNavDrawer(done);
+  wireSidebarViewToggle();
 
   // Signed-in readers reconcile with the account's progress — now, and again whenever auth adopts
   // late (the store fetches its config async, so `isAuthed()` is often false on first paint). A

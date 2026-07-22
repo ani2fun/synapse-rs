@@ -28,7 +28,7 @@ import type { LessonPayload } from "../../lib/api/client";
 import { renderLesson } from "../../lib/markdown/render";
 import * as log from "../../lib/log";
 import { titleForLesson, SITE_NAME } from "../../lib/seo";
-import { bookOf, chapterProblems, problemContentSplit } from "../../lib/catalog/tree";
+import { allBooksOf, bookOf, chapterProblems, chapterTitleOf, problemContentSplit } from "../../lib/catalog/tree";
 import { DEFAULT_LEFT_PCT } from "../../lib/catalog/pane";
 import type { components } from "../../lib/api/schema.gen";
 
@@ -68,6 +68,9 @@ let descriptionHtml = "";
 let editorialMd = "";
 let counter: { problems: string[]; at: number } | null = null;
 let book: components["schemas"]["BookDto"] | null = null;
+// Every book in the catalog — the sidebar's "Back to Main" browse list (the design's two-mode
+// left rail: the current book's contents ⇄ all books). Empty if the index can't load.
+let allBooks: components["schemas"]["BookDto"][] = [];
 let errorMessage = "";
 
 try {
@@ -88,6 +91,7 @@ try {
   try {
     const index = await fetchIndex();
     book = bookOf(index, segments);
+    allBooks = allBooksOf(index);
     if (mode === "problem" && book) counter = chapterProblems(book, segments.join("/"));
   } catch {
     book = null;
@@ -120,6 +124,9 @@ const description = payload?.frontmatter.summary ?? undefined;
 
 const bookName = payload ? humanize(payload.book.slug) : "";
 const difficulty = payload?.frontmatter.difficulty ?? null;
+// The reader eyebrow: the chapter this lesson sits in, else the book title. The right rail's
+// "Up next" reuses payload.next (the same neighbour the pager already renders).
+const eyebrow = book ? (chapterTitleOf(book, segments.join("/")) ?? book.title) : null;
 ---
 
 <Base title={title} description={description} canonicalPath={isLesson ? canonicalPath : undefined}>
@@ -145,13 +152,11 @@ const difficulty = payload?.frontmatter.difficulty ?? null;
     mode === "lesson" && payload && (
       <main class="shell-main">
         <div class="reader-layout" data-sidebar="expanded">
-          <aside class="reader-sidebar">{book && <Sidebar book={book} currentPath={segments.join("/")} />}</aside>
+          <aside class="reader-sidebar">{book && <Sidebar book={book} books={allBooks} currentPath={segments.join("/")} />}</aside>
           <article class="reader-layout__main">
             <div class="lesson">
               <header class="lesson-header">
-                <a class="reader-prose__back" href="/">
-                  ← Library
-                </a>
+                {eyebrow && <p class="reader-prose__eyebrow">{eyebrow}</p>}
                 <h1 class="reader-prose__title">{payload.frontmatter.title}</h1>
                 {payload.frontmatter.summary && <p class="reader-prose__lede">{payload.frontmatter.summary}</p>}
               </header>
@@ -164,6 +169,34 @@ const difficulty = payload?.frontmatter.difficulty ?? null;
               </nav>
             </div>
           </article>
+
+          <aside class="reader-aside" aria-label="Reading aside">
+            <div class="reader-aside__card">
+              <span class="reader-aside__eyebrow">Your progress</span>
+              <div class="reader-aside__prog-top">
+                <span class="reader-aside__pct" data-progress-pct>0%</span>
+                <span class="reader-aside__prog-sub" data-progress-sub />
+              </div>
+              <div class="reader-bar"><div class="reader-bar__fill" data-progress-fill /></div>
+            </div>
+
+            {/* chrome.ts renders the "On this page" outline into here on desktop; on smaller
+                widths the rail is hidden and the TOC lives in the bottom-right sheet instead. */}
+            <nav class="reader-outline" aria-label="On this page" />
+
+            {payload.next && (
+              <a class="reader-aside__next" href={`/synapse/${payload.next}`}>
+                <span class="reader-aside__eyebrow">Up next</span>
+                <span class="reader-aside__next-title">{humanize(payload.next.split("/").pop() ?? payload.next)}</span>
+                <span class="reader-aside__next-go">
+                  Continue
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
+                </span>
+              </a>
+            )}
+          </aside>
         </div>
         <!-- OUTSIDE the reader grid on purpose: a sibling of `.reader-layout`, never its third
              grid child, or it becomes a phantom grid item at desktop width. The FAB itself is
@@ -345,7 +378,7 @@ const difficulty = payload?.frontmatter.difficulty ?? null;
         {book && (
           <div class="pwb-sidebar-src" hidden>
             <aside class="reader-sidebar">
-              <Sidebar book={book} currentPath={segments.join("/")} />
+              <Sidebar book={book} books={allBooks} currentPath={segments.join("/")} />
             </aside>
           </div>
         )}

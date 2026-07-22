@@ -10,14 +10,13 @@ import * as log from "../lib/log";
 //      controls;
 //   2. the reading-preferences FAB + popover — the pure parse/serialize/applyToHtml half lives in
 //      `lib/catalog/prefs.ts`;
-//   3. the right-edge minimap + the TOC FAB/popover, fed by one scroll recompute (progress +
-//      active heading) over headings harvested from `.lesson-body`.
+//   3. the on-this-page outline, fed by one scroll pass over the headings harvested from
+//      `.lesson-body`: it renders into the desktop rail (`.reader-outline`) AND the below-1180px
+//      TOC sheet, drives the thin top reading-progress bar, and reveals the scroll-to-top FAB.
 //
 // Not implemented here: the sidebar Filter box and the ← Learn browse toggle — both belong to the
 // Expanded face but are their own feature and no e2e spec exercises them; and the sticky
-// wayfinding bar, the 2px top progress bar, focus mode, and the scroll-to-top FAB — separate
-// chrome outside this pass's scope. The minimap needs a progress fraction regardless, so that one
-// scroll value is computed.
+// wayfinding bar and focus mode — separate chrome outside this pass's scope.
 
 import * as storage from "../lib/storage";
 import {
@@ -31,7 +30,6 @@ import {
   serialize as serializePrefs,
   type Prefs,
 } from "../lib/catalog/prefs";
-import { spreadFractions } from "../lib/catalog/chrome";
 
 /** A harvested prose heading (h2/h3 with an id — rehype-slug mints them). */
 interface Heading {
@@ -146,11 +144,10 @@ function buildRail(sidebar: Element, onExpand: () => void): { rail: HTMLElement;
   return { rail, activeTile };
 }
 
-/** The Expanded face's toprow — the collapse controls the SSR inner never carried
- *  (`.reader-sidebar__controls`, the two `.reader-sidebar__hide` buttons). */
-function buildToprow(toCompact: () => void, toHidden: () => void): HTMLElement {
-  const row = document.createElement("div");
-  row.className = "reader-sidebar__toprow";
+/** The Expanded face's collapse controls (`.reader-sidebar__controls`, the two
+ *  `.reader-sidebar__hide` buttons). Appended into the sidebar's SSR toprow, which already carries
+ *  the "Back to Main" link — so the back link and the controls share one row. */
+function buildControls(toCompact: () => void, toHidden: () => void): HTMLElement {
   const controls = document.createElement("div");
   controls.className = "reader-sidebar__controls";
 
@@ -169,8 +166,7 @@ function buildToprow(toCompact: () => void, toHidden: () => void): HTMLElement {
   hideBtn.addEventListener("click", toHidden);
 
   controls.append(compactBtn, hideBtn);
-  row.append(controls);
-  return row;
+  return controls;
 }
 
 /** The floating expand affordance for the Hidden face. Kept in the DOM always;
@@ -205,12 +201,15 @@ function wireSidebarFaces(layout: HTMLElement): Faces {
     log.info(`chrome: sidebar face → ${next}`);
   };
 
-  inner.prepend(
-    buildToprow(
-      () => set("compact"),
-      () => set("hidden"),
-    ),
+  const controls = buildControls(
+    () => set("compact"),
+    () => set("hidden"),
   );
+  // The toprow is SSR (it carries "Back to Main") — drop the collapse controls into it so they
+  // share the row; only prepend a bare row if an older page shipped without one.
+  const toprow = inner.querySelector(".reader-sidebar__toprow");
+  if (toprow) toprow.append(controls);
+  else inner.prepend(controls);
   const { rail, activeTile } = buildRail(sidebar, () => set("expanded"));
   rail.style.display = "none";
   sidebar.append(rail);
@@ -365,7 +364,7 @@ function wirePrefsFab(): void {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MINIMAP + TOC, fed by one scroll recompute
+// ON-THIS-PAGE OUTLINE + TOC SHEET + PROGRESS, fed by one scroll pass
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Jump to a heading, offset for the fixed header (−80px). */
@@ -388,135 +387,142 @@ function harvestHeadings(body: Element): Heading[] {
   return out;
 }
 
-function wireMinimapAndToc(headings: Heading[], onProgress: (fraction: number) => void): void {
-  // ── the minimap — one tick per heading at its de-overlapped fraction ──
-  const minimap = document.createElement("aside");
-  minimap.className = "reader-minimap";
-  minimap.setAttribute("aria-label", "Section map");
-  const track = document.createElement("div");
-  track.className = "reader-minimap__track";
-  const fill = document.createElement("div");
-  fill.className = "reader-minimap__fill";
-  track.append(fill);
-  minimap.append(track);
+/** A rendered outline row — one per heading, in the rail and/or the mobile sheet. */
+interface OutlineRow {
+  id: string;
+  el: HTMLElement;
+}
 
-  const gap = Math.min(0.05, 1.0 / (headings.length + 1));
-  const tickEls: { id: string; el: HTMLButtonElement }[] = [];
-  const measure = (): void => {
-    if (headings.length <= 1) return;
-    const total = Math.max(document.documentElement.scrollHeight, 1);
-    const scroll = window.scrollY;
-    const raw = headings.map((h) => {
-      const el = document.getElementById(h.id);
-      return el ? (el.getBoundingClientRect().top + scroll) / total : NaN;
-    });
-    if (raw.some(Number.isNaN)) return;
-    const spread = spreadFractions(raw);
-    headings.forEach((h, i) => {
-      const btn = tickEls[i]?.el;
-      if (btn) btn.style.top = `${(spread[i] * 100).toFixed(2)}%`;
-    });
-  };
-  if (headings.length > 1) {
-    headings.forEach((h) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = h.level === 3 ? "reader-minimap__tick reader-minimap__tick--l3" : "reader-minimap__tick reader-minimap__tick--l2";
-      btn.style.height = `min(18px, ${(gap * 100).toFixed(2)}%)`;
-      btn.setAttribute("aria-label", `Jump to ${h.text}`);
-      btn.addEventListener("click", () => scrollToHeading(h.id));
-      const lbl = document.createElement("span");
-      lbl.className = "reader-minimap__label";
-      lbl.textContent = h.text;
-      btn.append(lbl);
-      track.append(btn);
-      tickEls.push({ id: h.id, el: btn });
-    });
-    document.body.append(minimap);
-    measure();
-    window.addEventListener("resize", measure);
-    log.debug(`chrome: minimap ${headings.length} ticks`);
-  }
+function wireOutline(headings: Heading[], onProgress: (fraction: number) => void): void {
+  // ── the thin reading-progress bar across the very top (visible at every width) ──
+  const bar = document.createElement("div");
+  bar.className = "reader-progress";
+  document.body.append(bar);
 
-  // ── the TOC FAB + popover ──
-  const fab = document.createElement("button");
-  fab.className = "reader-toc-fab";
-  fab.type = "button";
-  fab.setAttribute("aria-label", "On this page");
-  fab.setAttribute("aria-expanded", "false");
-  fab.append(icon("reader-toc-fab__icon", '<path d="M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01"></path>'));
+  // ── the scroll-to-top FAB (ships hidden; the CSS reveals it once we clear the fold) ──
+  const toTop = document.createElement("button");
+  toTop.className = "reader-scrolltop reader-scrolltop--hidden";
+  toTop.type = "button";
+  toTop.setAttribute("aria-label", "Scroll to top");
+  toTop.append(icon("reader-scrolltop__ic", '<path d="m5 12 7-7 7 7"></path><path d="M12 19V5"></path>'));
+  toTop.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+  document.body.append(toTop);
 
-  const rows: { id: string; row: HTMLLIElement }[] = [];
-  let scrim: HTMLDivElement | null = null;
-  let pop: HTMLDivElement | null = null;
-  const close = (): void => {
-    scrim?.remove();
-    pop?.remove();
-    scrim = null;
-    pop = null;
-    fab.setAttribute("aria-expanded", "false");
-  };
-  const open = (): void => {
-    if (pop) return;
-    scrim = document.createElement("div");
-    scrim.className = "reader-toc-scrim";
-    scrim.addEventListener("click", close);
-    pop = document.createElement("div");
-    pop.className = "reader-toc-pop";
-    const eyebrow = document.createElement("div");
-    eyebrow.className = "reader-toc-pop__eyebrow";
-    eyebrow.textContent = "On this page";
-    const list = document.createElement("ul");
-    list.className = "reader-toc-pop__list";
-    rows.length = 0;
-    for (const h of headings) {
-      const li = document.createElement("li");
-      li.className = "reader-toc-pop__row";
-      const a = document.createElement("a");
-      a.href = `#${h.id}`;
-      a.className = h.level >= 3 ? "reader-toc-pop__btn reader-toc-pop__btn--l3" : "reader-toc-pop__btn";
-      a.addEventListener("click", (event) => {
-        event.preventDefault();
-        scrollToHeading(h.id);
-        close();
-      });
-      const tick = document.createElement("span");
-      tick.className = "reader-toc-pop__tick";
-      const lbl = document.createElement("span");
-      lbl.className = "reader-toc-pop__label";
-      lbl.textContent = h.text;
-      a.append(tick, lbl);
-      li.append(a);
-      list.append(li);
-      rows.push({ id: h.id, row: li });
-    }
-    pop.append(eyebrow, list);
-    document.body.append(scrim, pop);
-    fab.setAttribute("aria-expanded", "true");
-    reflectActive();
-    log.info("chrome: TOC open");
-  };
-  fab.addEventListener("click", () => (pop ? close() : open()));
-  window.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && pop) close();
-  });
-  document.body.append(fab);
-
-  // ── the one scroll recompute ──
+  // Two views of the same outline — the desktop rail and the mobile sheet — so a single scroll
+  // pass highlights both. The rail rows persist; the sheet rows are (re)built on open.
+  const railRows: OutlineRow[] = [];
+  const popRows: OutlineRow[] = [];
   let activeId: string | null = null;
   const reflectActive = (): void => {
-    for (const { id, el } of tickEls) {
-      el.classList.toggle("reader-minimap__tick--active", id === activeId);
-    }
-    for (const { id, row } of rows) {
-      row.classList.toggle("reader-toc-pop__row--active", id === activeId);
-    }
+    for (const { id, el } of railRows) el.classList.toggle("reader-outline__row--active", id === activeId);
+    for (const { id, el } of popRows) el.classList.toggle("reader-toc-pop__row--active", id === activeId);
   };
+
+  if (headings.length > 0) {
+    // ── the desktop rail outline, into the SSR nav.reader-outline ──
+    const outline = document.querySelector(".reader-outline");
+    if (outline) {
+      const eyebrow = document.createElement("div");
+      eyebrow.className = "reader-aside__eyebrow";
+      eyebrow.textContent = "On this page";
+      const list = document.createElement("ul");
+      list.className = "reader-outline__list";
+      for (const h of headings) {
+        const li = document.createElement("li");
+        li.className = "reader-outline__row";
+        const a = document.createElement("a");
+        a.href = `#${h.id}`;
+        a.className = h.level >= 3 ? "reader-outline__btn reader-outline__btn--l3" : "reader-outline__btn";
+        a.addEventListener("click", (event) => {
+          event.preventDefault();
+          scrollToHeading(h.id);
+        });
+        const tick = document.createElement("span");
+        tick.className = "reader-outline__tick";
+        const lbl = document.createElement("span");
+        lbl.className = "reader-outline__label";
+        lbl.textContent = h.text;
+        a.append(tick, lbl);
+        li.append(a);
+        list.append(li);
+        railRows.push({ id: h.id, el: li });
+      }
+      outline.append(eyebrow, list);
+      log.debug(`chrome: rail outline ${headings.length} rows`);
+    }
+
+    // ── the mobile TOC sheet: a FAB opening a popover (the below-1180px fallback) ──
+    const fab = document.createElement("button");
+    fab.className = "reader-toc-fab";
+    fab.type = "button";
+    fab.setAttribute("aria-label", "On this page");
+    fab.setAttribute("aria-expanded", "false");
+    fab.append(icon("reader-toc-fab__icon", '<path d="M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01"></path>'));
+
+    let scrim: HTMLDivElement | null = null;
+    let pop: HTMLDivElement | null = null;
+    const close = (): void => {
+      scrim?.remove();
+      pop?.remove();
+      scrim = null;
+      pop = null;
+      popRows.length = 0;
+      fab.setAttribute("aria-expanded", "false");
+    };
+    const open = (): void => {
+      if (pop) return;
+      scrim = document.createElement("div");
+      scrim.className = "reader-toc-scrim";
+      scrim.addEventListener("click", close);
+      pop = document.createElement("div");
+      pop.className = "reader-toc-pop";
+      const eyebrow = document.createElement("div");
+      eyebrow.className = "reader-toc-pop__eyebrow";
+      eyebrow.textContent = "On this page";
+      const list = document.createElement("ul");
+      list.className = "reader-toc-pop__list";
+      popRows.length = 0;
+      for (const h of headings) {
+        const li = document.createElement("li");
+        li.className = "reader-toc-pop__row";
+        const a = document.createElement("a");
+        a.href = `#${h.id}`;
+        a.className = h.level >= 3 ? "reader-toc-pop__btn reader-toc-pop__btn--l3" : "reader-toc-pop__btn";
+        a.addEventListener("click", (event) => {
+          event.preventDefault();
+          scrollToHeading(h.id);
+          close();
+        });
+        const tick = document.createElement("span");
+        tick.className = "reader-toc-pop__tick";
+        const lbl = document.createElement("span");
+        lbl.className = "reader-toc-pop__label";
+        lbl.textContent = h.text;
+        a.append(tick, lbl);
+        li.append(a);
+        list.append(li);
+        popRows.push({ id: h.id, el: li });
+      }
+      pop.append(eyebrow, list);
+      document.body.append(scrim, pop);
+      fab.setAttribute("aria-expanded", "true");
+      reflectActive();
+      log.info("chrome: TOC sheet open");
+    };
+    fab.addEventListener("click", () => (pop ? close() : open()));
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && pop) close();
+    });
+    document.body.append(fab);
+  }
+
+  // ── one scroll pass drives the progress bar, the scroll-top FAB, and the active heading ──
   const recompute = (): void => {
-    const track2 = document.documentElement.scrollHeight - window.innerHeight;
+    const track = document.documentElement.scrollHeight - window.innerHeight;
     const scroll = window.scrollY;
-    const fraction = track2 > 0 ? Math.min(Math.max(scroll / track2, 0), 1) : 0;
-    fill.style.height = `${(fraction * 100).toFixed(2)}%`;
+    const fraction = track > 0 ? Math.min(Math.max(scroll / track, 0), 1) : 0;
+    bar.style.width = `${(fraction * 100).toFixed(2)}%`;
+    toTop.classList.toggle("reader-scrolltop--hidden", scroll <= 400);
     onProgress(fraction);
     let next: string | null = null;
     for (const h of headings) {
@@ -548,7 +554,7 @@ function init(): void {
   const body = document.querySelector(".lesson-body");
   const headings = body ? harvestHeadings(body) : [];
   log.debug(`chrome: harvested ${headings.length} headings`);
-  wireMinimapAndToc(headings, faces.setRailProgress);
+  wireOutline(headings, faces.setRailProgress);
 }
 
 if (document.readyState === "loading") {

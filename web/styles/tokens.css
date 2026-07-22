@@ -119,6 +119,132 @@
   --tab-submissions: 210 65% 66%;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   SEMANTIC ROLE ALIASES — component-facing names over the canonical tokens.
+   Declared on BOTH :root and .dark so every var() re-resolves per theme; a
+   :root-only alias would freeze to the light value and never flip.
+   ───────────────────────────────────────────────────────────────────────────── */
+:root,
+.dark {
+  /* Surfaces */
+  --bg-page: hsl(var(--background));
+  --bg-surface: hsl(var(--card));
+  --bg-surface-2: hsl(var(--secondary));
+  --bg-sunken: hsl(var(--muted));
+  --bg-hover: hsl(var(--foreground) / 0.05);
+  --bg-active: hsl(var(--foreground) / 0.09);
+
+  /* Text */
+  --text-primary: hsl(var(--foreground));
+  --text-secondary: hsl(var(--muted-foreground));
+  --text-muted: hsl(var(--muted-foreground) / 0.78);
+  --text-faint: hsl(var(--muted-foreground) / 0.55);
+  --text-onbrand: hsl(var(--primary-foreground));
+  --text-link: hsl(var(--primary));
+  --text-link-hover: hsl(var(--primary) / 0.8);
+
+  /* Borders */
+  --border-subtle: hsl(var(--border) / 0.6);
+  --border-default: hsl(var(--border));
+  --border-strong: hsl(var(--muted-foreground) / 0.34);
+  --border-interactive: hsl(var(--primary) / 0.4);
+
+  /* Brand */
+  --brand: hsl(var(--primary));
+  --brand-hover: hsl(var(--primary) / 0.88);
+  --brand-soft: hsl(var(--primary) / 0.1);
+  --brand-soft-text: hsl(var(--primary));
+
+  /* Code — the inline chip; rendered code fences stay the permanent dark slab. */
+  --code-inline-bg: hsl(var(--muted));
+  --code-inline-text: hsl(var(--foreground));
+
+  /* Misc */
+  --overlay: hsl(var(--foreground) / 0.25);
+  --selection-bg: hsl(var(--primary) / 0.22);
+  --scrollbar-thumb: hsl(var(--border));
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   TYPE ROLES + RADIUS EXTRAS — per-role font seams all resolve to Noto Sans;
+   the large editorial titles use these with font-style: italic. --font-serif
+   resolves to the sans too: Synapse ships no serif, so the italic display
+   titles ARE Noto Sans (this is what turns the already-italic
+   .reader-prose__title / .reader-sidebar__title / .reader-pager__title from the
+   Georgia fallback into the brand face).
+   ───────────────────────────────────────────────────────────────────────────── */
+:root {
+  --font-head: var(--font-sans);
+  --font-read: var(--font-sans);
+  --font-serif: var(--font-sans);
+
+  --radius-xs: 4px;
+  --radius-xl: 18px;
+  --radius-2xl: 24px;
+  --radius-pill: 9999px;
+  --radius-round: 50%;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   ELEVATION — soft, low shadows; cards lean on the 1px border with a faint lift.
+   --shadow-color flips to black in dark, so the same rules deepen there.
+   ───────────────────────────────────────────────────────────────────────────── */
+:root {
+  --shadow-color: 18, 20, 28;
+  --shadow-xs: 0 1px 0 rgba(var(--shadow-color), 0.04);
+  --shadow-sm: 0 1px 0 rgba(var(--shadow-color), 0.05), 0 1px 2px rgba(var(--shadow-color), 0.05);
+  --shadow-md: 0 1px 0 rgba(var(--shadow-color), 0.05), 0 8px 24px -12px rgba(var(--shadow-color), 0.18);
+  --shadow-lg: 0 8px 24px -12px rgba(var(--shadow-color), 0.22), 0 2px 6px -2px rgba(var(--shadow-color), 0.1);
+  --shadow-xl: 0 24px 60px rgba(var(--shadow-color), 0.25);
+  --shadow-fab: 0 6px 18px -4px rgba(var(--shadow-color), 0.25), 0 2px 4px -1px rgba(var(--shadow-color), 0.1);
+  --shadow-focus: 0 0 0 2px hsl(var(--ring) / 0.5);
+}
+.dark {
+  --shadow-color: 0, 0, 0;
+  --shadow-xs: 0 1px 0 rgba(var(--shadow-color), 0.3);
+  --shadow-sm: 0 1px 0 rgba(var(--shadow-color), 0.4), 0 1px 2px rgba(var(--shadow-color), 0.4);
+  --shadow-md: 0 1px 0 rgba(var(--shadow-color), 0.4), 0 8px 24px -12px rgba(var(--shadow-color), 0.55);
+  --shadow-lg: 0 8px 24px -10px rgba(var(--shadow-color), 0.6);
+  --shadow-xl: 0 24px 60px rgba(var(--shadow-color), 0.7);
+  --shadow-fab: 0 6px 18px -4px rgba(var(--shadow-color), 0.6);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   MOTION — calm, quick easing; no bounce on reading surfaces.
+   ───────────────────────────────────────────────────────────────────────────── */
+:root {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-brand: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+  --dur-slower: 480ms;
+  --theme-transition: background-color var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out),
+    fill var(--dur-base) var(--ease-out);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SPACING — 4px base grid + layout sizing.
+   ───────────────────────────────────────────────────────────────────────────── */
+:root {
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 48px;
+  --space-10: 64px;
+  --space-11: 80px;
+  --space-12: 96px;
+}
+
 /* ── base (the oracle's @layer base) ── */
 /* Tailwind v4 defaults borders to currentColor — this universal reset is load-bearing. */
 /* `border-color` here has been load-bearing since step 25 (the universal border reset the

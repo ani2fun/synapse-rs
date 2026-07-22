@@ -5,7 +5,7 @@ import * as log from "../lib/log";
 // DOM Astro already rendered.
 //
 // Three jobs:
-//   (a) inject "N/M read" into each book card's footer (`.lib-card__progress` / `--all`),
+//   (a) inject a progress bar + pct into each book card's footer (`.lib-card__progress` / `--all`),
 //   (b) render the `.lib-continue` "pick up where you left off" card above the grid, and
 //   (c) the "Start reading" CTA's smooth-scroll-with-header-offset (the grid's bounding-rect top
 //       + `scrollY` − 80, the sticky header's height).
@@ -36,8 +36,8 @@ function readIndex(): SynapseIndex | null {
   }
 }
 
-/** (a) "N/M read" — shown only once there is something to report, so an untouched library
- *  stays exactly as SSR rendered it. */
+/** (a) A card progress bar + pct — shown only once there is something to report, so an untouched
+ *  library stays exactly as SSR rendered it. */
 function injectProgressChips(index: SynapseIndex, done: Set<string>): void {
   if (done.size > 0) log.debug(`library: injecting progress chips (${done.size} finished lessons)`);
   for (const card of document.querySelectorAll<HTMLElement>("[data-book-slug]")) {
@@ -55,9 +55,19 @@ function injectProgressChips(index: SynapseIndex, done: Set<string>): void {
     footer.querySelector(".lib-card__progress")?.remove();
     if (count <= 0 || total <= 0) continue;
 
-    const chip = document.createElement("span");
+    const pct = Math.round((count / total) * 100);
+    const chip = document.createElement("div");
     chip.className = count === total ? "lib-card__progress lib-card__progress--all" : "lib-card__progress";
-    chip.textContent = `${count}/${total} read`;
+    const bar = document.createElement("div");
+    bar.className = "lib-card__progress-bar";
+    const fill = document.createElement("div");
+    fill.className = "lib-card__progress-fill";
+    fill.style.setProperty("--pct", `${pct}%`);
+    bar.append(fill);
+    const label = document.createElement("span");
+    label.className = "lib-card__progress-pct";
+    label.textContent = count === total ? "Done" : `${pct}%`;
+    chip.append(bar, label);
     footer.insertBefore(chip, cta);
   }
 }

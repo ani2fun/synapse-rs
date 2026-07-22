@@ -8,8 +8,10 @@
 .header { position: fixed; top: 0; left: 0; right: 0; z-index: 50;
           background: hsl(var(--background) / 0.85); backdrop-filter: blur(8px);
           border-bottom: 1px solid hsl(var(--border) / 0.6); }
+/* Full-width, like the design's app-shell header — brand flush-left, actions flush-right, so the
+   bar aligns with the full-bleed reader columns below it (sidebar left edge, rail right edge). */
 .header__nav { padding: 0.75rem 1.25rem; display: flex; justify-content: space-between;
-               align-items: center; gap: 1rem; max-width: 80rem; margin: 0 auto; }
+               align-items: center; gap: 1rem; }
 .header__brand { display: inline-flex; align-items: center; gap: 0.55rem; }
 .header__chip { flex: none; }
 .header__wordmark { font-family: var(--font-mono); font-weight: 600; font-size: 1.05rem;
@@ -43,6 +45,10 @@
                     color: hsl(var(--foreground)); cursor: pointer; transition: background 0.15s; }
 .header__icon-btn:hover { background: hsl(var(--accent)); color: hsl(var(--accent-foreground)); }
 .header__icon-btn svg { width: 18px; height: 18px; }
+/* The sun/moon swap — the button shows the theme you'd switch TO: moon in light, sun in dark. */
+.header__icon-btn__sun { display: none; }
+.dark .header__icon-btn__sun { display: block; }
+.dark .header__icon-btn__moon { display: none; }
 
 /* Below 640px the header has no room for a 24rem search box beside the brand and the nav.
    The label and the ⌘K hint stand down and the trigger becomes a square icon button, so the
@@ -69,6 +75,10 @@
    under the header; the default's 4.75rem+1.25rem overshoots 92 and scrolls the page 4px. */
 .shell-main:has(> .pwb:not(.pwb--embedded)) { max-width: none; padding-inline: 0.5rem;
                                               padding-block: 4.75rem 1rem; }
+/* The lesson reader is full-bleed too: drop the 72rem cap and the side gutters so its three
+   columns reach the viewport edges. Top padding (clearing the fixed header) stays; each column
+   owns its own inner padding. */
+.shell-main:has(> .reader-layout) { max-width: none; padding-left: 0; padding-right: 0; }
 
 /* ── library ── the landing's own rules live in library.css/tour.css (step 32) ── */
 .badge { font-size: 0.75rem; color: hsl(var(--primary)); }

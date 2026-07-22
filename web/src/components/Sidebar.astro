@@ -1,28 +1,103 @@
 ---
-// The reader sidebar's Expanded face, server-rendered. Structure only: the book title +
-// description head and the reading-order tree. The interactive faces — the filter box, the
-// Learn-browse toggle, the Compact rail, the three persisted modes — are layered on top by
-// islands/chrome.ts; this component ships the navigable skeleton it hydrates into.
+// The reader sidebar's Expanded face, server-rendered — a two-mode left rail (the design's
+// `.syn-side`). BOOK view: a "Back to Main" toggle, the book header (tile · "Course" · title ·
+// description · a progress bar reader.ts fills), and the reading-order tree. MAIN/BROWSE view:
+// every book in the catalog, the current one marked — reached by "Back to Main", dismissed by its
+// own back button. islands/reader.ts toggles `data-view` (delegated, so the cloned mobile drawer
+// works too). The `<a href="/">` on "Back to Main" is a no-JS fallback to the library page.
+// The Compact rail + the three persisted collapse modes are layered on by islands/chrome.ts.
 import SidebarTree from "./SidebarTree.astro";
-import { bookPrefix } from "../lib/catalog/tree";
+import { bookPrefix, firstLessonPath } from "../lib/catalog/tree";
 import type { components } from "../lib/api/schema.gen";
 
 type Book = components["schemas"]["BookDto"];
 
 interface Props {
   book: Book;
+  /** Every book in the catalog — the "Back to Main" browse list. */
+  books: Book[];
   /** The current lesson's full directory-mirror path, joined — marks the active row. */
   currentPath: string;
 }
 
-const { book, currentPath } = Astro.props;
+const { book, books, currentPath } = Astro.props;
 const prefix = bookPrefix(book);
+
+const chevron =
+  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>';
+// A generic book glyph in front of each browse-list book — the catalog carries no per-book icon,
+// so it stays consistent rather than topical like the design demo's.
+const bookIcon =
+  '<svg class="reader-sidebar__book-ic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 0 4 22.5z" /><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /></svg>';
 ---
 
-<div class="reader-sidebar__inner">
-  <div class="reader-sidebar__title">{book.title}</div>
-  {book.description && <div class="reader-sidebar__desc">{book.description}</div>}
-  <ul class="reader-sidebar__tree">
-    <SidebarTree entries={book.entries} prefix={prefix} currentPath={currentPath} />
-  </ul>
+<div class="reader-sidebar__inner" data-view="book">
+  <!-- BOOK view: the current book's contents -->
+  <div class="reader-sidebar__book-view">
+    <div class="reader-sidebar__toprow">
+      <a class="reader-sidebar__home" href="/" data-sidebar-view="browse">
+        <Fragment set:html={chevron} />
+        <span>Back to Main</span>
+      </a>
+    </div>
+    <div class="reader-sidebar__book-head">
+      <span class="reader-sidebar__book-tile" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 0 4 22.5z" />
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+        </svg>
+      </span>
+      <div class="reader-sidebar__book-txt">
+        <div class="reader-sidebar__eyebrow">Course</div>
+        <div class="reader-sidebar__title">{book.title}</div>
+      </div>
+    </div>
+    {book.description && <div class="reader-sidebar__desc">{book.description}</div>}
+    <div class="reader-sidebar__progress" data-book-progress hidden>
+      <div class="reader-bar"><div class="reader-bar__fill" data-book-progress-fill></div></div>
+      <div class="reader-sidebar__progress-lbl" data-book-progress-sub></div>
+    </div>
+    <ul class="reader-sidebar__tree">
+      <SidebarTree entries={book.entries} prefix={prefix} currentPath={currentPath} />
+    </ul>
+  </div>
+
+  <!-- MAIN/BROWSE view: every book in the catalog (hidden until "Back to Main") -->
+  <div class="reader-sidebar__browse">
+    <div class="reader-sidebar__toprow">
+      <button class="reader-sidebar__home" type="button" data-sidebar-view="book">
+        <Fragment set:html={chevron} />
+        <span>{book.title}</span>
+      </button>
+    </div>
+    <div class="reader-sidebar__eyebrow">All courses</div>
+    <ul class="reader-sidebar__browse-list">
+      {
+        books.map((b) => {
+          const bp = firstLessonPath(b);
+          const active = b.slug === book.slug;
+          return bp ? (
+            <li>
+              <a
+                class:list={["reader-sidebar__book", { "reader-sidebar__book--active": active }]}
+                href={`/synapse/${bp}`}
+                aria-current={active ? "page" : undefined}
+              >
+                <Fragment set:html={bookIcon} />
+                <span>{b.title}</span>
+              </a>
+            </li>
+          ) : (
+            <li>
+              <span class="reader-sidebar__book reader-sidebar__book--empty">
+                <Fragment set:html={bookIcon} />
+                <span>{b.title}</span>
+              </span>
+            </li>
+          );
+        })
+      }
+    </ul>
+    <a class="reader-sidebar__browse-all" href="/">Browse the full library →</a>
+  </div>
 </div>

@@ -40,31 +40,49 @@
                     text-transform: uppercase; letter-spacing: 0.14em;
                     color: hsl(var(--muted-foreground)); }
 
-.lib-card { display: flex; flex-direction: column; gap: 10px; padding: 20px;
-            border: 1px solid hsl(var(--border)); border-radius: 14px;
-            background: hsl(var(--card)); color: inherit; text-decoration: none;
-            transition: border-color 140ms, transform 140ms, box-shadow 140ms; }
-a.lib-card:hover { border-color: hsl(var(--primary)); transform: translateY(-2px);
-                   box-shadow: 0 10px 30px -18px hsl(var(--foreground) / 0.45); }
-a.lib-card:hover .lib-card__title { color: hsl(var(--primary)); }
+.lib-card { display: flex; flex-direction: column; gap: 10px; padding: 18px;
+            border: 1px solid var(--border-default); border-radius: var(--radius-lg);
+            background: var(--bg-surface); color: inherit; text-decoration: none;
+            transition: border-color var(--dur-base) var(--ease-out),
+                        transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out); }
+a.lib-card:hover { border-color: var(--border-interactive); transform: translateY(-2px);
+                   box-shadow: var(--shadow-md); }
+a.lib-card:hover .lib-card__title { color: var(--brand); }
 a.lib-card:hover .lib-card__cta-ic { transform: translateX(3px); }
 .lib-card--empty { opacity: 0.65; }
+.lib-card__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.lib-card__tile { flex: 0 0 auto; width: 38px; height: 38px; border-radius: var(--radius-md);
+                  display: inline-flex; align-items: center; justify-content: center;
+                  color: var(--brand); background: var(--brand-soft);
+                  border: 1px solid var(--border-interactive); }
+.lib-card__tile svg { width: 20px; height: 20px; }
+.lib-card__badge { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase;
+                   letter-spacing: 0.08em; border: 1px solid var(--border-default);
+                   border-radius: var(--radius-pill); padding: 3px 9px; color: var(--text-muted);
+                   white-space: nowrap; }
+.lib-card__title { font-family: var(--font-head); font-size: 18px; font-weight: 600;
+                   letter-spacing: -0.01em; line-height: 1.2; color: var(--text-primary);
+                   margin-top: 2px; transition: color var(--dur-fast); }
+.lib-card__desc { flex: 1 1 auto; margin: 0; font-size: 13.5px; line-height: 1.5;
+                  color: var(--text-secondary); }
 .lib-card__meta { display: flex; align-items: center; gap: 6px;
                   font-family: var(--font-mono); font-size: 10.5px;
-                  text-transform: uppercase; letter-spacing: 0.08em;
-                  color: hsl(var(--muted-foreground)); }
+                  text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
 .lib-card__meta-ic { width: 14px; height: 14px; flex: none; }
-.lib-card__title { font-size: 18px; font-weight: 700; color: hsl(var(--foreground));
-                   transition: color 140ms; }
-.lib-card__desc { flex: 1 1 auto; margin: 0; font-size: 14px;
-                  color: hsl(var(--muted-foreground)); }
-.lib-card__footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.lib-card__tag { font-family: var(--font-mono); font-size: 10px;
-                 border: 1px solid hsl(var(--border)); border-radius: 999px;
-                 padding: 2px 8px; color: hsl(var(--muted-foreground)); }
-.lib-card__cta { margin-left: auto; display: inline-flex; align-items: center; gap: 4px;
-                 font-size: 13px; font-weight: 600; color: hsl(var(--primary)); }
-.lib-card__cta-ic { transition: transform 140ms; }
+.lib-card__footer { display: flex; align-items: center; gap: 10px; margin-top: 2px; }
+.lib-card__cta { margin-left: auto; display: inline-flex; align-items: center; gap: 5px;
+                 font-size: 13px; font-weight: 600; color: var(--brand); }
+.lib-card__cta-ic { transition: transform var(--dur-fast); }
+/* the injected progress (started books): a slim bar + pct, left of the CTA */
+.lib-card__progress { flex: 1 1 auto; display: flex; align-items: center; gap: 8px; }
+.lib-card__progress-bar { flex: 1 1 auto; height: 5px; border-radius: var(--radius-pill);
+                          background: hsl(var(--muted)); overflow: hidden; }
+.lib-card__progress-fill { height: 100%; width: var(--pct, 0%); border-radius: inherit;
+                           background: var(--brand); }
+.lib-card__progress-pct { flex: 0 0 auto; font-family: var(--font-mono); font-size: 11px;
+                          color: var(--text-secondary); }
+.lib-card__progress--all .lib-card__progress-fill { background: var(--success); }
+.lib-card__progress--all .lib-card__progress-pct { color: var(--success); }
 
 /* ─────────────────────────────────────────────────────────────────────────────
    THE SITE FOOTER (step 46) — landing page only. Lesson pages own their vertical
@@ -105,54 +123,44 @@ a.site-footer__version:hover .site-footer__sha { color: hsl(var(--primary)); }
     .site-footer__inner { flex-direction: column-reverse; align-items: flex-start; gap: 1rem; }
 }
 
-/* ── Reading progress (step 51) ─────────────────────────────────────────────
-   The chip appears only once a book has been started, so an untouched library is
-   exactly as it was before this step. */
-.lib-card__progress {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  font-weight: 500;
-  padding: 0.15em 0.5em;
-  border-radius: var(--radius-sm);
-  background: hsl(var(--muted));
-  color: hsl(var(--muted-foreground));
-  white-space: nowrap;
-}
-.lib-card__progress--all {
-  background: hsl(var(--status-ok) / 0.14);
-  color: hsl(var(--status-ok));
-}
+/* The card progress (bar + pct) lives in the card block above; islands/library.ts injects it. */
 
 /* The one thing that makes a second visit different from a first. */
 .lib-continue {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  max-width: 34rem;
-  margin: 0 auto 2rem;
-  padding: 0.9rem 1.15rem;
-  border: 1px solid hsl(var(--border));
-  border-radius: var(--radius);
-  background: hsl(var(--card));
+  gap: 0.2rem;
+  max-width: 40rem;
+  margin: 0 auto 2.5rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: hsl(var(--card) / 0.6);
   text-decoration: none;
   color: inherit;
-  transition: border-color 0.15s ease;
+  transition: border-color var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
 }
 .lib-continue:hover {
-  border-color: hsl(var(--primary));
+  border-color: var(--border-interactive);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 .lib-continue__label {
   font-family: var(--font-mono);
   font-size: 0.68rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: hsl(var(--muted-foreground));
+  color: var(--text-muted);
 }
 .lib-continue__title {
-  font-weight: 600;
-  color: hsl(var(--primary));
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 1.35rem;
+  line-height: 1.1;
+  color: var(--text-primary);
 }
 .lib-continue__book {
   font-size: 0.85rem;
-  color: hsl(var(--muted-foreground));
+  color: var(--text-secondary);
 }

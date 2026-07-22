@@ -5,16 +5,16 @@
 
 /* ── reading preferences: the stylesheet half ──
    The store reflects choices onto <html>; these selectors do the rest. */
-html[data-reader-size="sm"] .synapse-prose { font-size: 0.925rem; }
-html[data-reader-size="md"] .synapse-prose { font-size: 1rem; }
-html[data-reader-size="lg"] .synapse-prose { font-size: 1.125rem; }
+html[data-reader-size="sm"] .synapse-prose { font-size: 1rem; }
+html[data-reader-size="md"] .synapse-prose { font-size: 1.125rem; }
+html[data-reader-size="lg"] .synapse-prose { font-size: 1.25rem; }
 
 html[data-reader-leading="tight"] .synapse-prose { line-height: 1.5; }
 html[data-reader-leading="normal"] .synapse-prose { line-height: 1.7; }
 html[data-reader-leading="loose"] .synapse-prose { line-height: 1.95; }
 
 html[data-reader-family="serif"] .synapse-prose { font-family: Georgia, "Times New Roman", serif; }
-html[data-reader-family="sans"] .synapse-prose { font-family: system-ui, -apple-system, sans-serif; }
+html[data-reader-family="sans"] .synapse-prose { font-family: var(--font-read); }
 html[data-reader-family="mono"] .synapse-prose { font-family: "JetBrains Mono", ui-monospace, monospace; }
 
 /* `margin-inline: auto` joined these in step 46. The width preference had always set a
@@ -179,14 +179,22 @@ html[data-reader-width] .lesson.lesson--problem,
    pager. One breakpoint story: sidebar ≥1024px, minimap ≥1200px.
    ───────────────────────────────────────────────────────────────────────────── */
 
-.reader-layout { display: grid; grid-template-columns: 1fr; gap: 0;
-                 max-width: 1600px; margin: 0 auto; }
+/* Full-bleed, like the design's app shell: the columns span the viewport (sidebar flush-left,
+   rail flush-right) rather than sitting in a centered container. The reading column stays
+   readable — the prose inside `.lesson` is width-capped and centred. */
+.reader-layout { display: grid; grid-template-columns: 1fr; gap: 0; }
 @media (min-width: 1024px) {
-    .reader-layout { grid-template-columns: 280px minmax(0, 1fr); }
+    .reader-layout { grid-template-columns: 288px minmax(0, 1fr); }
     .reader-layout[data-sidebar="compact"] { grid-template-columns: 64px minmax(0, 1fr); }
     .reader-layout[data-sidebar="hidden"] { grid-template-columns: 0 minmax(0, 1fr); }
     .reader-layout[data-sidebar="hidden"] .reader-sidebar { opacity: 0; pointer-events: none;
                                                             overflow: hidden; border-right-width: 0; }
+    /* Column dividers ride the MAIN column so they run the FULL height (the sticky sidebar/rail are
+       only as tall as their content). min-height keeps the line reaching the fold on short lessons;
+       it's a no-op on long ones where the prose already overflows the viewport. */
+    .reader-layout:has(> .reader-aside) { min-height: calc(100vh - 4.75rem); }
+    .reader-layout:has(> .reader-aside) .reader-layout__main { border-left: 1px solid var(--border-default); }
+    .reader-layout[data-sidebar="hidden"] .reader-layout__main { border-left-width: 0; }
 }
 .reader-layout__main { padding: 2.5rem 1.25rem 6rem; min-width: 0; }
 @media (min-width: 768px) { .reader-layout__main { padding-left: 3rem; padding-right: 3rem; } }
@@ -203,12 +211,23 @@ html[data-reader-width] .lesson.lesson--problem,
    right on a phone. */
 .reader-layout--problem .reader-layout__main { padding: 1.25rem 1rem 3rem; }
 
+/* ≥1180px the persistent right rail joins as a third grid track — gated on the rail element
+   actually being present (lesson pages), so a bare .reader-layout keeps its two columns. */
+@media (min-width: 1180px) {
+    .reader-layout:has(> .reader-aside) { grid-template-columns: 288px minmax(0, 1fr) 304px; }
+    .reader-layout[data-sidebar="compact"]:has(> .reader-aside) { grid-template-columns: 64px minmax(0, 1fr) 304px; }
+    .reader-layout[data-sidebar="hidden"]:has(> .reader-aside) { grid-template-columns: 0 minmax(0, 1fr) 304px; }
+    .reader-layout:has(> .reader-aside) .reader-layout__main { border-right: 1px solid var(--border-default); }
+}
+
 /* ── prose header ── */
 .reader-prose__back { display: inline-block; font-family: var(--font-mono); font-size: 11px;
                       text-transform: uppercase; letter-spacing: 0.14em;
                       color: hsl(var(--muted-foreground)); text-decoration: none;
                       margin-bottom: 1.5rem; }
 .reader-prose__back:hover { color: hsl(var(--primary)); }
+.reader-prose__eyebrow { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase;
+                         letter-spacing: 0.14em; color: var(--text-secondary); margin: 0 0 14px; }
 .reader-prose__title { font-family: var(--font-serif, Georgia, serif); font-style: italic;
                        font-weight: 400; font-size: clamp(40px, 5vw, 60px); line-height: 0.98;
                        letter-spacing: -0.02em; margin: 0 0 16px; }
@@ -216,11 +235,28 @@ html[data-reader-width] .lesson.lesson--problem,
                       color: hsl(var(--muted-foreground)); max-width: 60ch; margin: 0 0 8px; }
 
 /* ── the sidebar faces ── */
+/* The sidebar↔reader divider lives on the main column (below), not here — a short book tree left
+   this border stopping halfway down. */
 .reader-sidebar { position: sticky; top: 65px; align-self: start; overflow-y: auto;
-                  max-height: calc(100vh - 65px); border-right: 1px solid hsl(var(--border));
+                  max-height: calc(100vh - 65px);
                   overscroll-behavior: contain; scrollbar-width: thin;
                   transition: opacity 180ms ease, top 220ms ease, max-height 220ms ease;
                   padding: 0; }
+
+/* Consistent scrollbars on the sticky columns: `scrollbar-gutter` reserves the space either way,
+   so a scrolling book (System Design's long tree) and a non-scrolling one (LLD) keep the SAME
+   width — no more "some show a bar, some don't". The bar stays invisible until you hover the
+   column, then a thin rail fades in (not the chunky native one). */
+.reader-sidebar, .reader-aside { scrollbar-gutter: stable; scrollbar-color: transparent transparent; }
+.reader-sidebar:hover, .reader-aside:hover { scrollbar-color: var(--scrollbar-thumb) transparent; }
+.reader-sidebar::-webkit-scrollbar, .reader-aside::-webkit-scrollbar { width: 8px; }
+.reader-sidebar::-webkit-scrollbar-track, .reader-aside::-webkit-scrollbar-track { background: transparent; }
+.reader-sidebar::-webkit-scrollbar-thumb, .reader-aside::-webkit-scrollbar-thumb {
+  background: transparent; border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+.reader-sidebar:hover::-webkit-scrollbar-thumb, .reader-aside:hover::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb); }
+.reader-sidebar::-webkit-scrollbar-thumb:hover, .reader-aside::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong); }
 /* When the sticky heading bar slides in (fixed full-width at top:65px) it would cover the
    sidebar's toprow and the floating expand button — drop both below it while it shows;
    they revert when the bar hides (no permanent gap). Anchored on body: both are fixed /
@@ -233,6 +269,15 @@ body:has(.reader-sticky[data-on="true"]) .reader-expand { top: 120px; }
                          padding: 2rem 1.25rem 3rem; }
 .reader-sidebar__toprow { display: flex; align-items: center; justify-content: space-between;
                           padding: 2px 0 6px; }
+/* "Back to Main" — the sidebar's route back to the library (the design's two-mode `.syn-back`,
+   mapped to a plain link in the MPA). SSR, so it rides into the mobile drawer clone too. */
+.reader-sidebar__home { display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px;
+                        border-radius: var(--radius-sm); text-decoration: none;
+                        color: var(--text-secondary); font-family: var(--font-sans);
+                        font-size: 13.5px; font-weight: 500;
+                        transition: background var(--dur-fast), color var(--dur-fast); }
+.reader-sidebar__home:hover { background: var(--bg-hover); color: var(--text-primary); }
+.reader-sidebar__home svg { width: 16px; height: 16px; }
 .reader-sidebar__back { font-family: var(--font-mono); font-size: 11px;
                         text-transform: uppercase; letter-spacing: 0.14em; text-align: left;
                         color: hsl(var(--muted-foreground)); background: none; border: 0;
@@ -249,6 +294,18 @@ body:has(.reader-sticky[data-on="true"]) .reader-expand { top: 120px; }
 .reader-sidebar__desc { font-family: var(--font-mono); font-size: 11px;
                         text-transform: uppercase; letter-spacing: 0.06em; line-height: 1.6;
                         color: hsl(var(--muted-foreground)); }
+/* book header + progress (the Expanded face's head; both ride into the mobile drawer clone) */
+.reader-sidebar__book-head { display: flex; align-items: flex-start; gap: 11px; padding: 2px 0; }
+.reader-sidebar__book-tile { flex: 0 0 auto; width: 34px; height: 34px; border-radius: var(--radius-md);
+                             display: inline-flex; align-items: center; justify-content: center;
+                             color: var(--brand); background: var(--brand-soft);
+                             border: 1px solid var(--border-interactive); }
+.reader-sidebar__book-tile svg { width: 18px; height: 18px; }
+.reader-sidebar__book-txt { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.reader-sidebar__progress { display: flex; flex-direction: column; gap: 7px; padding: 2px 0 12px;
+                            border-bottom: 1px solid var(--border-subtle); }
+.reader-sidebar__progress-lbl { font-family: var(--font-mono); font-size: 11px;
+                                letter-spacing: 0.01em; color: var(--text-muted); }
 .reader-sidebar__search { position: relative; display: flex; align-items: center; gap: 7px;
                           padding: 6px 9px; border: 1px solid hsl(var(--border));
                           border-radius: 9px; background: hsl(var(--secondary) / 0.3); }
@@ -272,6 +329,8 @@ body:has(.reader-sticky[data-on="true"]) .reader-expand { top: 120px; }
 .reader-sidebar__summary:hover { color: hsl(var(--primary)); }
 .reader-sidebar__chevron { width: 16px; height: 16px; flex: none;
                            color: hsl(var(--muted-foreground)); transition: transform 140ms; }
+/* the leading chapter/section icon (the chevron moved to the right, pushed by .reader-sidebar__name's flex) */
+.reader-sidebar__sec-ic { width: 16px; height: 16px; flex: none; color: hsl(var(--muted-foreground)); }
 .reader-sidebar__section[open] > .reader-sidebar__summary .reader-sidebar__chevron {
     transform: rotate(90deg); }
 .reader-sidebar__name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -300,9 +359,11 @@ body:has(.reader-sticky[data-on="true"]) .reader-expand { top: 120px; }
    inside a book. Same --foreground as the category headers above them, not the accent: teal
    is the reader's "you are here / this is live" signal, and spending it on every book made a
    shelf of nine look like nine selections. Hover borrows it the way the categories do. */
-.reader-sidebar__book { display: block; padding: 6px 8px; border-radius: 6px; font-size: 14px;
-                        line-height: 1.35; text-decoration: none; font-weight: 600;
+.reader-sidebar__book { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 6px;
+                        font-size: 14px; line-height: 1.35; text-decoration: none; font-weight: 600;
                         color: hsl(var(--foreground)); }
+.reader-sidebar__book-ic { width: 16px; height: 16px; flex: none; color: var(--text-muted); }
+.reader-sidebar__book > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .reader-sidebar__book:hover { color: hsl(var(--primary)); background: hsl(var(--secondary) / 0.5); }
 .reader-sidebar__book--active { background: hsl(var(--card));
                                 border-left: 2px solid hsl(var(--primary));
@@ -310,6 +371,18 @@ body:has(.reader-sticky[data-on="true"]) .reader-expand { top: 120px; }
 /* A book with no lessons yet cannot be opened — it keeps the weight, loses the promise. */
 .reader-sidebar__book--empty { color: hsl(var(--muted-foreground) / 0.6); cursor: default; }
 .reader-sidebar__book--empty:hover { background: none; }
+
+/* ── the two-mode Expanded face: book contents ⇄ all-books browse (the design's `.syn-side`) ── */
+.reader-sidebar__book-view { display: flex; flex-direction: column; gap: 1rem; }
+.reader-sidebar__browse { display: none; flex-direction: column; gap: 12px; margin: 0; }
+.reader-sidebar__inner[data-view="browse"] .reader-sidebar__book-view { display: none; }
+.reader-sidebar__inner[data-view="browse"] .reader-sidebar__browse { display: flex; }
+.reader-sidebar__browse-list { list-style: none; margin: 0; padding: 0;
+                               display: flex; flex-direction: column; gap: 2px; }
+.reader-sidebar__browse-all { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase;
+                              letter-spacing: 0.1em; color: var(--text-secondary); text-decoration: none;
+                              padding: 6px 8px; }
+.reader-sidebar__browse-all:hover { color: var(--brand); }
 
 /* ── the compact rail ── */
 .reader-rail { display: flex; flex-direction: column; align-items: center; gap: 8px;
@@ -352,31 +425,6 @@ body:has(.reader-sticky[data-on="true"]) .reader-expand { top: 120px; }
 .reader-sticky__section { color: hsl(var(--muted-foreground)); overflow: hidden;
                           text-overflow: ellipsis; white-space: nowrap; }
 
-/* ── the minimap ── */
-.reader-minimap { position: fixed; right: 14px; top: 50%; transform: translateY(-50%);
-                  z-index: 35; height: min(60vh, 420px); display: none; }
-@media (min-width: 1200px) { .reader-minimap { display: block; } }
-.reader-minimap__track { position: relative; width: 28px; height: 100%; }
-.reader-minimap__track::before { content: ""; position: absolute; right: 2px; top: 0; bottom: 0;
-                                 width: 2px; background: hsl(var(--border)); }
-.reader-minimap__fill { position: absolute; right: 2px; top: 0; width: 2px;
-                        background: hsl(var(--primary)); transition: height 100ms linear; }
-.reader-minimap__tick { position: absolute; right: 0; transform: translateY(-50%);
-                        width: 28px; background: none; border: 0; cursor: pointer; padding: 0; }
-.reader-minimap__tick::after { content: ""; position: absolute; right: 0; top: 50%;
-                               transform: translateY(-50%); height: 3px; border-radius: 3px;
-                               background: hsl(var(--muted-foreground) / 0.6); }
-.reader-minimap__tick--l2::after { width: 18px; }
-.reader-minimap__tick--l3::after { width: 12px; }
-.reader-minimap__tick:hover::after { background: hsl(var(--foreground)); height: 4px; }
-.reader-minimap__tick--active::after { background: hsl(var(--primary)); width: 24px; height: 4px; }
-.reader-minimap__label { position: absolute; right: 34px; top: 50%; transform: translateY(-50%) translateX(4px);
-                         background: hsl(var(--card)); border: 1px solid hsl(var(--border));
-                         border-radius: 8px; padding: 3px 9px; font-size: 11.5px;
-                         color: hsl(var(--foreground)); white-space: nowrap; opacity: 0;
-                         pointer-events: none; transition: opacity 120ms, transform 120ms; }
-.reader-minimap__tick:hover .reader-minimap__label { opacity: 1; transform: translateY(-50%) translateX(0); }
-
 /* ── the FAB stack (right, packs upward from 20px) ── */
 .reader-scrolltop, .reader-toc-fab { position: fixed; right: 20px; z-index: 40; width: 44px;
     height: 44px; display: inline-flex; align-items: center; justify-content: center;
@@ -390,6 +438,16 @@ body:has(.reader-sticky[data-on="true"]) .reader-expand { top: 120px; }
 .reader-toc-fab__icon { width: 20px; height: 20px; }
 .reader-scrolltop { bottom: 132px; }
 .reader-scrolltop--hidden { opacity: 0; pointer-events: none; transform: translateY(8px); }
+/* With the outline living in the rail (>=1180px), the floating TOC sheet stands down — it is the
+   narrower-screen fallback. After the FAB base rules so it wins on source order (equal specificity,
+   and media queries add none). The prefs + scroll-top FABs tuck into the bottom-right of the reading
+   column, snug against the rail's divider (the rail is 304px, so right:305 sits them 1px clear of
+   it): the Aa prefs at the very corner, scroll-to-top stacked just above it. */
+@media (min-width: 1180px) {
+    .reader-toc-fab { display: none; }
+    .reader-prefs-fab { right: 305px; bottom: 20px; }
+    .reader-scrolltop { right: 305px; bottom: 76px; }
+}
 
 /* ── TOC popover ── */
 .reader-toc-scrim { position: fixed; inset: 0; z-index: 38; background: transparent; }
@@ -443,9 +501,62 @@ body:has(.reader-sticky[data-on="true"]) .reader-expand { top: 120px; }
 .reader-pager__title { font-family: var(--font-serif, Georgia, serif); font-style: italic;
                        font-size: 18px; color: hsl(var(--foreground)); }
 
+/* ── the right rail (≥1180px): progress card · on-this-page outline · up next ──
+   A sticky third column on wide screens; hidden below 1180px, where the outline moves to the
+   bottom-right TOC sheet, "up next" is the in-flow pager, and book progress rides the sidebar. */
+/* The reader↔rail divider is on the main column too (below), for the same full-height reason. */
+.reader-aside { display: none; flex-direction: column; gap: 22px;
+                position: sticky; top: 65px; align-self: start; max-height: calc(100vh - 65px);
+                overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+                padding: 2.1rem 1.25rem 5rem; }
+@media (min-width: 1180px) { .reader-aside { display: flex; } }
+.reader-aside__card { border: 1px solid var(--border-default); border-radius: var(--radius-lg);
+                      background: hsl(var(--card) / 0.5); padding: 14px 16px;
+                      display: flex; flex-direction: column; gap: 9px; }
+.reader-aside__eyebrow { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase;
+                         letter-spacing: 0.14em; color: var(--text-muted); }
+.reader-aside__prog-top { display: flex; align-items: baseline; gap: 8px; }
+.reader-aside__pct { font-family: var(--font-display); font-style: italic; font-size: 26px;
+                     line-height: 1; color: var(--text-primary); }
+.reader-aside__prog-sub { font-size: 12px; color: var(--text-muted); }
+
+/* a slim progress bar — shared by the rail card and the sidebar book header (Phase 4) */
+.reader-bar { height: 6px; border-radius: var(--radius-pill); background: hsl(var(--muted)); overflow: hidden; }
+.reader-bar__fill { height: 100%; width: var(--pct, 0%); border-radius: inherit;
+                    background: var(--brand); transition: width var(--dur-base) var(--ease-out); }
+
+/* the on-this-page outline, rendered into the rail by chrome.ts (rows mirror the TOC sheet).
+   NOT sticky: a long (40-heading) outline is taller than the rail, so sticking it pins it over the
+   whole column and the up-next card paints on top of it — it scrolls with the rail instead. */
+.reader-outline__list { list-style: none; margin: 8px 0 0; padding: 0;
+                        display: flex; flex-direction: column; gap: 1px; }
+.reader-outline__btn { display: flex; align-items: center; gap: 10px; padding: 5px 8px;
+                       border-radius: var(--radius-sm); font-size: 13px; color: var(--text-secondary);
+                       text-decoration: none; transition: color var(--dur-fast), background var(--dur-fast); }
+.reader-outline__btn:hover { color: var(--text-primary); background: var(--bg-hover); }
+.reader-outline__btn--l3 { padding-left: 22px; font-size: 12.5px; }
+.reader-outline__tick { display: inline-block; height: 4px; width: 12px; border-radius: 2px;
+                        flex: none; background: var(--border-default); transition: all var(--dur-fast); }
+.reader-outline__row--active .reader-outline__btn { color: var(--text-primary); font-weight: 500; }
+.reader-outline__row--active .reader-outline__tick { background: var(--brand); width: 20px; }
+.reader-outline__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* up next */
+.reader-aside__next { display: flex; flex-direction: column; gap: 4px; text-decoration: none;
+                      padding: 13px 15px; border: 1px solid var(--border-default);
+                      border-radius: var(--radius-lg); background: hsl(var(--card) / 0.4);
+                      transition: border-color var(--dur-base) var(--ease-out),
+                                  transform var(--dur-base) var(--ease-out); }
+.reader-aside__next:hover { border-color: var(--border-interactive); transform: translateY(-1px); }
+.reader-aside__next-title { font-family: var(--font-display); font-style: italic; font-size: 16px;
+                            color: var(--text-primary); line-height: 1.2; }
+.reader-aside__next-go { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px;
+                         color: var(--brand); font-weight: 600; margin-top: 3px; }
+
 @media (prefers-reduced-motion: reduce) {
     .reader-progress, .reader-scrolltop, .reader-toc-fab, .reader-toc-pop,
-    .reader-pager__card, .reader-sticky, .reader-minimap__fill {
+    .reader-pager__card, .reader-sticky,
+    .reader-bar__fill, .reader-aside__next {
         transition: none; }
 }
 

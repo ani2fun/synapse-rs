@@ -86,6 +86,27 @@ export function firstLessonPath(book: Book): string | null {
 }
 
 /**
+ * The title of the chapter a lesson sits in — its nearest chapter ancestor — or `null` when the
+ * lesson hangs directly off the book root. Feeds the reader's eyebrow (the "you are here" line
+ * above the lesson title).
+ */
+export function chapterTitleOf(book: Book, lessonPath: string): string | null {
+  let found: string | null = null;
+  const walk = (entries: BookEntry[], prefix: string[], chapter: string | null): void => {
+    for (const entry of entries) {
+      const path = [...prefix, entry.slug].join("/");
+      if (entry.kind === "lesson") {
+        if (path === lessonPath) found = chapter;
+      } else {
+        walk(entry.entries, [...prefix, entry.slug], entry.title);
+      }
+    }
+  };
+  walk(book.entries, bookPrefix(book), null);
+  return found;
+}
+
+/**
  * The book a lesson path belongs to: the entry whose `categoryPath + slug` prefixes the path.
  * A book matches on its first segment and returns immediately; a category matches and recurses
  * with the rest — so a category-nested book (`programming-languages/python/…`) still resolves.
@@ -101,6 +122,19 @@ export function bookOf(index: SynapseIndex, lessonPath: string[]): Book | null {
     return null;
   };
   return find(index.entries, lessonPath);
+}
+
+/** Every book in the catalog, DFS through categories — the reader's "Back to Main" browse list. */
+export function allBooksOf(index: SynapseIndex): Book[] {
+  const out: Book[] = [];
+  const walk = (entries: CatalogEntry[]): void => {
+    for (const entry of entries) {
+      if (entry.kind === "book") out.push(entry);
+      else walk(entry.entries);
+    }
+  };
+  walk(index.entries);
+  return out;
 }
 
 /** The book with a globally-unique slug, DFS through categories. */

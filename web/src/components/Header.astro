@@ -1,7 +1,8 @@
 ---
 // The site header: brand link home, the `.header__search` button that islands/palette.ts
 // hydrates into the ⌘K command palette (also the e2e selector `reader.spec.ts` clicks), the
-// Blog link, and the account chip mount host.
+// Blog link, the light/dark theme toggle (islands/theme.ts flips `.dark` on <html>), and the
+// account chip mount host.
 ---
 
 <header class="header">
@@ -43,6 +44,17 @@
     </div>
     <div class="header__actions">
       <a class="header__link" href="/blog">Blog</a>
+      <!-- Light/dark toggle. Both glyphs render; CSS shows the one you'd switch TO (moon in light,
+           sun in dark). islands/theme.ts (global) wires the click + persists the choice. -->
+      <button class="header__icon-btn" type="button" data-theme-toggle aria-label="Switch to dark theme" title="Toggle theme">
+        <svg class="header__icon-btn__moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+        </svg>
+        <svg class="header__icon-btn__sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2 M12 20v2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M2 12h2 M20 12h2 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4"></path>
+        </svg>
+      </button>
       <!-- The account chip's mount host. islands/auth (loaded globally from Base) renders the
            Preact `Chip` in here, after the Blog link; its own root carries `account-chip`. -->
       <span data-account-chip></span>

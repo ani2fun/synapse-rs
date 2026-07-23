@@ -69,6 +69,19 @@ pub struct AppConfig {
     pub tutor_enabled: bool,
     pub tutor_url: String,
     pub tutor_model: String,
+    /// In-app prose editing: `off` (the routes are never mounted — a structural 404, the coach's
+    /// pattern) · `dry-run` (the whole flow runs, nothing leaves the process) · `github` (real
+    /// pull requests). Env: `CONTENT_FORGE`.
+    pub content_forge: String,
+    /// The content repository proposals target, `owner/name`, and its default branch. Envs:
+    /// `CONTENT_REPO` / `CONTENT_REPO_BRANCH`.
+    pub content_repo: String,
+    pub content_repo_branch: String,
+    /// The fine-grained PAT the forge commits with — `contents: write` +
+    /// `pull_requests: write` on `content_repo` ALONE. Never logged, never returned, never sent
+    /// anywhere but api.github.com. Empty with `content_forge = "github"` degrades LOUDLY to a
+    /// dry run rather than silently accepting edits it cannot forward. Env: `GITHUB_TOKEN`.
+    pub github_token: String,
 }
 
 impl Default for AppConfig {
@@ -95,6 +108,14 @@ impl Default for AppConfig {
             tutor_enabled: false,
             tutor_url: "http://localhost:11434".to_owned(),
             tutor_model: "llama3.1".to_owned(),
+            // Dev gets the whole editing flow WITHOUT credentials: the gate, the drift guard, the
+            // validation, the branch derivation and the stored history all run for real, and only
+            // the forge call at the end is skipped. `off` is for a deployment that wants the
+            // routes gone entirely.
+            content_forge: "dry-run".to_owned(),
+            content_repo: "ani2fun/synapse-content".to_owned(),
+            content_repo_branch: "main".to_owned(),
+            github_token: String::new(),
         }
     }
 }
@@ -154,6 +175,10 @@ impl AppConfig {
                 "TUTOR_ENABLED",
                 "TUTOR_URL",
                 "TUTOR_MODEL",
+                "CONTENT_FORGE",
+                "CONTENT_REPO",
+                "CONTENT_REPO_BRANCH",
+                "GITHUB_TOKEN",
             ])
             .map(|key| key.as_str().to_lowercase().into());
         Figment::from(Serialized::defaults(Self::default()))
@@ -230,6 +255,23 @@ mod tests {
             jail.set_env("SUBMISSION_ALLOWLIST_ENFORCED", "true");
             let cfg = AppConfig::load().map_err(|e| *e)?;
             assert!(cfg.submission_allowlist_enforced);
+            Ok(())
+        });
+    }
+
+    #[test]
+    fn content_editing_defaults_to_a_credential_free_dry_run() {
+        let cfg = AppConfig::default();
+        assert_eq!(cfg.content_forge, "dry-run");
+        assert_eq!(cfg.content_repo, "ani2fun/synapse-content");
+        assert!(cfg.github_token.is_empty(), "no token is ever a default");
+        figment::Jail::expect_with(|jail| {
+            jail.set_env("CONTENT_FORGE", "github");
+            jail.set_env("GITHUB_TOKEN", "ghp_example");
+            let cfg = AppConfig::load().map_err(|e| *e)?;
+            assert_eq!(cfg.content_forge, "github");
+            assert_eq!(cfg.github_token, "ghp_example");
+            assert_eq!(cfg.content_repo_branch, "main", "default stays");
             Ok(())
         });
     }

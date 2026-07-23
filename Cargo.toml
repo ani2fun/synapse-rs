@@ -24,6 +24,9 @@ thiserror = "2"
 # image with no ca-certificates. Pinned by `outbound_tls_it`.
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 regex = "1"
+# The GitHub Contents API takes file bodies base64-encoded. Already in the tree via
+# jsonwebtoken, so naming it directly costs no new transitive dependency.
+base64 = "0.22"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

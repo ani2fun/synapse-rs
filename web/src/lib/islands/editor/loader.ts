@@ -14,6 +14,21 @@
 
 import type { EditorHandle, EditorOptions } from "./monaco";
 
+/**
+ * The content editor's mount: an EDITABLE Monaco with no Run/Submit verbs, behind the same lazy
+ * `./monaco` chunk. Kept separate from `mountEditor` below, which has the flat wasm-bindgen FFI
+ * shape the viz crate calls and must not grow options the FFI does not pass.
+ */
+export async function mountMarkdownEditor(
+  container: HTMLElement,
+  value: string,
+  dark: boolean,
+  onChange: (value: string) => void,
+): Promise<EditorHandle> {
+  const { createEditor } = await import("./monaco");
+  return createEditor(container, { value, language: "markdown", readOnly: false, dark, onChange });
+}
+
 export async function mountEditor(
   container: HTMLElement,
   value: string,

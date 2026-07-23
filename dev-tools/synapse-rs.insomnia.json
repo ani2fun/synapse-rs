@@ -438,6 +438,134 @@
       "description": "Serves content_root/_media; public,max-age=3600 on 200 AND 206; single bytes= range honoured.",
       "method": "GET",
       "url": "{{ _.base_url }}/media/dsa-notes/example.png"
+    },
+    {
+      "_id": "fld_authoring",
+      "_type": "request_group",
+      "parentId": "wrk_synapse_rs",
+      "name": "authoring",
+      "description": "In-app prose editing. Mounted only when CONTENT_FORGE is not 'off'; dev defaults to 'dry-run', where the whole flow runs and only the forge call is skipped. Every verb but /config needs a bearer AND a place on the content_editor_allowlist (a SEPARATE grant from the submit allowlist)."
+    },
+    {
+      "_id": "req_edits_config",
+      "name": "GET /api/edits/config",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/edits/config",
+      "description": "Whether editing is on and whether THIS caller may use it. Answers for anonymous too (canEdit: false), because the lesson page asks before it knows who is reading.",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "_type": "request",
+      "parentId": "fld_authoring"
+    },
+    {
+      "_id": "req_edits_source",
+      "name": "GET /api/edits/source/{path}",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/edits/source/system-design-from-first-principles/foundations/thinking-in-tradeoffs",
+      "description": "The lesson file WHOLE, frontmatter fence included, plus the fingerprint POST /api/edits demands back. 401 anonymous, 403 not allow-listed, 404 not an editable page.",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "_type": "request",
+      "parentId": "fld_authoring"
+    },
+    {
+      "_id": "req_edits_propose",
+      "name": "POST /api/edits",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/edits",
+      "description": "Propose the edit. Reuses this contributor's open pull request for this page (another commit) or opens a new branch. 409 when baseFingerprint no longer matches the file on disk.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"lessonPath\": \"system-design-from-first-principles/foundations/thinking-in-tradeoffs\",\n  \"source\": \"---\\ntitle: Thinking in Tradeoffs\\n---\\n\\nEdited prose.\\n\",\n  \"baseFingerprint\": \"paste the fingerprint from GET /api/edits/source\",\n  \"summary\": \"Clarified the opening paragraph.\"\n}"
+      },
+      "_type": "request",
+      "parentId": "fld_authoring"
+    },
+    {
+      "_id": "req_edits_mine",
+      "name": "GET /api/edits",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/edits",
+      "description": "The caller's own change requests, newest first. The stored state is a cache refreshed on submit, not per read.",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "_type": "request",
+      "parentId": "fld_authoring"
+    },
+    {
+      "_id": "req_content_editors_list",
+      "name": "GET /api/admin/content-editors",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/admin/content-editors",
+      "description": "Who may propose prose edits. Separate from the submit allowlist: this grant opens pull requests under the deployment's token.",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "_type": "request",
+      "parentId": "fld_admin"
+    },
+    {
+      "_id": "req_content_editors_grant",
+      "name": "POST /api/admin/content-editors",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/admin/content-editors",
+      "description": "Grant (upsert). Usernames are trimmed and lowercased server-side; blank is a 400.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"username\": \"tester\",\n  \"note\": \"trusted contributor\"\n}"
+      },
+      "_type": "request",
+      "parentId": "fld_admin"
+    },
+    {
+      "_id": "req_content_editors_revoke",
+      "name": "DELETE /api/admin/content-editors/{username}",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/api/admin/content-editors/tester",
+      "description": "Revoke \u2014 204 on removal, 404 when the grant never existed. Change requests already open are untouched; closing those is a reviewer's call.",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "_type": "request",
+      "parentId": "fld_admin"
     }
   ]
 }

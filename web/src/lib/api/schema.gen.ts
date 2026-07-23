@@ -42,6 +42,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/content-editors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The grants, newest first. */
+        get: operations["listContentEditors"];
+        put?: never;
+        /** Grant (upsert) — the stored row comes back; usernames are canonicalised here. */
+        post: operations["grantContentEditor"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/content-editors/{username}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke — 204 on removal, 404 when the grant never existed. Change requests the person already
+         *     opened are untouched: those live on the forge, and closing them is a reviewer's call.
+         */
+        delete: operations["revokeContentEditor"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/lesson-views": {
         parameters: {
             query?: never;
@@ -105,6 +143,65 @@ export interface paths {
         };
         /** One post with body + publish-order neighbours. */
         get: operations["getBlogPost"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/edits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The caller's own change requests, newest first. */
+        get: operations["listMyEdits"];
+        put?: never;
+        /**
+         * Propose the edit: commit to this contributor's branch for this page and open (or reuse) a pull
+         *     request.
+         */
+        post: operations["proposeEdit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/edits/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether this deployment offers editing, and whether THIS caller may use it. Answers for
+         *     everyone — an anonymous reader gets `canEdit: false`, not a 401, because the lesson page asks
+         *     this before it knows who is reading.
+         */
+        get: operations["getEditConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/edits/source/{path}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The lesson's file, whole — frontmatter fence included, because that is what gets committed. */
+        get: operations["getEditSource"];
         put?: never;
         post?: never;
         delete?: never;
@@ -477,6 +574,78 @@ export interface components {
         DeleteResultDto: {
             deleted: number;
         };
+        /**
+         * @description `GET /api/edits/config` — always answers, even when editing is off, so the client has one
+         *     place to ask instead of inferring capability from a 404.
+         */
+        EditConfigDto: {
+            /** @description The branch pull requests target. */
+            baseBranch: string;
+            /**
+             * @description Whether THIS caller may propose edits — signed in and on the content-editor allowlist.
+             *     UX only; every write re-checks server-side.
+             */
+            canEdit: boolean;
+            /** @description `false` when the deployment has no forge configured — the editor never offers itself. */
+            enabled: boolean;
+            /**
+             * @description `"github"` (real pull requests) or `"dry-run"` (nothing leaves the process). The editor
+             *     says which, plainly, rather than letting a contributor believe a dry run shipped.
+             */
+            mode: string;
+            /** @description `owner/name` of the content repository. */
+            repo: string;
+        };
+        /** @description One proposed change, as stored — the `POST` answer and the rows behind "My change requests". */
+        EditRequestDto: {
+            branch: string;
+            /**
+             * Format: int32
+             * @description How many commits this branch has carried — 2+ means the contributor revised an open
+             *     proposal rather than opening a second one.
+             */
+            commits: number;
+            /** @description ISO-8601 instants. */
+            createdAt: string;
+            filePath: string;
+            id: string;
+            lessonPath: string;
+            /** @description The forge that handled it (`"github"` / `"dry-run"`), so the result copy can be honest. */
+            mode: string;
+            /**
+             * Format: int64
+             * @description Absent on a dry run — nothing was opened.
+             */
+            prNumber?: number | null;
+            prUrl?: string | null;
+            /** @description `true` when this submission landed on an ALREADY-OPEN pull request. */
+            reused: boolean;
+            /** @description `"open" | "merged" | "closed"`. */
+            state: string;
+            updatedAt: string;
+        };
+        /** @description `GET /api/edits/source/{*path}` — the file as it is on disk RIGHT NOW. */
+        EditSourceDto: {
+            /** @description The content checkout's version (git SHA in prod) — shown as provenance. */
+            contentVersion: string;
+            /**
+             * @description The path INSIDE the content repository — real folders carry `NN-` order prefixes, so this
+             *     is never derivable from `lesson_path` by the client.
+             */
+            filePath: string;
+            /**
+             * @description A digest of `source` the client hands back on submit, so an edit against a stale copy is
+             *     refused instead of silently overwriting whatever landed in between.
+             */
+            fingerprint: string;
+            /** @description The URL path (`category…/book/chapter…/lesson`). */
+            lessonPath: string;
+            /**
+             * @description The WHOLE file, frontmatter fence included. Editing the reader's stripped body would
+             *     delete the frontmatter on save.
+             */
+            source: string;
+        };
         FailedCaseDto: {
             args: {
                 [key: string]: string;
@@ -573,6 +742,16 @@ export interface components {
         /** @description `GET /api/progress` — every lesson path the caller has completed. */
         ProgressListDto: {
             completed: string[];
+        };
+        /** @description `POST /api/edits` body. */
+        ProposeEditRequestDto: {
+            /** @description The `fingerprint` that came with the source this edit started from. */
+            baseFingerprint: string;
+            lessonPath: string;
+            /** @description The proposed file, whole. */
+            source: string;
+            /** @description The contributor's own words — becomes the commit message body and the pull-request body. */
+            summary?: string | null;
         };
         /** @description The run request. `language` is a fence alias (`py`, `cpp`, …), resolved server-side. */
         RunRequest: {
@@ -808,6 +987,143 @@ export interface operations {
             };
         };
     };
+    listContentEditors: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every grant, newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllowlistEntryDto"][];
+                };
+            };
+            /** @description Anonymous */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Not an admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    grantContentEditor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GrantRequestDto"];
+            };
+        };
+        responses: {
+            /** @description The stored grant */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllowlistEntryDto"];
+                };
+            };
+            /** @description Blank username */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Anonymous */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Not an admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    revokeContentEditor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The granted username */
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Anonymous */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Not an admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description No such grant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     listLessonViews: {
         parameters: {
             query?: {
@@ -929,6 +1245,210 @@ export interface operations {
                 };
             };
             /** @description Unknown slug */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    listMyEdits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The caller's change requests */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditRequestDto"][];
+                };
+            };
+            /** @description Anonymous */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Not a content editor */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    proposeEdit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProposeEditRequestDto"];
+            };
+        };
+        responses: {
+            /** @description The change request */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditRequestDto"];
+                };
+            };
+            /** @description The proposed edit is not valid */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Anonymous */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Not a content editor */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Not an editable page */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description The page changed while editing */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description The content repository is unreachable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    getEditConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Editing coordinates for this caller */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditConfigDto"];
+                };
+            };
+            /** @description The allowlist store failed */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    getEditSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description category…/book/chapter…/lesson */
+                path: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The editable source */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditSourceDto"];
+                };
+            };
+            /** @description Anonymous */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Not a content editor */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Not an editable page */
             404: {
                 headers: {
                     [name: string]: unknown;

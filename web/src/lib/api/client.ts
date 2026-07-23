@@ -29,6 +29,10 @@ export type BlogSummary = components["schemas"]["BlogSummaryDto"];
 export type BlogPost = components["schemas"]["BlogPostDto"];
 export type AllowlistEntry = components["schemas"]["AllowlistEntryDto"];
 export type GrantRequest = components["schemas"]["GrantRequestDto"];
+export type EditConfig = components["schemas"]["EditConfigDto"];
+export type EditSource = components["schemas"]["EditSourceDto"];
+export type ProposeEditRequest = components["schemas"]["ProposeEditRequestDto"];
+export type EditRequest = components["schemas"]["EditRequestDto"];
 export type TutorConfig = components["schemas"]["TutorConfigDto"];
 export type ChatMessage = components["schemas"]["ChatMessage"];
 export type TutorChatRequest = components["schemas"]["TutorChatRequestDto"];
@@ -265,4 +269,42 @@ export function allowlistGrant(request: GrantRequest): Promise<AllowlistEntry> {
 /** `undefined` on 204; a 404 surfaces as an `ApiFailure`. */
 export function allowlistRevoke(username: string): Promise<void> {
   return del<void>(`/api/admin/allowlist/${username}`);
+}
+
+// ── content editing ─────────────────────────────────────────────────────────────────────────
+// A deployment with `CONTENT_FORGE=off` never mounts these, so every call below can 404 as a
+// whole-feature answer rather than a per-resource one. Callers treat that as "editing is off".
+
+/** Whether this deployment offers editing and whether THIS caller may use it (anonymous is a
+ *  legitimate answer, not a 401 — the lesson page asks before it knows who is reading). */
+export function editConfig(): Promise<EditConfig> {
+  return get<EditConfig>("/api/edits/config");
+}
+
+/** A lesson's file, whole — frontmatter fence included, because that is what gets committed. */
+export function editSource(path: string): Promise<EditSource> {
+  return get<EditSource>(`/api/edits/source/${path}`);
+}
+
+/** Propose the edit — a 409 means the page moved under the editor and the draft must be reapplied. */
+export function proposeEdit(request: ProposeEditRequest): Promise<EditRequest> {
+  return post<EditRequest>("/api/edits", request);
+}
+
+/** The caller's own change requests, newest first. */
+export function myEdits(): Promise<EditRequest[]> {
+  return get<EditRequest[]>("/api/edits");
+}
+
+/** The content-editor allowlist — a SEPARATE grant from the submit allowlist above. */
+export function contentEditors(): Promise<AllowlistEntry[]> {
+  return get<AllowlistEntry[]>("/api/admin/content-editors");
+}
+
+export function contentEditorGrant(request: GrantRequest): Promise<AllowlistEntry> {
+  return post<AllowlistEntry>("/api/admin/content-editors", request);
+}
+
+export function contentEditorRevoke(username: string): Promise<void> {
+  return del<void>(`/api/admin/content-editors/${username}`);
 }

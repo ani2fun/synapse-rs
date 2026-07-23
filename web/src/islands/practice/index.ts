@@ -11,6 +11,7 @@ import { render, h } from "preact";
 import { decodePractice } from "../../lib/execution/practice";
 import { PracticeProblem } from "./PracticeProblem";
 import * as log from "../../lib/log";
+import { lessonPathFromUrl } from "../../lib/catalog/path";
 
 function decodedAttr(element: Element, name: string): string | null {
   const raw = element.getAttribute(name);
@@ -20,15 +21,6 @@ function decodedAttr(element: Element, name: string): string | null {
   } catch {
     return null;
   }
-}
-
-function lessonPathFromUrl(): string[] {
-  const path = window.location.pathname;
-  if (!path.startsWith("/synapse/")) return [];
-  return path
-    .slice("/synapse/".length)
-    .split("/")
-    .filter((segment) => segment !== "");
 }
 
 /** Walk back to the nearest heading; take the text after "Practice:", else the heading, else "Your

@@ -1,0 +1,161 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   CONTENT EDITING — the /edit page, its lint strip, and the three-step review
+   dialog. Tokens are the shared palette (hsl(var(--…))); the reader's own
+   stylesheets are imported alongside this so the PREVIEW renders identically.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* The "Suggest an edit" link on a lesson page (server-rendered hidden; editLink.ts un-hides). */
+.lesson-edit-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: hsl(var(--primary));
+  text-decoration: none;
+}
+.lesson-edit-link:hover { text-decoration: underline; }
+.lesson-edit-link[hidden] { display: none; }
+
+/* ── the page shell ── */
+.edit-page { display: flex; flex-direction: column; gap: 0.75rem; max-width: 60rem;
+             margin: 0 auto; padding: 1rem 1.25rem 3rem; min-height: 70vh; }
+.edit-page__head { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;
+                   justify-content: space-between; }
+.edit-page__crumbs { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+.edit-page__crumb { font-size: 0.85rem; color: hsl(var(--primary)); text-decoration: none; }
+.edit-page__crumb:hover { text-decoration: underline; }
+.edit-page__file { font-size: 0.75rem; color: hsl(var(--muted-foreground));
+                   font-family: "JetBrains Mono", ui-monospace, monospace; overflow-wrap: anywhere; }
+.edit-page__actions { display: flex; align-items: center; gap: 0.75rem; }
+.edit-page__saved { font-size: 0.75rem; color: hsl(var(--muted-foreground)); }
+.edit-page__review { padding: 0.45rem 1rem; border: none; border-radius: 0.5rem;
+                     background: hsl(var(--primary)); color: hsl(var(--primary-foreground));
+                     font-weight: 600; cursor: pointer; }
+.edit-page__review:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.edit-page__editor { height: 60vh; min-height: 22rem; border: 1px solid hsl(var(--border));
+                     border-radius: 0.6rem; overflow: hidden; }
+
+.edit-page__draft { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem;
+                    padding: 0.6rem 0.9rem; border-radius: 0.5rem; font-size: 0.85rem;
+                    background: hsl(var(--primary) / 0.08); color: hsl(var(--foreground)); }
+.edit-page__draft-btn { padding: 0.25rem 0.7rem; border-radius: 0.4rem; border: none;
+                        background: hsl(var(--primary)); color: hsl(var(--primary-foreground));
+                        font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+.edit-page__draft-btn--ghost { background: transparent; color: hsl(var(--muted-foreground));
+                               border: 1px solid hsl(var(--border)); }
+.edit-page__error { padding: 0.6rem 0.9rem; border-radius: 0.5rem; font-size: 0.85rem;
+                    background: hsl(var(--status-err-bg) / 0.2); color: hsl(var(--status-err));
+                    border: 1px solid hsl(var(--status-err) / 0.35); }
+
+/* ── the lint strip ── */
+.edit-lint { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.edit-lint__item { display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0.7rem;
+                   border-radius: 0.45rem; font-size: 0.8rem; border: 1px solid transparent; }
+.edit-lint__item--error { background: hsl(var(--status-err-bg) / 0.18);
+                          border-color: hsl(var(--status-err) / 0.3); color: hsl(var(--foreground)); }
+.edit-lint__item--warning { background: hsl(var(--muted) / 0.4); color: hsl(var(--foreground) / 0.85); }
+.edit-lint__badge { flex: none; font-weight: 700; font-size: 0.7rem; text-transform: uppercase;
+                    letter-spacing: 0.03em; }
+.edit-lint__item--error .edit-lint__badge { color: hsl(var(--status-err)); }
+.edit-lint__item--warning .edit-lint__badge { color: hsl(var(--muted-foreground)); }
+.edit-lint__msg { flex: 1; }
+.edit-lint__goto { flex: none; padding: 0.15rem 0.5rem; border-radius: 0.35rem;
+                   border: 1px solid hsl(var(--border)); background: transparent;
+                   color: hsl(var(--primary)); font-size: 0.75rem; cursor: pointer; }
+
+/* ── the gate / terminal states ── */
+.edit-gate { max-width: 34rem; margin: 4rem auto; text-align: center;
+             display: flex; flex-direction: column; align-items: center; gap: 0.9rem; padding: 0 1.25rem; }
+.edit-gate__title { font-size: 1.5rem; color: hsl(var(--foreground)); margin: 0; }
+.edit-gate__body { color: hsl(var(--muted-foreground)); line-height: 1.6; }
+.edit-gate__row { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: center; }
+.edit-gate__btn { padding: 0.5rem 1.1rem; border-radius: 0.5rem; border: none;
+                  background: hsl(var(--primary)); color: hsl(var(--primary-foreground));
+                  font-weight: 600; cursor: pointer; text-decoration: none; }
+.edit-gate__link { color: hsl(var(--primary)); text-decoration: none; font-size: 0.9rem; }
+.edit-gate__link:hover { text-decoration: underline; }
+.edit-gate--done .edit-gate__title { color: hsl(var(--status-ok, var(--primary))); }
+
+/* ── the review dialog ── */
+.edit-review { position: fixed; inset: 0; z-index: 60; display: flex;
+               align-items: center; justify-content: center; padding: 1.5rem; }
+.edit-review__scrim { position: absolute; inset: 0; background: hsl(0 0% 0% / 0.5); }
+.edit-review__panel { position: relative; z-index: 1; width: min(56rem, 100%); max-height: 88vh;
+                      display: flex; flex-direction: column; background: hsl(var(--card));
+                      border: 1px solid hsl(var(--border)); border-radius: 0.9rem;
+                      box-shadow: 0 20px 60px hsl(0 0% 0% / 0.35); overflow: hidden; }
+.edit-review__head { display: flex; align-items: center; justify-content: space-between;
+                     padding: 0.9rem 1.1rem; border-bottom: 1px solid hsl(var(--border)); }
+.edit-review__steps { display: flex; gap: 1.25rem; list-style: none; margin: 0; padding: 0; }
+.edit-review__step { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;
+                     color: hsl(var(--muted-foreground)); }
+.edit-review__step--active { color: hsl(var(--foreground)); font-weight: 600; }
+.edit-review__step--done { color: hsl(var(--primary)); }
+.edit-review__step-num { display: inline-flex; align-items: center; justify-content: center;
+                         width: 1.35rem; height: 1.35rem; border-radius: 9999px; font-size: 0.75rem;
+                         background: hsl(var(--muted) / 0.6); }
+.edit-review__step--active .edit-review__step-num { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+.edit-review__step--done .edit-review__step-num { background: hsl(var(--primary) / 0.25); color: hsl(var(--primary)); }
+.edit-review__close { border: none; background: transparent; color: hsl(var(--muted-foreground));
+                      font-size: 1rem; cursor: pointer; }
+
+.edit-review__body { overflow: auto; padding: 1rem 1.1rem; }
+.edit-review__hint { font-size: 0.85rem; color: hsl(var(--muted-foreground)); margin: 0 0 0.75rem; }
+.edit-review__blockers { padding: 0.7rem 0.9rem; margin-bottom: 0.9rem; border-radius: 0.5rem;
+                         background: hsl(var(--status-err-bg) / 0.2); border: 1px solid hsl(var(--status-err) / 0.35); }
+.edit-review__blockers-head { font-weight: 700; color: hsl(var(--status-err)); margin: 0 0 0.35rem; }
+.edit-review__blockers ul { margin: 0; padding-left: 1.1rem; font-size: 0.85rem; }
+.edit-review__goto { padding: 0.1rem 0.45rem; border-radius: 0.35rem; border: 1px solid hsl(var(--status-err) / 0.4);
+                     background: transparent; color: hsl(var(--status-err)); font-size: 0.75rem; cursor: pointer; }
+
+/* The preview surface — bounded, so a long page scrolls inside the dialog. The `.synapse-prose`
+   inside it is styled by markdown.css, imported by the page, so this only frames it. */
+.edit-review__page { border: 1px solid hsl(var(--border)); border-radius: 0.6rem;
+                     padding: 1.25rem 1.5rem; background: hsl(var(--background)); }
+.edit-review__rendering { color: hsl(var(--muted-foreground)); }
+
+/* The diff. Line-oriented, monospace, gutter sign per row. */
+.edit-diff { border: 1px solid hsl(var(--border)); border-radius: 0.5rem; overflow: auto;
+             font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.8rem; }
+.edit-diff__row { display: flex; white-space: pre; }
+.edit-diff__gutter { flex: none; width: 1.6rem; text-align: center; user-select: none;
+                     color: hsl(var(--muted-foreground)); }
+.edit-diff__text { flex: 1; padding-right: 0.75rem; }
+.edit-diff__row--added { background: hsl(140 60% 40% / 0.14); }
+.edit-diff__row--removed { background: hsl(var(--status-err) / 0.12); }
+.edit-diff__added-count { color: hsl(140 55% 42%); font-weight: 700; }
+.edit-diff__removed-count { color: hsl(var(--status-err)); font-weight: 700; }
+
+.edit-review__label { display: block; font-weight: 600; color: hsl(var(--foreground)); margin-bottom: 0.25rem; }
+.edit-review__sub { font-size: 0.8rem; color: hsl(var(--muted-foreground)); margin: 0 0 0.6rem; }
+.edit-review__summary { width: 100%; padding: 0.6rem 0.75rem; border-radius: 0.5rem;
+                        border: 1px solid hsl(var(--border)); background: hsl(var(--background));
+                        color: hsl(var(--foreground)); font-family: inherit; font-size: 0.9rem; resize: vertical; }
+
+.edit-review__foot { display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem 1.1rem;
+                     border-top: 1px solid hsl(var(--border)); }
+.edit-review__status { font-size: 0.85rem; color: hsl(var(--muted-foreground)); }
+.edit-review__back { margin-right: auto; padding: 0.45rem 1rem; border-radius: 0.5rem;
+                     border: 1px solid hsl(var(--border)); background: transparent;
+                     color: hsl(var(--foreground)); font-weight: 600; cursor: pointer; }
+.edit-review__back:disabled { opacity: 0.4; cursor: not-allowed; }
+.edit-review__next, .edit-review__submit { padding: 0.45rem 1.1rem; border-radius: 0.5rem; border: none;
+                     background: hsl(var(--primary)); color: hsl(var(--primary-foreground));
+                     font-weight: 600; cursor: pointer; }
+.edit-review__submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* The Back button sits at the left; when it is the only left item the Next/Submit hug the right.
+   `margin-right: auto` on Back already pushes them, so no extra spacer is needed. */
+
+@media (max-width: 640px) {
+  .edit-review__steps { gap: 0.75rem; }
+  .edit-review__step { font-size: 0.75rem; }
+  .edit-page__editor { height: 55vh; }
+}
+
+/* (The account page's "My change requests" `.edit-requests__*` block and the admin page's
+   `.admin__section` spacing both live in account.css, which /account and /admin already load —
+   the edit page does not, so those classes are not repeated here.) */

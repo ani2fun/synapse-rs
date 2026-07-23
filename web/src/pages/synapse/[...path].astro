@@ -159,6 +159,16 @@ const eyebrow = book ? (chapterTitleOf(book, segments.join("/")) ?? book.title) 
                 {eyebrow && <p class="reader-prose__eyebrow">{eyebrow}</p>}
                 <h1 class="reader-prose__title">{payload.frontmatter.title}</h1>
                 {payload.frontmatter.summary && <p class="reader-prose__lede">{payload.frontmatter.summary}</p>}
+                <!-- Server-rendered hidden; islands/authoring/editLink un-hides it only for a
+                     caller the server says may edit (signed in, on the content-editor list). An
+                     HTML comment (not a JSX one): dev-mode script extraction can choke on JSX
+                     comments, the same class of scar as the apostrophe note below. -->
+                <a class="lesson-edit-link" href={`/edit/${segments.join("/")}`} data-edit-link hidden>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 20h9 M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                  </svg>
+                  Suggest an edit
+                </a>
               </header>
 
               <article class="lesson-body synapse-prose" set:html={html} />
@@ -417,6 +427,10 @@ const eyebrow = book ? (chapterTitleOf(book, segments.join("/")) ?? book.title) 
           // The reader chrome (sidebar faces, prefs FAB, TOC + minimap) — lesson pages ONLY, so
           // it rides the dynamic lesson branch, never the problem page.
           import("../../islands/chrome");
+          // The Suggest-an-edit affordance: a tiny config probe that un-hides the header link
+          // for an allow-listed editor. Prose lessons only (the link is in the lesson header); the
+          // problem-page editor surface is out of scope for v1.
+          import("../../islands/authoring/editLink");
         }
       </script>
     )

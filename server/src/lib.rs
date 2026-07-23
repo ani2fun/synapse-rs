@@ -3,6 +3,7 @@
 //! complexity; `platform` is the thin, flat cross-cutting context. `app()` assembles the full
 //! HTTP surface; the binary (`main.rs`) is the wiring point.
 
+pub mod authoring;
 pub mod blog;
 pub mod catalog;
 pub mod config;
@@ -83,6 +84,10 @@ pub struct AppDeps<
     pub readiness: Arc<dyn platform::health::ReadinessProbe>,
     /// The coach: when disabled the chat route is never mounted — a structural 404.
     pub tutor: tutoring::http::TutorRoutesState<C>,
+    /// In-app prose editing. `None` (`CONTENT_FORGE=off`) leaves the whole `/api/edits` surface
+    /// and its admin allowlist unmounted — the same structural 404 the coach gets, rather than a
+    /// flag re-checked on every request.
+    pub authoring: Option<authoring::http::AuthoringRoutesState>,
 }
 
 /// The assembled HTTP surface. Contexts contribute their routers here; integration tests drive
@@ -131,7 +136,7 @@ where
         service: deps.catalog,
         views: deps.views,
     };
-    let mut router = Router::new()
+    let mut api = Router::new()
         .merge(platform::http::routes(deps.readiness))
         .merge(catalog::http::routes(catalog_state))
         .merge(execution::http::routes(execution))
@@ -141,7 +146,13 @@ where
         .merge(submission::http::admin::routes(admin))
         .merge(insights::http::routes(readership))
         .merge(progress::http::routes(progress_state))
-        .merge(tutoring::http::routes(deps.tutor))
+        .merge(tutoring::http::routes(deps.tutor));
+    // In-app editing mounts only where a forge is configured; `CONTENT_FORGE=off` leaves
+    // `/api/edits` and its admin allowlist absent rather than gated.
+    if let Some(state) = deps.authoring {
+        api = api.merge(authoring::http::routes(state));
+    }
+    let mut router = api
         .layer(axum::middleware::from_fn(platform::content_cache_control::stamp))
         .merge(media.routes())
         .merge(platform::likec4_proxy::routes(&deps.likec4_url))
@@ -217,7 +228,14 @@ where
         progress::http::list_progress,
         progress::http::reset_progress,
         tutoring::http::tutor_config,
-        tutoring::http::tutor_chat
+        tutoring::http::tutor_chat,
+        authoring::http::get_config,
+        authoring::http::get_source,
+        authoring::http::propose_edit,
+        authoring::http::list_mine,
+        authoring::http::admin::list_content_editors,
+        authoring::http::admin::grant_content_editor,
+        authoring::http::admin::revoke_content_editor
     ),
     components(schemas(
         HealthStatus,
@@ -257,7 +275,11 @@ where
         synapse_shared::tutor::ChatMessage,
         synapse_shared::tutor::TutorConfigDto,
         synapse_shared::tutor::TutorChatRequestDto,
-        synapse_shared::tutor::TutorChatResponseDto
+        synapse_shared::tutor::TutorChatResponseDto,
+        synapse_shared::authoring::EditConfigDto,
+        synapse_shared::authoring::EditSourceDto,
+        synapse_shared::authoring::ProposeEditRequestDto,
+        synapse_shared::authoring::EditRequestDto
     ))
 )]
 pub struct ApiDoc;

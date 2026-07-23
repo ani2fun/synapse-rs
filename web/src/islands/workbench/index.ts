@@ -11,6 +11,7 @@ import { parseVariants } from "../../lib/execution/blocks";
 import type { TestSpec } from "../../lib/execution/judge";
 import { hydrateFenceGroups } from "./fenceGroups";
 import { Workbench } from "./Workbench";
+import { lessonPathFromUrl } from "../../lib/catalog/path";
 
 function decodedAttr(element: Element, name: string): string | null {
   const raw = element.getAttribute(name);
@@ -20,15 +21,6 @@ function decodedAttr(element: Element, name: string): string | null {
   } catch {
     return null;
   }
-}
-
-function lessonPathFromUrl(): string[] {
-  const path = window.location.pathname;
-  if (!path.startsWith("/synapse/")) return [];
-  return path
-    .slice("/synapse/".length)
-    .split("/")
-    .filter((segment) => segment !== "");
 }
 
 export function hydrateWorkbenches(root: ParentNode): void {

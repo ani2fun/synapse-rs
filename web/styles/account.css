@@ -91,3 +91,26 @@
 .admin__revoke { padding: 0.25rem 0.7rem; border: 1px solid hsl(var(--status-err) / 0.35); border-radius: 0.4rem;
                  background: hsl(var(--status-err-bg) / 0.1); color: hsl(var(--status-err)); font-size: 0.78rem; cursor: pointer; }
 .admin__revoke:hover { background: hsl(var(--status-err-bg) / 0.18); }
+
+/* Two allowlist sections stacked on /admin (submit · content editors) — each its own heading and
+   a rule between them. Same table/form grammar above; this only spaces the pair. */
+.admin__section + .admin__section { margin-top: 2.5rem; padding-top: 1.75rem;
+                                    border-top: 1px solid hsl(var(--border)); }
+.admin__section-title { font-size: 1.15rem; color: hsl(var(--foreground)); margin: 0 0 0.35rem; }
+
+/* "My change requests" on /account — the contributor's own proposed edits, same card grammar as
+   the progress/danger sections. */
+.edit-requests { display: flex; flex-direction: column; gap: 0.2rem; }
+.edit-requests__row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem;
+                      padding: 0.5rem 0; border-top: 1px solid hsl(var(--muted)); font-size: 0.85rem; }
+.edit-requests__row:first-of-type { border-top: none; }
+.edit-requests__page { font-weight: 600; color: hsl(var(--foreground)); overflow-wrap: anywhere; }
+.edit-requests__branch { font-family: "JetBrains Mono", ui-monospace, monospace;
+                         font-size: 0.75rem; color: hsl(var(--muted-foreground)); overflow-wrap: anywhere; }
+.edit-requests__pill { flex: none; padding: 0.1rem 0.55rem; border-radius: 9999px; font-size: 0.72rem;
+                       font-weight: 700; text-transform: capitalize; }
+.edit-requests__pill--open { background: hsl(var(--primary) / 0.18); color: hsl(var(--primary)); }
+.edit-requests__pill--merged { background: hsl(270 60% 55% / 0.18); color: hsl(270 60% 60%); }
+.edit-requests__pill--closed { background: hsl(var(--muted) / 0.6); color: hsl(var(--muted-foreground)); }
+.edit-requests__link { margin-left: auto; color: hsl(var(--primary)); text-decoration: none; }
+.edit-requests__link:hover { text-decoration: underline; }

@@ -9,6 +9,7 @@
 //! What remains is a genuine kernel: a small crate whose only dependency is `serde`.
 
 pub mod api;
+pub mod authoring;
 pub mod blog;
 pub mod catalog;
 pub mod execution;

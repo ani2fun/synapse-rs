@@ -61,3 +61,7 @@ export const PROBLEM_APPROACH_KEY = "problem-approach";
 export const WB_LANGUAGE_KEY = "wb-language";
 /** `"dark" | "light"` — read pre-paint by `Base.astro`'s inline bootstrap script too. */
 export const THEME_KEY = "theme";
+/** The content editor's per-page draft key PREFIX — the username and lesson path are appended
+ *  (`content-draft:<username>:<lesson-path>`) so one browser can hold a draft for each page a
+ *  contributor is editing, and a draft never leaks across accounts. See islands/authoring/draft. */
+export const CONTENT_DRAFT_PREFIX = "content-draft:";

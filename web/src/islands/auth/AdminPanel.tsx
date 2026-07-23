@@ -1,43 +1,35 @@
 /**
- * `/admin`: the submit allowlist panel on the account grammar — the grants table, the grant
- * form, revoke per row, one status banner. `me.admin` only gates the UI; every call is
- * re-checked server-side, so a non-admin who navigates here just sees the API's 403 in the
- * banner. Anonymous / non-admin see "Admin only".
+ * `/admin`: the two allowlists, stacked. `me.admin` only gates the UI; every call is re-checked
+ * server-side, so a non-admin who navigates here just sees the API's 403 in each section's banner.
+ * Anonymous / non-admin see "Admin only".
+ *
+ * The two lists are DELIBERATELY separate. The submit allowlist grants shared compute and storage
+ * for saving code attempts; the content-editor list grants the ability to open pull requests
+ * against the content repository under this deployment's token — a much larger trust grant.
+ * Revoking one must never be the same act as revoking the other. They share a table/form/banner
+ * only because they share a shape, not a meaning — see AllowlistSection.
  */
 import { render, h } from "preact";
-import { useEffect, useState } from "preact/hooks";
 
-import { allowlist, allowlistGrant, allowlistRevoke, ApiFailure } from "../../lib/api/client";
-import type { AllowlistEntry } from "../../lib/api/client";
+import {
+  allowlist,
+  allowlistGrant,
+  allowlistRevoke,
+  contentEditors,
+  contentEditorGrant,
+  contentEditorRevoke,
+} from "../../lib/api/client";
 import * as log from "../../lib/log";
+import { AllowlistSection } from "./AllowlistSection";
 import { useAuthState } from "./Chip";
 import { signIn } from "./store";
-
-type ActionStatus =
-  | { kind: "idle" }
-  | { kind: "busy"; message: string }
-  | { kind: "ok"; message: string }
-  | { kind: "error"; message: string };
-
-type Entries =
-  | { kind: "loading" }
-  | { kind: "loaded"; rows: AllowlistEntry[] }
-  | { kind: "failed"; message: string };
-
-function failureMessage(error: unknown): string {
-  return error instanceof ApiFailure ? error.message : error instanceof Error ? error.message : String(error);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// THE PAGE
-// ─────────────────────────────────────────────────────────────────────────────
 
 export function AdminPanel() {
   const state = useAuthState();
   return (
     <div class="account-page">
       <div class="account-page__inner">
-        <h1 class="account-page__title">Admin — submit allowlist</h1>
+        <h1 class="account-page__title">Admin</h1>
         {state.kind === "loading" && <p class="account-page__loading">Loading…</p>}
         {state.kind === "anonymous" && (
           <div class="account-page__identity account-page__identity--anon">
@@ -53,144 +45,26 @@ export function AdminPanel() {
             <p class="account-page__meta">This deployment doesn't list you as an admin.</p>
           </div>
         )}
-        {state.kind === "authed" && state.me.admin && <Panel />}
+        {state.kind === "authed" && state.me.admin && (
+          <>
+            <AllowlistSection
+              title="Submit allowlist"
+              blurb="Who may SAVE code attempts when the allowlist is enforced. Usernames are stored lowercase."
+              load={allowlist}
+              grant={allowlistGrant}
+              revoke={allowlistRevoke}
+            />
+            <AllowlistSection
+              title="Content editors"
+              blurb="Who may propose prose edits from the in-app editor. A grant here opens pull requests against the content repository under this deployment's token — a larger trust grant than saving attempts, which is why it is a separate list."
+              load={contentEditors}
+              grant={contentEditorGrant}
+              revoke={contentEditorRevoke}
+            />
+          </>
+        )}
       </div>
     </div>
-  );
-}
-
-function Panel() {
-  const [status, setStatus] = useState<ActionStatus>({ kind: "idle" });
-  const [entries, setEntries] = useState<Entries>({ kind: "loading" });
-  const [username, setUsername] = useState("");
-  const [note, setNote] = useState("");
-
-  const reload = () => {
-    void (async () => {
-      try {
-        const rows = await allowlist();
-        setEntries({ kind: "loaded", rows });
-      } catch (error) {
-        setEntries({ kind: "failed", message: failureMessage(error) });
-      }
-    })();
-  };
-
-  useEffect(reload, []);
-
-  const grant = () => {
-    if (username.trim() === "") {
-      setStatus({ kind: "error", message: "A grant needs a username" });
-      return;
-    }
-    const request = { username, note: note.trim() === "" ? null : note };
-    setStatus({ kind: "busy", message: "Granting…" });
-    void (async () => {
-      try {
-        const entry = await allowlistGrant(request);
-        setStatus({ kind: "ok", message: `Granted '${entry.username}'.` });
-        setUsername("");
-        setNote("");
-        reload();
-      } catch (error) {
-        setStatus({ kind: "error", message: failureMessage(error) });
-      }
-    })();
-  };
-
-  const revoke = (name: string) => {
-    setStatus({ kind: "busy", message: `Revoking '${name}'…` });
-    void (async () => {
-      try {
-        await allowlistRevoke(name);
-        setStatus({ kind: "ok", message: `Revoked '${name}'.` });
-        reload();
-      } catch (error) {
-        setStatus({ kind: "error", message: failureMessage(error) });
-      }
-    })();
-  };
-
-  return (
-    <>
-      <p class="account-page__meta">
-        Who may SAVE attempts when the allowlist is enforced. Usernames are stored lowercase.
-      </p>
-      <StatusBanner status={status} />
-      <form
-        class="admin__grant"
-        onSubmit={(event) => {
-          event.preventDefault();
-          grant();
-        }}
-      >
-        <input
-          class="admin__input"
-          placeholder="username"
-          value={username}
-          onInput={(event) => setUsername((event.target as HTMLInputElement).value)}
-        />
-        <input
-          class="admin__input admin__input--note"
-          placeholder="note (optional)"
-          value={note}
-          onInput={(event) => setNote((event.target as HTMLInputElement).value)}
-        />
-        <button class="admin__grant-btn" type="submit">
-          Grant
-        </button>
-      </form>
-      <EntriesTable entries={entries} revoke={revoke} />
-    </>
-  );
-}
-
-function EntriesTable({ entries, revoke }: { entries: Entries; revoke: (name: string) => void }) {
-  if (entries.kind === "loading") return <p class="account-page__loading">Loading grants…</p>;
-  if (entries.kind === "failed")
-    return <p class="account-page__status account-page__status--error">{entries.message}</p>;
-  if (entries.rows.length === 0) return <p class="account-page__meta">No grants yet.</p>;
-  return (
-    <table class="admin__table">
-      <thead>
-        <tr>
-          <th>Username</th>
-          <th>Note</th>
-          <th>Granted</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {entries.rows.map((entry) => (
-          <tr key={entry.username}>
-            <td class="admin__cell-user">{entry.username}</td>
-            <td>{entry.note ?? ""}</td>
-            <td>{entry.grantedAt.split("T")[0] ?? ""}</td>
-            <td>
-              <button class="admin__revoke" onClick={() => revoke(entry.username)}>
-                Revoke
-              </button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function StatusBanner({ status }: { status: ActionStatus }) {
-  if (status.kind === "idle") return null;
-  const cls =
-    status.kind === "busy"
-      ? "account-page__status account-page__status--busy"
-      : status.kind === "ok"
-        ? "account-page__status account-page__status--ok"
-        : "account-page__status account-page__status--error";
-  const icon = status.kind === "busy" ? "…" : status.kind === "ok" ? "✓" : "✗";
-  return (
-    <p class={cls}>
-      <span class="account-page__status-icon">{icon}</span> {status.message}
-    </p>
   );
 }
 

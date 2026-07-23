@@ -5,6 +5,11 @@ use std::sync::Arc;
 
 use axum::Router;
 use synapse_server::AppDeps;
+use synapse_server::authoring::application::{ForgeTarget, ProposeEdit};
+use synapse_server::authoring::http::AuthoringRoutesState;
+use synapse_server::authoring::infrastructure::{
+    ConfiguredForge, FsLessonSource, PostgresContentEditors, PostgresEditRequests,
+};
 use synapse_server::blog::application::BlogService;
 use synapse_server::blog::infrastructure::FileSystemBlogRepository;
 use synapse_server::catalog::application::CatalogService;
@@ -106,6 +111,7 @@ where
         content_root: base.content_root,
         likec4_url: base.likec4_url,
         readiness: base.readiness,
+        authoring: base.authoring,
     })
 }
 
@@ -125,6 +131,8 @@ pub fn deps_with(
         pool.clone(),
     ));
     let progress = Arc::new(PostgresProblemProgress::new(pool.clone()));
+    let editors = Arc::new(PostgresContentEditors::new(pool.clone()));
+    let edit_requests = Arc::new(PostgresEditRequests::new(pool.clone()));
     // Gate OFF (the dev default) — the gate tests exercise it over in-memory fakes.
     let submit = Arc::new(SubmitSolution::new(
         Arc::new(PostgresSubmissionRepository::new(pool)),
@@ -147,6 +155,29 @@ pub fn deps_with(
         // The dev default ("tester") — the minted IT token IS tester, so admin ITs pass the gate.
         admin_users: Arc::new(std::collections::HashSet::from(["tester".to_owned()])),
     };
+    let limiter = Arc::new(RateLimiter::new(TEST_BUCKET, TEST_BUCKET));
+    // Content editing MOUNTED, in dry-run — the routes, the gates and the error mapping are all
+    // real, and only the forge call is skipped. An IT that wants it absent sets `authoring: None`.
+    let authoring = Some(AuthoringRoutesState {
+        service: Arc::new(ProposeEdit::new(
+            Arc::new(FsLessonSource::new(FileSystemContentRepository::new(
+                content_root,
+                true,
+            ))),
+            Arc::clone(&editors),
+            edit_requests,
+            Arc::new(ConfiguredForge::select("dry-run", "test/content", "main", "")),
+            ForgeTarget {
+                repo: "test/content".to_owned(),
+                base_branch: "main".to_owned(),
+                site_url: "https://synapse.test".to_owned(),
+            },
+        )),
+        identity: Arc::clone(&ident.identity),
+        editors,
+        admin_users: Arc::clone(&ident.admin_users),
+        limiter: Arc::clone(&limiter),
+    });
     AppDeps {
         catalog: Arc::new(CatalogService::new(repo)),
         run: runner,
@@ -168,12 +199,13 @@ pub fn deps_with(
             content_root,
             true,
         ))),
-        limiter: Arc::new(RateLimiter::new(TEST_BUCKET, TEST_BUCKET)),
+        limiter,
         astro_url: None,
         site_url: "https://synapse.test".to_owned(),
         content_root: content_root.to_string_lossy().into_owned(),
         likec4_url: "http://127.0.0.1:9".to_owned(),
         readiness,
+        authoring,
     }
 }
 

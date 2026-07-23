@@ -1,0 +1,32 @@
+---
+// The content editor page (/edit/<path>). Client-driven like /account and /admin: SSR renders
+// only the shell + an empty mount host, and the Preact island (islands/authoring/EditorPage)
+// fills it once the auth store resolves.
+//
+// It CANNOT fetch the source server-side: GET /api/edits/source needs the reader's bearer, which
+// SSR does not hold. So the page ships no lesson data — the island loads it, gated by the same
+// token the rest of the client uses. authoring.css carries the edit-page / edit-review / edit-lint
+// classes; the reader's own stylesheets are imported so the PREVIEW renders byte-for-byte like the
+// lesson page (same pipeline, same DOM, same styles — see islands/authoring/preview).
+import Base from "../../layouts/Base.astro";
+
+import "../../../styles/authoring.css";
+import "../../../styles/reader.css";
+import "../../../styles/runnable.css";
+import "../../../styles/viz.css";
+import "../../../styles/markdown.css";
+import "../../../styles/practice.css";
+import "../../../styles/diagrams.css";
+import "../../../styles/codebench.css";
+
+const rawPath = Astro.params.path ?? "";
+---
+
+<Base title="Suggest an edit — Synapse">
+  <main class="shell-main">
+    <div data-edit-root data-lesson-path={rawPath}></div>
+  </main>
+  <script>
+    import "../../islands/authoring/EditorPage";
+  </script>
+</Base>

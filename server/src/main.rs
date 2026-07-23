@@ -5,6 +5,11 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use synapse_server::authoring::application::{ForgeTarget, ProposeEdit};
+use synapse_server::authoring::http::AuthoringRoutesState;
+use synapse_server::authoring::infrastructure::{
+    ConfiguredForge, FsLessonSource, PostgresContentEditors, PostgresEditRequests,
+};
 use synapse_server::blog::application::BlogService;
 use synapse_server::blog::infrastructure::FileSystemBlogRepository;
 use synapse_server::catalog::application::CatalogService;
@@ -61,6 +66,8 @@ async fn main() -> anyhow::Result<()> {
     let views = Arc::new(synapse_server::insights::PostgresLessonViews::new(pool.clone()));
     let readiness = Arc::new(PgReadiness::new(pool.clone()));
     let progress = Arc::new(PostgresProblemProgress::new(pool.clone()));
+    let editors = Arc::new(PostgresContentEditors::new(pool.clone()));
+    let edit_requests = Arc::new(PostgresEditRequests::new(pool.clone()));
     let submit = Arc::new(SubmitSolution::new(
         Arc::new(PostgresSubmissionRepository::new(pool)),
         Arc::new(FsProblemTests::new(FileSystemContentRepository::new(
@@ -75,6 +82,17 @@ async fn main() -> anyhow::Result<()> {
     ));
 
     let identity = identity_state(&cfg);
+    let limiter = Arc::new(RateLimiter::new(
+        RateLimitBucket {
+            window_seconds: cfg.rate_limit_anon_window_seconds,
+            limit: cfg.rate_limit_anon_limit,
+        },
+        RateLimitBucket {
+            window_seconds: cfg.rate_limit_auth_window_seconds,
+            limit: cfg.rate_limit_auth_limit,
+        },
+    ));
+    let authoring = authoring_state(&cfg, &identity, &limiter, editors, edit_requests);
     let tutor = TutorRoutesState {
         service: Arc::new(TutoringService::new(OllamaTutorClient::new(
             &cfg.tutor_url,
@@ -87,16 +105,6 @@ async fn main() -> anyhow::Result<()> {
         &cfg.content_root,
         cfg.auto_reload,
     )));
-    let limiter = Arc::new(RateLimiter::new(
-        RateLimitBucket {
-            window_seconds: cfg.rate_limit_anon_window_seconds,
-            limit: cfg.rate_limit_anon_limit,
-        },
-        RateLimitBucket {
-            window_seconds: cfg.rate_limit_auth_window_seconds,
-            limit: cfg.rate_limit_auth_limit,
-        },
-    ));
 
     // Reconcile before serving: a previous process may have died mid-judge, and its rows would
     // otherwise stay unfinished forever (the in-task backstop went down with it). The grace
@@ -130,6 +138,7 @@ async fn main() -> anyhow::Result<()> {
         views,
         progress,
         tutor,
+        authoring,
         astro_url: cfg.astro_url,
         site_url: cfg.site_url,
         content_root: cfg.content_root.clone(),
@@ -161,6 +170,53 @@ fn identity_state(cfg: &synapse_server::config::AppConfig) -> IdentityRoutesStat
         audience: cfg.identity_audience.clone(),
         admin_users: Arc::new(cfg.admin_user_set()),
     }
+}
+
+/// The authoring routes-state, or `None` when `CONTENT_FORGE=off` — which leaves the whole
+/// `/api/edits` surface and its admin allowlist unmounted rather than gated per request.
+///
+/// The lesson source gets its OWN `FileSystemContentRepository` rather than sharing the catalog
+/// service's: the catalog caches its index per content version, and an editor must read the file
+/// as it is on disk this instant, because the fingerprint it hands out is a promise about those
+/// exact bytes.
+fn authoring_state(
+    cfg: &synapse_server::config::AppConfig,
+    identity: &IdentityRoutesState,
+    limiter: &Arc<synapse_server::platform::rate_limiter::RateLimiter>,
+    editors: Arc<PostgresContentEditors>,
+    requests: Arc<PostgresEditRequests>,
+) -> Option<AuthoringRoutesState> {
+    if cfg.content_forge == "off" {
+        tracing::info!("content editing: off — /api/edits is not mounted");
+        return None;
+    }
+    let forge = ConfiguredForge::select(
+        &cfg.content_forge,
+        &cfg.content_repo,
+        &cfg.content_repo_branch,
+        &cfg.github_token,
+    );
+    let service = ProposeEdit::new(
+        Arc::new(FsLessonSource::new(FileSystemContentRepository::new(
+            &cfg.content_root,
+            cfg.auto_reload,
+        ))),
+        Arc::clone(&editors),
+        requests,
+        Arc::new(forge),
+        ForgeTarget {
+            repo: cfg.content_repo.clone(),
+            base_branch: cfg.content_repo_branch.clone(),
+            site_url: cfg.site_url.clone(),
+        },
+    );
+    Some(AuthoringRoutesState {
+        service: Arc::new(service),
+        identity: Arc::clone(&identity.identity),
+        editors,
+        admin_users: Arc::clone(&identity.admin_users),
+        limiter: Arc::clone(limiter),
+    })
 }
 
 /// Resolves on SIGTERM (what Kubernetes sends first on a rolling update or eviction) or on

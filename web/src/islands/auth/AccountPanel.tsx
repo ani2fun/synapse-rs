@@ -12,6 +12,7 @@ import { ApiFailure } from "../../lib/api/client";
 import type { Me } from "../../lib/api/client";
 import * as log from "../../lib/log";
 import { useAuthState } from "./Chip";
+import { ChangeRequests } from "./ChangeRequests";
 import { deleteAccount, eraseAllData, eraseSubmissions, resetProgress, signIn } from "./store";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -102,6 +103,7 @@ function SignedIn({ me }: { me: Me }) {
         </a>
       </div>
       <StatusBanner status={status} />
+      <ChangeRequests />
       <section class="account-page__progress">
         <p class="account-page__section-head">Reading progress</p>
         <p class="account-page__section-note">

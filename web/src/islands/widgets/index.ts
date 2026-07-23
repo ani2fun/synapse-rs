@@ -21,15 +21,7 @@ import { hydrateC4Embeds } from "./C4Embed";
 import { C4DocsPanel } from "./C4DocsPanel";
 import { CodebenchModal } from "./Codebench";
 import { c4Selected } from "./c4Store";
-
-function lessonPathFromUrl(): string[] {
-  const path = window.location.pathname;
-  if (!path.startsWith("/synapse/")) return [];
-  return path
-    .slice("/synapse/".length)
-    .split("/")
-    .filter((segment) => segment !== "");
-}
+import { lessonPathFromUrl } from "../../lib/catalog/path";
 
 let codebenchMounted = false;
 

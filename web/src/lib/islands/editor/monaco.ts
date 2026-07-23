@@ -34,6 +34,10 @@ import "monaco-editor/esm/vs/basic-languages/kotlin/kotlin.contribution";
 import "monaco-editor/esm/vs/basic-languages/typescript/typescript.contribution";
 import "monaco-editor/esm/vs/basic-languages/javascript/javascript.contribution";
 import "monaco-editor/esm/vs/basic-languages/sql/sql.contribution";
+// Markdown — the content editor's language. Prose lessons carry fenced code, and Monaco's
+// markdown grammar highlights those fences with their own sub-language, which is exactly what a
+// contributor editing a lesson wants to see.
+import "monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution";
 
 // One editor worker for every label — we don't load the language services that
 // need dedicated workers, so the base worker is all monaco requests.
@@ -55,6 +59,8 @@ const languageIds: Record<string, string> = {
   typescript: "typescript",
   javascript: "javascript",
   sql: "sql",
+  markdown: "markdown",
+  md: "markdown",
 };
 
 function monacoLanguage(fenceLang: string): string {

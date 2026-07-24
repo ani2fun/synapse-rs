@@ -37,10 +37,13 @@ test.describe("signed-in content edit — the full click-path", () => {
     // Back on the app, the server-verified session is adopted — the chip shows the handle.
     await expect(page.locator(".account-chip__user")).toHaveText(`@${USER}`, { timeout: 30_000 });
 
-    // ── the lesson reveals "Suggest an edit" for an allow-listed editor (hidden otherwise) ──
+    // ── the lesson ACTIVATES "Suggest an edit" for an allow-listed editor (it renders visible but
+    //    gated for everyone else, so waiting on visibility alone would race the config fetch and
+    //    click while the island is still swallowing clicks) ──
     await page.goto(LESSON);
     const editLink = page.locator("[data-edit-link]");
     await expect(editLink).toBeVisible({ timeout: 15_000 });
+    await expect(editLink).not.toHaveClass(/lesson-edit-link--gated/, { timeout: 15_000 });
     await editLink.click();
 
     // ── /edit: Monaco mounts, then append a UNIQUE line at the END (prepending would break the

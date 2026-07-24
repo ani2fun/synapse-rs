@@ -4,19 +4,9 @@
    stylesheets are imported alongside this so the PREVIEW renders identically.
    ───────────────────────────────────────────────────────────────────────────── */
 
-/* The "Suggest an edit" link on a lesson page (server-rendered hidden; editLink.ts un-hides). */
-.lesson-edit-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin-top: 0.75rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: hsl(var(--primary));
-  text-decoration: none;
-}
-.lesson-edit-link:hover { text-decoration: underline; }
-.lesson-edit-link[hidden] { display: none; }
+/* The lesson header's "Suggest an edit" affordance (`.lesson-edit-link` / `.lesson-edit-tip`) is
+   styled in reader.css, NOT here: this stylesheet is the /edit page's, and the lesson page does
+   not load it — rules for it would silently never apply. */
 
 /* ── the page shell ── */
 .edit-page { display: flex; flex-direction: column; gap: 0.75rem; max-width: 60rem;
@@ -77,6 +67,7 @@
                   font-weight: 600; cursor: pointer; text-decoration: none; }
 .edit-gate__link { color: hsl(var(--primary)); text-decoration: none; font-size: 0.9rem; }
 .edit-gate__link:hover { text-decoration: underline; }
+.edit-gate__mail { color: hsl(var(--primary)); }
 .edit-gate--done .edit-gate__title { color: hsl(var(--status-ok, var(--primary))); }
 
 /* ── the review dialog ── */

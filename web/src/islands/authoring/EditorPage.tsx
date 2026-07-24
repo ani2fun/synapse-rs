@@ -304,13 +304,19 @@ function Denied({ reason }: { reason: "anonymous" | "not-allowed" | "off" }) {
       </div>
     );
   }
+  // Same wording as the lesson page's gated tooltip — someone who lands here directly should get
+  // the identical instruction, not a second, subtly different story.
   return (
     <div class="edit-gate">
       <h1 class="edit-gate__title">You are not a content editor yet</h1>
       <p class="edit-gate__body">
-        Ask an admin to add you to the content-editor list, then reopen this page. Editing is a separate grant
-        from running code.
+        Editing needs a place on the content-editor list. To request one, email your GitHub username to{" "}
+        <a class="edit-gate__mail" href="mailto:a.r.kakde@gmail.com">
+          a.r.kakde@gmail.com
+        </a>{" "}
+        — access may or may not be granted. Thanks for understanding.
       </p>
+      <p class="edit-gate__body">Editing is a separate grant from running code.</p>
       <a class="edit-gate__link" href="/">
         ← Back to the library
       </a>

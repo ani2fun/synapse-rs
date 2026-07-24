@@ -234,6 +234,27 @@ html[data-reader-width] .lesson.lesson--problem,
 .reader-prose__lede { font-size: clamp(16px, 1.4vw, 18px); line-height: 1.55;
                       color: hsl(var(--muted-foreground)); max-width: 60ch; margin: 0 0 8px; }
 
+/* ── "Suggest an edit" (the lesson header's content-edit affordance) ── */
+/* Lives HERE, not in authoring.css: that stylesheet belongs to the /edit page and the lesson page
+   never loads it, so these rules simply would not apply. Server-rendered VISIBLE but gated — the
+   workbench Submit grammar — and islands/authoring/editLink activates it for a content editor. */
+.lesson-edit-link { display: inline-flex; align-items: center; gap: 0.35rem;
+                    font-size: 0.85rem; font-weight: 600;
+                    color: hsl(var(--primary)); text-decoration: none; }
+.lesson-edit-link:hover { text-decoration: underline; }
+.lesson-edit-link[hidden] { display: none; }
+
+/* Gated: present and legible, but plainly not actionable. It must stay HOVERABLE — no
+   `pointer-events: none`, which would suppress the very tooltip that explains how to get access. */
+.lesson-edit-link--gated { color: hsl(var(--muted-foreground)); cursor: not-allowed; }
+.lesson-edit-link--gated:hover { text-decoration: none; }
+
+/* The tooltip wrapper carries the top margin so gated and active states sit identically.
+   `.wb__tip` (runnable.css) anchors its bubble RIGHT, which suits a toolbar at a pane's edge;
+   here the control sits at the prose's left margin, so re-anchor it left or it runs off-screen. */
+.lesson-edit-tip { margin-top: 0.75rem; }
+.lesson-edit-tip:hover::after { left: 0; right: auto; }
+
 /* ── the sidebar faces ── */
 /* The sidebar↔reader divider lives on the main column (below), not here — a short book tree left
    this border stopping halfway down. */

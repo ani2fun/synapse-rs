@@ -7,14 +7,29 @@ import { expect, test } from "./fixtures";
 
 const LESSON = "/synapse/learn/smoke/intro";
 
-test("the lesson page hides the Suggest-an-edit link from an anonymous reader", async ({ page }) => {
+test("the lesson page shows Suggest-an-edit GATED to an anonymous reader", async ({ page }) => {
   await page.goto(LESSON);
   await expect(page.locator("h1").first()).toBeVisible();
-  // The link is server-rendered hidden; editLink.ts only un-hides it for an allow-listed caller,
-  // so an anonymous reader must never see it.
+  // Visible but not actionable — the workbench Submit grammar. An anonymous reader should see the
+  // affordance exists and learn from the tooltip how to ask for it, rather than meet a blank space.
   const link = page.locator("[data-edit-link]");
-  await expect(link).toHaveCount(1);
-  await expect(link).toBeHidden();
+  await expect(link).toBeVisible();
+  await expect(link).toHaveClass(/lesson-edit-link--gated/);
+  await expect(link).toHaveAttribute("aria-disabled", "true");
+  // The tooltip carries the request-access route (rendered by the server, so it survives no-JS).
+  await expect(page.locator("[data-edit-tip]")).toHaveAttribute("data-tip", /content-editor list.*a\.r\.kakde@gmail\.com/s);
+});
+
+test("a gated Suggest-an-edit click does not navigate to the editor", async ({ page }) => {
+  await page.goto(LESSON);
+  const link = page.locator("[data-edit-link]");
+  await expect(link).toHaveClass(/lesson-edit-link--gated/);
+  // FORCED on purpose. `aria-disabled` already makes Playwright (and assistive tech) treat this as
+  // disabled, so an ordinary click never lands — which is why the click has to be forced to reach
+  // the thing under test: the island's own guard. `aria-disabled` is a promise, not a behaviour,
+  // and a plain mouse click on an <a href> would otherwise still navigate.
+  await link.click({ force: true });
+  await expect(page).toHaveURL(new RegExp(`${LESSON}$`));
 });
 
 test("GET /api/edits/config reports dry-run and canEdit false for anonymous", async ({ request }) => {

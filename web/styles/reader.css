@@ -567,10 +567,9 @@ body:has(.reader-sticky[data-on="true"]) .reader-expand { top: 120px; }
    library.css all use it); reader.css was the outlier with none.
    ───────────────────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
-    /* 20px + 20px of gutter on each side was 40px of a 393px screen. 14px each
-       gives back ~24px of line length — about 8% more text per line. */
-    .shell-main { padding-left: 0.875rem; padding-right: 0.875rem; }
-    .reader-layout__main { padding: 1.75rem 0.875rem 5rem; }
+    /* .shell-main's narrower phone gutter is --shell-gutter's own step (tokens.css) — it is
+       shared with the body-level site footer, which has to land on the same edges. */
+    .reader-layout__main { padding: 1.75rem var(--shell-gutter) 5rem; }
     .reader-layout--problem .reader-layout__main { padding: 1rem 0.75rem 3rem; }
 
     /* Justify + hyphenate, together or not at all: at this column width justify ALONE

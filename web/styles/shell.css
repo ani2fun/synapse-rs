@@ -35,8 +35,10 @@
                       background: hsl(var(--muted)); color: hsl(var(--muted-foreground));
                       font-family: var(--font-mono); }
 .header__actions { display: flex; align-items: center; gap: 0.75rem; }
-.header__link { font-size: 0.875rem; font-weight: 500; color: hsl(var(--foreground) / 0.85); }
+.header__link { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.875rem;
+                font-weight: 500; color: hsl(var(--foreground) / 0.85); }
 .header__link:hover { color: hsl(var(--primary)); }
+.header__link-ic { width: 16px; height: 16px; flex: none; }
 
 /* the shadcn outline icon button (theme toggle) */
 .header__icon-btn { display: inline-flex; align-items: center; justify-content: center;
@@ -59,11 +61,13 @@
   .header__mid { flex: 0 0 auto; }
   .header__search { width: 2.25rem; height: 2.25rem; padding: 0; justify-content: center; }
   .header__search-text, .header__search-kbd { display: none; }
+  /* The label carries the meaning; the glyph is what a 390px row cannot afford. */
+  .header__link-ic { display: none; }
   .header__actions { gap: 0.5rem; }
   .header__icon-btn { width: 2.25rem; height: 2.25rem; }
 }
 
-.shell-main { padding: 4.75rem 1.25rem 1.25rem; max-width: 72rem; margin: 0 auto; }
+.shell-main { padding: 4.75rem var(--shell-gutter) 1.25rem; max-width: 72rem; margin: 0 auto; }
 /* Problem pages escape the shell's 72rem column — the reader-layout override alone was
    fighting a capped PARENT (the real culprit behind "still not full width" on wide
    monitors). Reader pages keep the column; the two-pane workbench takes the viewport. */

@@ -243,6 +243,21 @@
   --space-10: 64px;
   --space-11: 80px;
   --space-12: 96px;
+
+  /* The page column's side gutter. ONE source: .shell-main sets the content column with it,
+     and the body-level site footer re-creates that column from the same value — the only way
+     the footer's text and build tag stay on the content's left and right edges at EVERY
+     width. The phone step below is why a literal would not do: hardcoding 1.25rem in the
+     footer left it 6px inset from the content it is supposed to line up with. */
+  --shell-gutter: 1.25rem;
+}
+
+/* 20px + 20px of gutter was 40px of a 393px screen. 14px each gives back ~24px of line
+   length — about 8% more text per line. 640px is the de-facto mobile breakpoint here. */
+@media (max-width: 640px) {
+  :root {
+    --shell-gutter: 0.875rem;
+  }
 }
 
 /* ── base (the oracle's @layer base) ── */

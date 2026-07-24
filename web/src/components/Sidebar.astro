@@ -2,9 +2,11 @@
 // The reader sidebar's Expanded face, server-rendered — a two-mode left rail (the design's
 // `.syn-side`). BOOK view: a "Back to Main" toggle, the book header (tile · "Course" · title ·
 // description · a progress bar reader.ts fills), and the reading-order tree. MAIN/BROWSE view:
-// every book in the catalog, the current one marked — reached by "Back to Main", dismissed by its
-// own back button. islands/reader.ts toggles `data-view` (delegated, so the cloned mobile drawer
-// works too). The `<a href="/">` on "Back to Main" is a no-JS fallback to the library page.
+// every book in the catalog, the current one marked — reached by "Back to Main", and topped by
+// "Your Dashboard", which names the face you are on and returns you to the book. Each toprow
+// says where you are going / where you are, never the book title, which the list already shows
+// marked. islands/reader.ts toggles `data-view` (delegated, so the cloned mobile drawer works
+// too). The `<a href="/">` on "Back to Main" is a no-JS fallback to the library page.
 // The Compact rail + the three persisted collapse modes are layered on by islands/chrome.ts.
 import SidebarTree from "./SidebarTree.astro";
 import { bookPrefix, firstLessonPath } from "../lib/catalog/tree";
@@ -25,6 +27,10 @@ const prefix = bookPrefix(book);
 
 const chevron =
   '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>';
+// A house on the browse face's toprow: that face IS the dashboard — every course you own — so
+// the row names it rather than pointing somewhere, the way the book face's chevron does.
+const homeIcon =
+  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>';
 // A generic book glyph in front of each browse-list book — the catalog carries no per-book icon,
 // so it stays consistent rather than topical like the design demo's.
 const bookIcon =
@@ -66,8 +72,8 @@ const bookIcon =
   <div class="reader-sidebar__browse">
     <div class="reader-sidebar__toprow">
       <button class="reader-sidebar__home" type="button" data-sidebar-view="book">
-        <Fragment set:html={chevron} />
-        <span>{book.title}</span>
+        <Fragment set:html={homeIcon} />
+        <span>Your Dashboard</span>
       </button>
     </div>
     <div class="reader-sidebar__eyebrow">All courses</div>

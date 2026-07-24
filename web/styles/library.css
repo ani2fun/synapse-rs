@@ -93,30 +93,48 @@ a.lib-card:hover .lib-card__cta-ic { transform: translateX(3px); }
    running, so a bug report can name a build. Mono at 11px — the same register the
    site already uses for metadata (lib-card__meta, the crumb rows, the eyebrows).
    ───────────────────────────────────────────────────────────────────────────── */
-.site-footer { margin-top: 4rem; border-top: 1px solid hsl(var(--border));
-               padding: 1.5rem 0 2.5rem; }
-.site-footer__inner { display: flex; align-items: flex-end; justify-content: space-between;
-                      gap: 1.5rem; flex-wrap: wrap; }
-.site-footer__left { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+/* The band is full-bleed — the footer renders at BODY level, a sibling of .shell-main, so
+   its hairline and tint span the viewport. `__inner` is what re-creates the shell's column
+   (the same 72rem cap, the same --shell-gutter), which is the only reason the two lines and
+   the build tag land on the same left and right edges as the content above them: without it
+   they sat flush against the viewport, the tag touching the right edge. */
+/* The tint is what separates the footer from the page, so the margin is only a floor for a
+   page that ends flush — the landing's own 80px tail already does the spacing work. */
+.site-footer { margin-top: 1.5rem; border-top: 1px solid var(--border-default);
+               background: hsl(var(--secondary) / 0.5);
+               padding: 1.75rem 0 2.25rem; }
+.site-footer__inner { max-width: 72rem; margin-inline: auto;
+                      padding-inline: var(--shell-gutter);
+                      display: flex; align-items: flex-end; justify-content: space-between;
+                      gap: 1.5rem 2rem; flex-wrap: wrap; }
+.site-footer__left { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .site-footer__line { margin: 0; font-size: 12.5px; line-height: 1.6;
-                     color: hsl(var(--muted-foreground)); }
-.site-footer__muted { opacity: 0.8; }
-.site-footer__link { color: hsl(var(--muted-foreground)); text-decoration: underline;
-                     text-underline-offset: 2px; transition: color 140ms; }
-.site-footer__link:hover { color: hsl(var(--primary)); }
+                     color: var(--text-secondary); }
+/* The colophon line ranks below the tagline — a token, not an opacity, so it stays legible
+   against the tinted band in both themes. */
+.site-footer__muted { color: var(--text-muted); }
+.site-footer__link { color: inherit; text-decoration: underline;
+                     text-underline-offset: 2px; text-decoration-thickness: 1px;
+                     text-decoration-color: var(--border-strong);
+                     transition: color var(--dur-base) var(--ease-out),
+                                 text-decoration-color var(--dur-base) var(--ease-out); }
+.site-footer__link:hover { color: var(--brand); text-decoration-color: currentColor; }
 
 /* The build tag. A bordered pill rather than bare text: it reads as a value you can
-   copy into an issue, and the border keeps it from looking like a stray word. */
+   copy into an issue, and the border keeps it from looking like a stray word. Same
+   metrics as .lib-card__badge — one badge shape across the site. */
 .site-footer__version { display: inline-flex; align-items: center; gap: 6px; flex: none;
-                        padding: 3px 9px; border: 1px solid hsl(var(--border));
-                        border-radius: 999px; font-family: var(--font-mono); font-size: 11px;
-                        color: hsl(var(--muted-foreground)); text-decoration: none;
-                        transition: border-color 140ms, color 140ms; }
-a.site-footer__version:hover { border-color: hsl(var(--primary)); color: hsl(var(--primary)); }
+                        padding: 4px 10px; border: 1px solid var(--border-default);
+                        border-radius: var(--radius-pill); background: var(--bg-page);
+                        font-family: var(--font-mono); font-size: 11px;
+                        color: var(--text-muted); text-decoration: none;
+                        transition: border-color var(--dur-base) var(--ease-out),
+                                    color var(--dur-base) var(--ease-out); }
+a.site-footer__version:hover { border-color: var(--border-interactive); color: var(--brand); }
 .site-footer__version-label { text-transform: uppercase; letter-spacing: 0.1em;
-                              opacity: 0.7; font-size: 10px; }
-.site-footer__sha { color: hsl(var(--foreground) / 0.85); }
-a.site-footer__version:hover .site-footer__sha { color: hsl(var(--primary)); }
+                              font-size: 10px; }
+.site-footer__sha { color: var(--text-primary); }
+a.site-footer__version:hover .site-footer__sha { color: var(--brand); }
 
 /* On a phone the two halves stack and the tag leads — it is the part worth reaching. */
 @media (max-width: 640px) {

@@ -1,7 +1,8 @@
 ---
 // The site header: brand link home, the `.header__search` button that islands/palette.ts
 // hydrates into the ⌘K command palette (also the e2e selector `reader.spec.ts` clicks), the
-// Blog link, the light/dark theme toggle (islands/theme.ts flips `.dark` on <html>), and the
+// Blog link (glyph + label; the glyph stands down on a phone, where the row has no spare
+// width), the light/dark theme toggle (islands/theme.ts flips `.dark` on <html>), and the
 // account chip mount host.
 ---
 
@@ -43,7 +44,23 @@
       </button>
     </div>
     <div class="header__actions">
-      <a class="header__link" href="/blog">Blog</a>
+      <a class="header__link" href="/blog">
+        <svg
+          class="header__link-ic"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path
+            d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25M16.5 7.5V18a2.25 2.25 0 0 0 2.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 0 0 2.25 2.25h13.5M6 7.5h3v3H6v-3Z"
+          ></path>
+        </svg>
+        <span>Blog</span>
+      </a>
       <!-- Light/dark toggle. Both glyphs render; CSS shows the one you'd switch TO (moon in light,
            sun in dark). islands/theme.ts (global) wires the click + persists the choice. -->
       <button class="header__icon-btn" type="button" data-theme-toggle aria-label="Switch to dark theme" title="Toggle theme">

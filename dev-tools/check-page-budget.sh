@@ -7,7 +7,10 @@
 # they stay out of the sum BY CONSTRUCTION, not by glob.
 #
 # Four page kinds, one budget each: the landing, a prose lesson, a problem page, the blog list.
-# Measured against fixture content: landing 42 · lesson 47 · problem 48 · blog 11 KiB gz.
+# Measured against fixture content: landing 44 · lesson 52 · problem 52 · blog 14 KiB gz.
+# These drift with ordinary feature work (the reader redesign, the long-form stylesheet and the
+# authoring context each moved them a KiB or two) — re-measure when you touch this line rather
+# than assuming a rise is a regression. The signal is the 250 KiB cap, not the last recorded digit.
 # Budget 250 KiB: generous headroom over the heaviest page (~5×). If a page ever approaches this
 # budget, something structural regressed (an island went eager); tighten, don't raise.
 #
